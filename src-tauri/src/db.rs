@@ -28,5 +28,17 @@ pub fn init(app_data_dir: PathBuf) -> Result<Connection> {
         [],
     )?;
 
+    // Create pages table
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS pages (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    )?;
+
     Ok(conn)
 }

@@ -1,24 +1,37 @@
-import { Box, AppBar, Toolbar, Typography, Drawer, List, ListItem, ListItemText, ListItemButton, Divider, InputBase, alpha, Chip } from "@mui/material";
+import { Box, AppBar, Toolbar, Typography, Drawer, List, ListItem, ListItemText, ListItemButton, Divider, InputBase, alpha, Chip, IconButton, Dialog, Button } from "@mui/material";
 import { ReactNode, useState } from "react";
 import { useEntries, useSearchEntries } from "../hooks/useEntries";
+import { usePages } from "../hooks/usePages";
+import { useThemeContext } from "../theme/ThemeContext";
 import { format, parseISO } from "date-fns";
 import SearchIcon from '@mui/icons-material/Search';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import TodayIcon from '@mui/icons-material/Today';
 import EventNoteIcon from '@mui/icons-material/EventNote';
+import ArticleIcon from '@mui/icons-material/Article';
+import AddIcon from '@mui/icons-material/Add';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 const drawerWidth = 280;
 
 interface LayoutProps {
     children: ReactNode;
+    activeTab: 'journal' | 'page';
+    onTabChange: (tab: 'journal' | 'page') => void;
     selectedDate: string;
     onSelectDate: (date: string) => void;
+    selectedPageId: number | null;
+    onSelectPage: (id: number | null) => void;
 }
 
-export const Layout = ({ children, selectedDate, onSelectDate }: LayoutProps) => {
+export const Layout = ({ children, activeTab, onTabChange, selectedDate, onSelectDate, selectedPageId, onSelectPage }: LayoutProps) => {
     const [searchQuery, setSearchQuery] = useState("");
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const { primaryColor, setPrimaryColor, resetTheme } = useThemeContext();
+
     const { data: allEntries } = useEntries();
     const { data: searchResults } = useSearchEntries(searchQuery);
+    const { data: pages } = usePages();
 
     const displayEntries = searchQuery ? searchResults : allEntries;
 
@@ -89,15 +102,21 @@ export const Layout = ({ children, selectedDate, onSelectDate }: LayoutProps) =>
             >
                 <Toolbar />
                 <Box sx={{ overflow: 'auto', py: 2 }}>
-                    <List>
+
+                    {/* JOURNAL SECTION */}
+                    <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', color: 'text.secondary', letterSpacing: '0.1em' }}>
+                        Daily Journal
+                    </Typography>
+                    <List disablePadding>
                         <ListItem disablePadding>
                             <ListItemButton
-                                selected={selectedDate === format(new Date(), "yyyy-MM-dd")}
+                                selected={activeTab === 'journal' && selectedDate === format(new Date(), "yyyy-MM-dd")}
                                 onClick={() => {
                                     setSearchQuery("");
+                                    onTabChange('journal');
                                     onSelectDate(format(new Date(), "yyyy-MM-dd"));
                                 }}
-                                sx={navItemStyle(selectedDate === format(new Date(), "yyyy-MM-dd"))}
+                                sx={navItemStyle(activeTab === 'journal' && selectedDate === format(new Date(), "yyyy-MM-dd"))}
                             >
                                 <TodayIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
                                 <ListItemText primary="Today" primaryTypographyProps={{ fontWeight: 600 }} />
@@ -107,18 +126,15 @@ export const Layout = ({ children, selectedDate, onSelectDate }: LayoutProps) =>
                             </ListItemButton>
                         </ListItem>
 
-                        <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.05)', mx: 2 }} />
-
-                        <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', color: 'text.secondary', letterSpacing: '0.1em' }}>
-                            History
-                        </Typography>
-
                         {displayEntries?.map((entry) => (
                             <ListItem key={entry.id} disablePadding>
                                 <ListItemButton
-                                    selected={selectedDate === entry.date}
-                                    onClick={() => onSelectDate(entry.date)}
-                                    sx={navItemStyle(selectedDate === entry.date)}
+                                    selected={activeTab === 'journal' && selectedDate === entry.date}
+                                    onClick={() => {
+                                        onTabChange('journal');
+                                        onSelectDate(entry.date);
+                                    }}
+                                    sx={navItemStyle(activeTab === 'journal' && selectedDate === entry.date)}
                                 >
                                     <EventNoteIcon sx={{ mr: 2, fontSize: 20, opacity: 0.6 }} />
                                     <ListItemText
@@ -128,16 +144,65 @@ export const Layout = ({ children, selectedDate, onSelectDate }: LayoutProps) =>
                                 </ListItemButton>
                             </ListItem>
                         ))}
-
-                        {displayEntries?.length === 0 && (
-                            <ListItem sx={{ px: 3, py: 2 }}>
-                                <ListItemText
-                                    secondary={searchQuery ? "No matching entries" : "No past entries"}
-                                    secondaryTypographyProps={{ textAlign: 'center' }}
-                                />
-                            </ListItem>
-                        )}
                     </List>
+
+                    <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.05)', mx: 2 }} />
+
+                    {/* PAGES SECTION */}
+                    <Box sx={{ px: 3, mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.1em' }}>
+                            Pages
+                        </Typography>
+                        <IconButton
+                            size="small"
+                            onClick={() => { onTabChange('page'); onSelectPage(null); }}
+                            sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main', bgcolor: 'rgba(96, 165, 250, 0.1)' } }}
+                        >
+                            <AddIcon fontSize="small" />
+                        </IconButton>
+                    </Box>
+                    <List disablePadding>
+                        <ListItem disablePadding>
+                            <ListItemButton
+                                selected={activeTab === 'page' && selectedPageId === null}
+                                onClick={() => {
+                                    onTabChange('page');
+                                    onSelectPage(null);
+                                }}
+                                sx={navItemStyle(activeTab === 'page' && selectedPageId === null)}
+                            >
+                                <AddIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8, color: 'primary.main' }} />
+                                <ListItemText primary="New Page" primaryTypographyProps={{ fontWeight: 600, color: 'primary.main' }} />
+                            </ListItemButton>
+                        </ListItem>
+
+                        {pages?.map((page) => (
+                            <ListItem key={page.id} disablePadding>
+                                <ListItemButton
+                                    selected={activeTab === 'page' && selectedPageId === page.id}
+                                    onClick={() => {
+                                        onTabChange('page');
+                                        onSelectPage(page.id);
+                                    }}
+                                    sx={navItemStyle(activeTab === 'page' && selectedPageId === page.id)}
+                                >
+                                    <ArticleIcon sx={{ mr: 2, fontSize: 20, opacity: 0.6 }} />
+                                    <ListItemText
+                                        primary={page.title || "Untitled"}
+                                        primaryTypographyProps={{ fontSize: '0.9rem' }}
+                                    />
+                                </ListItemButton>
+                            </ListItem>
+                        ))}
+                    </List>
+                </Box>
+
+                {/* SETTINGS / THEME BUTTON */}
+                <Box sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center' }}>
+                    <IconButton onClick={() => setSettingsOpen(true)} sx={{ color: 'text.secondary' }}>
+                        <SettingsIcon />
+                    </IconButton>
+                    <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>Settings & Theme</Typography>
                 </Box>
             </Drawer>
 
@@ -150,6 +215,43 @@ export const Layout = ({ children, selectedDate, onSelectDate }: LayoutProps) =>
             }}>
                 {children}
             </Box>
+
+            {/* SETTINGS DIALOG */}
+            <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} PaperProps={{ sx: { bgcolor: 'background.paper', borderRadius: 3, p: 2, minWidth: 320 } }}>
+                <Typography variant="h6" gutterBottom>Customize Theme</Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>Select an accent color:</Typography>
+
+                <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
+                    {[
+                        { color: '#60a5fa', name: 'Blue' },
+                        { color: '#a78bfa', name: 'Purple' },
+                        { color: '#10b981', name: 'Emerald' },
+                        { color: '#f59e0b', name: 'Amber' },
+                        { color: '#ec4899', name: 'Pink' },
+                    ].map((preset) => (
+                        <Box
+                            key={preset.color}
+                            onClick={() => setPrimaryColor(preset.color)}
+                            sx={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: '50%',
+                                bgcolor: preset.color,
+                                cursor: 'pointer',
+                                border: primaryColor === preset.color ? '3px solid white' : '2px solid transparent',
+                                '&:hover': { transform: 'scale(1.1)' },
+                                transition: 'all 0.2s'
+                            }}
+                        />
+                    ))}
+                </Box>
+
+                <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                    <Button onClick={resetTheme} color="inherit">Reset</Button>
+                    <Button onClick={() => setSettingsOpen(false)} variant="contained" color="primary">Done</Button>
+                </Box>
+            </Dialog>
+
         </Box>
     );
 };

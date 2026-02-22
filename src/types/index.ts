@@ -5,3 +5,11 @@ export interface Entry {
     today: string;
     created_at: string;
 }
+
+export interface Page {
+    id: number;
+    title: string;
+    content: string;
+    created_at: string;
+    updated_at: string;
+}

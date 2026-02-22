@@ -111,3 +111,96 @@ pub fn get_git_commits() -> Result<Vec<String>, String> {
         Ok(vec![])
     }
 }
+
+use crate::models::Page;
+
+#[tauri::command]
+pub fn get_pages(state: State<'_, AppState>) -> Result<Vec<Page>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT id, title, content, created_at, updated_at FROM pages ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
+    
+    let pages_iter = stmt.query_map([], |row| {
+        Ok(Page {
+            id: row.get(0)?,
+            title: row.get(1)?,
+            content: row.get(2)?,
+            created_at: row.get(3)?,
+            updated_at: row.get(4)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut pages = Vec::new();
+    for page in pages_iter {
+        pages.push(page.map_err(|e| e.to_string())?);
+    }
+    
+    Ok(pages)
+}
+
+#[tauri::command]
+pub fn get_page(id: i64, state: State<'_, AppState>) -> Result<Option<Page>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT id, title, content, created_at, updated_at FROM pages WHERE id = ?1").map_err(|e| e.to_string())?;
+    
+    let mut pages_iter = stmt.query_map(params![id], |row| {
+        Ok(Page {
+            id: row.get(0)?,
+            title: row.get(1)?,
+            content: row.get(2)?,
+            created_at: row.get(3)?,
+            updated_at: row.get(4)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    if let Some(page) = pages_iter.next() {
+        Ok(Some(page.map_err(|e| e.to_string())?))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+pub fn create_page(title: String, content: String, state: State<'_, AppState>) -> Result<Page, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+    
+    conn.execute(
+        "INSERT INTO pages (title, content, created_at, updated_at) VALUES (?1, ?2, ?3, ?4)",
+        params![title, content, now, now],
+    ).map_err(|e| e.to_string())?;
+    
+    let id = conn.last_insert_rowid();
+    
+    Ok(Page {
+        id,
+        title,
+        content,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub fn update_page(id: i64, title: String, content: String, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+    
+    conn.execute(
+        "UPDATE pages SET title = ?1, content = ?2, updated_at = ?3 WHERE id = ?4",
+        params![title, content, now, id],
+    ).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_page(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "DELETE FROM pages WHERE id = ?1",
+        params![id],
+    ).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}

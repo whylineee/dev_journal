@@ -1,4 +1,4 @@
-import { Box, Typography, Paper, Tooltip as MuiTooltip, IconButton } from "@mui/material";
+import { Box, Typography, Paper, Tooltip as MuiTooltip, Button } from "@mui/material";
 import { useEntries } from "../hooks/useEntries";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, subDays, differenceInDays } from "date-fns";
@@ -7,6 +7,7 @@ import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
+import DownloadIcon from '@mui/icons-material/Download';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -116,9 +117,37 @@ export const Stats = () => {
         <motion.div variants={containerVariants} initial="hidden" animate="show">
             <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <motion.div variants={itemVariants}>
-                    <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <AnalyticsIcon color="primary" /> Dashboard
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <AnalyticsIcon color="primary" /> Dashboard
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => {
+                                const mdContent = "# Dev Journal Export\n\n" + [...entries].sort((a, b) => b.date.localeCompare(a.date)).map(e => `## ${e.date}\n### Yesterday\n${e.yesterday}\n\n### Today\n${e.today}\n`).join("\n---\n\n");
+                                const blob = new Blob([mdContent], { type: 'text/markdown' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `dev-journal-export-${format(new Date(), 'yyyy-MM-dd')}.md`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            }}
+                            sx={{
+                                borderColor: 'rgba(255,255,255,0.1)',
+                                color: 'text.secondary',
+                                '&:hover': {
+                                    borderColor: 'primary.main',
+                                    color: 'primary.main',
+                                    bgcolor: 'rgba(59, 130, 246, 0.05)'
+                                }
+                            }}
+                        >
+                            Export Data
+                        </Button>
+                    </Box>
                 </motion.div>
 
                 {/* KPI Cards */}

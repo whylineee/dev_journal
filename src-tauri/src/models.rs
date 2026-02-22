@@ -8,3 +8,12 @@ pub struct Entry {
     pub today: String,
     pub created_at: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Page {
+    pub id: i64,
+    pub title: String,
+    pub content: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
