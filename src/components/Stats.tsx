@@ -1,9 +1,12 @@
-import { Box, Typography, Paper } from "@mui/material";
+import { Box, Typography, Paper, Tooltip as MuiTooltip, IconButton } from "@mui/material";
 import { useEntries } from "../hooks/useEntries";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { format, subDays } from "date-fns";
+import { format, subDays, differenceInDays } from "date-fns";
 import { motion } from "framer-motion";
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
+import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
+import EditNoteIcon from '@mui/icons-material/EditNote';
+import AnalyticsIcon from '@mui/icons-material/Analytics';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -23,80 +26,134 @@ export const Stats = () => {
 
     if (!entries) return null;
 
-    let streak = 0;
-    const today = format(new Date(), "yyyy-MM-dd");
-    let currentDate = new Date();
+    // Calculate Streak
+    let currentStreak = 0;
+    let maxStreak = 0;
+    let tempStreak = 0;
 
+    const today = format(new Date(), "yyyy-MM-dd");
+    let checkDate = new Date();
+
+    // Check Current Streak
     while (true) {
-        const dateStr = format(currentDate, "yyyy-MM-dd");
+        const dateStr = format(checkDate, "yyyy-MM-dd");
         const found = entries.find(e => e.date === dateStr);
         if (found) {
-            streak++;
-            currentDate = subDays(currentDate, 1);
+            currentStreak++;
+            checkDate = subDays(checkDate, 1);
         } else {
             if (dateStr === today) {
-                currentDate = subDays(currentDate, 1);
+                checkDate = subDays(checkDate, 1);
                 continue;
             }
             break;
         }
     }
 
-    const chartData = Array.from({ length: 7 }).map((_, i) => {
-        const d = subDays(new Date(), 6 - i);
+    // Calculate Max Streak & Total Words
+    let totalWords = 0;
+    let lastDateObj: Date | null = null;
+
+    const sortedEntries = [...entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    sortedEntries.forEach((entry) => {
+        const words = entry.yesterday.split(/\s+/).filter(w => w.length > 0).length +
+            entry.today.split(/\s+/).filter(w => w.length > 0).length;
+        totalWords += words;
+
+        const currentEntryDate = new Date(entry.date);
+        if (!lastDateObj) {
+            tempStreak = 1;
+        } else {
+            const diff = differenceInDays(currentEntryDate, lastDateObj);
+            if (diff === 1) {
+                tempStreak++;
+            } else if (diff > 1) {
+                tempStreak = 1; // broken
+            }
+        }
+        if (tempStreak > maxStreak) {
+            maxStreak = tempStreak;
+        }
+        lastDateObj = currentEntryDate;
+    });
+
+    // Activity Map (Last 90 Days)
+    const activityData = Array.from({ length: 90 }).map((_, i) => {
+        const d = subDays(new Date(), 89 - i);
         const dateStr = format(d, "yyyy-MM-dd");
         const entry = entries.find(e => e.date === dateStr);
-
         let words = 0;
         if (entry) {
-            words = (entry.yesterday.split(" ").length + entry.today.split(" ").length);
+            words = entry.yesterday.split(/\s+/).filter(w => w.length > 0).length +
+                entry.today.split(/\s+/).filter(w => w.length > 0).length;
         }
+        return { date: dateStr, words };
+    });
 
-        return { day: format(d, "EEE"), words };
+    const getHeatmapColor = (words: number) => {
+        if (words === 0) return 'rgba(255, 255, 255, 0.05)';
+        if (words < 50) return '#0e4429';
+        if (words < 100) return '#006d32';
+        if (words < 200) return '#26a641';
+        return '#39d353';
+    };
+
+    // Chart Data (Last 14 Days)
+    const chartData = Array.from({ length: 14 }).map((_, i) => {
+        const d = subDays(new Date(), 13 - i);
+        const dateStr = format(d, "yyyy-MM-dd");
+        const entry = entries.find(e => e.date === dateStr);
+        let words = 0;
+        if (entry) {
+            words = entry.yesterday.split(/\s+/).filter(w => w.length > 0).length +
+                entry.today.split(/\s+/).filter(w => w.length > 0).length;
+        }
+        return { day: format(d, "MMM d"), words };
     });
 
     return (
         <motion.div variants={containerVariants} initial="hidden" animate="show">
-            <Box sx={{ mt: 4 }}>
+            <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <motion.div variants={itemVariants}>
-                    <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: 'text.primary' }}>
-                        Activity Stats
+                    <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AnalyticsIcon color="primary" /> Dashboard
                     </Typography>
                 </motion.div>
 
+                {/* KPI Cards */}
                 <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
-                    <Box component={motion.div} variants={itemVariants} sx={{ width: { xs: '100%', md: '33.33%' } }}>
-                        <Paper sx={{
-                            p: 3,
-                            textAlign: 'center',
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%)',
-                            position: 'relative',
-                            overflow: 'hidden'
-                        }}>
-                            {streak > 0 && <LocalFireDepartmentIcon sx={{ position: 'absolute', top: 16, right: 16, color: '#f59e0b', fontSize: 32, opacity: 0.8 }} />}
-                            <Typography variant="h6" color="text.secondary" sx={{ zIndex: 1 }}>Current Streak</Typography>
-                            <Typography variant="h2" sx={{
-                                color: streak > 0 ? '#f59e0b' : 'text.disabled',
-                                fontWeight: 800,
-                                my: 1,
-                                textShadow: streak > 0 ? '0 0 20px rgba(245, 158, 11, 0.4)' : 'none',
-                                zIndex: 1
+                    {[
+                        { title: "Current Streak", value: currentStreak, icon: <LocalFireDepartmentIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#f59e0b', suffix: 'Days' },
+                        { title: "Longest Streak", value: maxStreak, icon: <MilitaryTechIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#3b82f6', suffix: 'Days' },
+                        { title: "Total Entries", value: entries.length, icon: <EditNoteIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#10b981', suffix: 'Entries' },
+                        { title: "Total Words", value: totalWords, icon: <AnalyticsIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#8b5cf6', suffix: 'Words' }
+                    ].map((stat, i) => (
+                        <Box key={i} component={motion.div} variants={itemVariants} sx={{ flex: 1 }}>
+                            <Paper sx={{
+                                p: 3, position: 'relative', overflow: 'hidden', height: '100%',
+                                background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%)',
+                                display: 'flex', flexDirection: 'column', justifyContent: 'center'
                             }}>
-                                {streak}
-                            </Typography>
-                            <Typography variant="subtitle1" sx={{ zIndex: 1 }}>Days</Typography>
-                        </Paper>
-                    </Box>
+                                <Box sx={{ position: 'absolute', top: -10, right: -10, color: stat.color }}>
+                                    {stat.icon}
+                                </Box>
+                                <Typography variant="body2" color="text.secondary" sx={{ zIndex: 1, mb: 1 }}>{stat.title}</Typography>
+                                <Typography variant="h3" sx={{ color: stat.color, fontWeight: 700, zIndex: 1, mb: 0.5 }}>
+                                    {stat.value}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">{stat.suffix}</Typography>
+                            </Paper>
+                        </Box>
+                    ))}
+                </Box>
 
-                    <Box component={motion.div} variants={itemVariants} sx={{ width: { xs: '100%', md: '66.67%' } }}>
-                        <Paper sx={{ p: 3, height: 250, display: 'flex', flexDirection: 'column' }}>
-                            <Typography variant="subtitle2" gutterBottom color="text.secondary">Words written (Last 7 Days)</Typography>
-                            <Box sx={{ flexGrow: 1, mt: 1 }}>
+                {/* Heatmap & Chart */}
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3 }}>
+                    <Box component={motion.div} variants={itemVariants} sx={{ flex: 1 }}>
+                        <Paper sx={{ p: 3, height: '100%', minHeight: 300, display: 'flex', flexDirection: 'column' }}>
+                            <Typography variant="subtitle2" gutterBottom color="text.secondary">Words Written (Last 14 Days)</Typography>
+                            <Box sx={{ flexGrow: 1, mt: 2 }}>
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
@@ -107,9 +164,45 @@ export const Stats = () => {
                                             contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
                                             itemStyle={{ color: '#60a5fa' }}
                                         />
-                                        <Bar dataKey="words" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                                        <Bar dataKey="words" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
+                            </Box>
+                        </Paper>
+                    </Box>
+
+                    <Box component={motion.div} variants={itemVariants} sx={{ flex: 1 }}>
+                        <Paper sx={{ p: 3, height: '100%', minHeight: 300, display: 'flex', flexDirection: 'column' }}>
+                            <Typography variant="subtitle2" gutterBottom color="text.secondary">Activity Map (Last 90 Days)</Typography>
+                            <Box sx={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(15, 1fr)',
+                                gap: 1,
+                                mt: 2,
+                                overflowX: 'auto',
+                                pb: 1
+                            }}>
+                                {activityData.map((day, i) => (
+                                    <MuiTooltip key={i} title={`${day.words} words on ${day.date}`} arrow>
+                                        <Box sx={{
+                                            width: 14,
+                                            height: 14,
+                                            borderRadius: '3px',
+                                            bgcolor: getHeatmapColor(day.words),
+                                            transition: 'transform 0.1s',
+                                            '&:hover': { transform: 'scale(1.2)', zIndex: 1 }
+                                        }} />
+                                    </MuiTooltip>
+                                ))}
+                            </Box>
+                            <Box sx={{ mt: 'auto', pt: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1, color: 'text.secondary', fontSize: '0.75rem' }}>
+                                Less
+                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: 'rgba(255, 255, 255, 0.05)' }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: '#0e4429' }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: '#006d32' }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: '#26a641' }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: '#39d353' }} />
+                                More
                             </Box>
                         </Paper>
                     </Box>
