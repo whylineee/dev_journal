@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -120,7 +120,7 @@ export const TasksBoard = () => {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus>("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | TaskPriority>("all");
-  const [showOverdueOnly, setShowOverdueOnly] = useState(false);
+  const [showOverdueOnly, setShowOverdueOnly] = useState(() => localStorage.getItem("devJournal_tasks_overdue_only") === "true");
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
@@ -134,6 +134,20 @@ export const TasksBoard = () => {
     updateTask.isPending ||
     updateStatus.isPending ||
     deleteTask.isPending;
+
+  useEffect(() => {
+    localStorage.setItem("devJournal_tasks_overdue_only", String(showOverdueOnly));
+  }, [showOverdueOnly]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ overdueOnly?: boolean }>;
+      setShowOverdueOnly(Boolean(customEvent.detail?.overdueOnly));
+    };
+
+    window.addEventListener("devJournal:tasksFilter", handler);
+    return () => window.removeEventListener("devJournal:tasksFilter", handler);
+  }, []);
 
   const stats = useMemo(() => {
     const overdue = tasks.filter((task) => isTaskOverdue(task)).length;

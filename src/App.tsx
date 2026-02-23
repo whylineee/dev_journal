@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Layout } from "./components/Layout";
 import { EntryForm } from "./components/EntryForm";
 import { PageEditor } from "./components/PageEditor";
@@ -6,9 +6,12 @@ import { GitCommits } from "./components/GitCommits";
 import { Stats } from "./components/Stats";
 import { TasksBoard } from "./components/TasksBoard";
 import { WeeklySummary } from "./components/WeeklySummary";
+import { CommandAction, CommandPalette } from "./components/CommandPalette";
 import { format } from "date-fns";
 import { Box, Container } from "@mui/material";
 import { useEntries } from "./hooks/useEntries";
+import { usePages } from "./hooks/usePages";
+import { useThemeContext } from "./theme/ThemeContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 
 function App() {
@@ -31,8 +34,12 @@ function App() {
   const [autosaveEnabled, setAutosaveEnabled] = useState<boolean>(() => {
     return localStorage.getItem("devJournal_autosaveEnabled") !== "false";
   });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   const { data: entries } = useEntries();
+  const { data: pages } = usePages();
+  const { appearanceMode, setAppearanceMode } = useThemeContext();
   const lastReminderDateRef = useRef<string | null>(localStorage.getItem("devJournal_lastReminderDate"));
 
   useEffect(() => {
@@ -95,60 +102,184 @@ function App() {
     return () => clearInterval(interval);
   }, [entries, reminderEnabled, reminderHour]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const commandActions = useMemo<CommandAction[]>(() => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    const actions: CommandAction[] = [
+      {
+        id: "go-today",
+        title: "Go to Today Journal",
+        subtitle: "Open today's daily entry",
+        section: "Quick Actions",
+        keywords: ["today", "journal", "daily"],
+        onSelect: () => {
+          setActiveTab("journal");
+          setSelectedDate(today);
+        },
+      },
+      {
+        id: "open-tasks",
+        title: "Open Tasks Board",
+        subtitle: "Switch to tasks management view",
+        section: "Quick Actions",
+        keywords: ["tasks", "kanban"],
+        onSelect: () => {
+          localStorage.setItem("devJournal_tasks_overdue_only", "false");
+          window.dispatchEvent(new CustomEvent("devJournal:tasksFilter", { detail: { overdueOnly: false } }));
+          setActiveTab("tasks");
+        },
+      },
+      {
+        id: "open-overdue-tasks",
+        title: "Open Overdue Tasks",
+        subtitle: "Switch to tasks with overdue filter",
+        section: "Quick Actions",
+        keywords: ["tasks", "overdue", "deadline"],
+        onSelect: () => {
+          localStorage.setItem("devJournal_tasks_overdue_only", "true");
+          window.dispatchEvent(new CustomEvent("devJournal:tasksFilter", { detail: { overdueOnly: true } }));
+          setActiveTab("tasks");
+        },
+      },
+      {
+        id: "new-page",
+        title: "Create New Page",
+        subtitle: "Open editor in new page mode",
+        section: "Quick Actions",
+        keywords: ["page", "new", "note"],
+        onSelect: () => {
+          setActiveTab("page");
+          setSelectedPageId(null);
+        },
+      },
+      {
+        id: "open-settings",
+        title: "Open Settings",
+        subtitle: "Theme, reminders and data controls",
+        section: "Quick Actions",
+        keywords: ["settings", "theme", "preferences"],
+        onSelect: () => {
+          setSettingsOpen(true);
+        },
+      },
+      {
+        id: "toggle-theme-mode",
+        title: `Switch to ${appearanceMode === "dark" ? "Light" : "Dark"} Mode`,
+        subtitle: "Toggle appearance mode instantly",
+        section: "Quick Actions",
+        keywords: ["theme", "dark", "light"],
+        onSelect: () => {
+          setAppearanceMode(appearanceMode === "dark" ? "light" : "dark");
+        },
+      },
+    ];
+
+    (entries ?? []).slice(0, 10).forEach((entry) => {
+      actions.push({
+        id: `entry-${entry.date}`,
+        title: `Open Journal: ${entry.date}`,
+        subtitle: "Jump to saved daily entry",
+        section: "Journal",
+        keywords: ["journal", entry.date],
+        onSelect: () => {
+          setActiveTab("journal");
+          setSelectedDate(entry.date);
+        },
+      });
+    });
+
+    (pages ?? []).slice(0, 10).forEach((page) => {
+      actions.push({
+        id: `page-${page.id}`,
+        title: `Open Page: ${page.title || "Untitled"}`,
+        subtitle: "Jump to page editor",
+        section: "Pages",
+        keywords: ["page", page.title ?? ""],
+        onSelect: () => {
+          setActiveTab("page");
+          setSelectedPageId(page.id);
+        },
+      });
+    });
+
+    return actions;
+  }, [appearanceMode, entries, pages, setAppearanceMode]);
+
   return (
-    <Layout
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      selectedDate={selectedDate}
-      onSelectDate={setSelectedDate}
-      selectedPageId={selectedPageId}
-      onSelectPage={setSelectedPageId}
-      reminderEnabled={reminderEnabled}
-      onReminderEnabledChange={setReminderEnabled}
-      reminderHour={reminderHour}
-      onReminderHourChange={setReminderHour}
-      journalPreviewEnabled={journalPreviewEnabled}
-      onJournalPreviewEnabledChange={setJournalPreviewEnabled}
-      pagePreviewEnabled={pagePreviewEnabled}
-      onPagePreviewEnabledChange={setPagePreviewEnabled}
-      autosaveEnabled={autosaveEnabled}
-      onAutosaveEnabledChange={setAutosaveEnabled}
-    >
-      <Container maxWidth="lg" sx={{ height: '100%', pb: 4 }}>
-        {activeTab === 'journal' ? (
-          <>
-            <EntryForm
-              date={selectedDate}
-              previewEnabled={journalPreviewEnabled}
+    <>
+      <Layout
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        selectedPageId={selectedPageId}
+        onSelectPage={setSelectedPageId}
+        reminderEnabled={reminderEnabled}
+        onReminderEnabledChange={setReminderEnabled}
+        reminderHour={reminderHour}
+        onReminderHourChange={setReminderHour}
+        journalPreviewEnabled={journalPreviewEnabled}
+        onJournalPreviewEnabledChange={setJournalPreviewEnabled}
+        pagePreviewEnabled={pagePreviewEnabled}
+        onPagePreviewEnabledChange={setPagePreviewEnabled}
+        autosaveEnabled={autosaveEnabled}
+        onAutosaveEnabledChange={setAutosaveEnabled}
+        settingsOpen={settingsOpen}
+        onSettingsOpenChange={setSettingsOpen}
+      >
+        <Container maxWidth="lg" sx={{ height: '100%', pb: 4 }}>
+          {activeTab === 'journal' ? (
+            <>
+              <EntryForm
+                date={selectedDate}
+                previewEnabled={journalPreviewEnabled}
+                autosaveEnabled={autosaveEnabled}
+              />
+              <Box sx={{ mt: 4 }}>
+                <WeeklySummary />
+              </Box>
+              <Box sx={{ mt: 6 }}>
+                <Stats />
+              </Box>
+              <Box sx={{ mt: 4 }}>
+                <GitCommits />
+              </Box>
+            </>
+          ) : activeTab === 'tasks' ? (
+            <TasksBoard />
+          ) : (
+            <PageEditor
+              pageId={selectedPageId}
+              previewEnabled={pagePreviewEnabled}
               autosaveEnabled={autosaveEnabled}
+              onSaveSuccess={(id) => {
+                setSelectedPageId(id);
+              }}
+              onDeleteSuccess={() => {
+                setSelectedPageId(null);
+              }}
             />
-            <Box sx={{ mt: 4 }}>
-              <WeeklySummary />
-            </Box>
-            <Box sx={{ mt: 6 }}>
-              <Stats />
-            </Box>
-            <Box sx={{ mt: 4 }}>
-              <GitCommits />
-            </Box>
-          </>
-        ) : activeTab === 'tasks' ? (
-          <TasksBoard />
-        ) : (
-          <PageEditor
-            pageId={selectedPageId}
-            previewEnabled={pagePreviewEnabled}
-            autosaveEnabled={autosaveEnabled}
-            onSaveSuccess={(id) => {
-              setSelectedPageId(id);
-            }}
-            onDeleteSuccess={() => {
-              setSelectedPageId(null);
-            }}
-          />
-        )}
-      </Container>
-    </Layout>
+          )}
+        </Container>
+      </Layout>
+
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        actions={commandActions}
+      />
+    </>
   );
 }
 

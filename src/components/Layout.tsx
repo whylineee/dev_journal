@@ -37,6 +37,8 @@ interface LayoutProps {
     onPagePreviewEnabledChange: (enabled: boolean) => void;
     autosaveEnabled: boolean;
     onAutosaveEnabledChange: (enabled: boolean) => void;
+    settingsOpen: boolean;
+    onSettingsOpenChange: (open: boolean) => void;
 }
 
 export const Layout = ({
@@ -57,9 +59,10 @@ export const Layout = ({
     onPagePreviewEnabledChange,
     autosaveEnabled,
     onAutosaveEnabledChange,
+    settingsOpen,
+    onSettingsOpenChange,
 }: LayoutProps) => {
     const [searchQuery, setSearchQuery] = useState("");
-    const [settingsOpen, setSettingsOpen] = useState(false);
     const [replaceExistingOnImport, setReplaceExistingOnImport] = useState(true);
     const [importStatus, setImportStatus] = useState<string>("");
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -317,7 +320,7 @@ export const Layout = ({
 
                 {/* SETTINGS / THEME BUTTON */}
                 <Box sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center' }}>
-                    <IconButton onClick={() => setSettingsOpen(true)} sx={{ color: 'text.secondary' }}>
+                    <IconButton onClick={() => onSettingsOpenChange(true)} sx={{ color: 'text.secondary' }}>
                         <SettingsIcon />
                     </IconButton>
                     <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>Settings & Theme</Typography>
@@ -335,7 +338,7 @@ export const Layout = ({
             </Box>
 
             {/* SETTINGS DIALOG */}
-            <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} PaperProps={{ sx: { bgcolor: 'background.paper', borderRadius: 3, p: 2, minWidth: 320 } }}>
+            <Dialog open={settingsOpen} onClose={() => onSettingsOpenChange(false)} PaperProps={{ sx: { bgcolor: 'background.paper', borderRadius: 3, p: 2, minWidth: 320 } }}>
                 <Typography variant="h6" gutterBottom>Customize Theme</Typography>
                 <Typography variant="body2" color="text.secondary" gutterBottom>Select an accent color:</Typography>
 
@@ -520,7 +523,7 @@ export const Layout = ({
 
                 <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                     <Button onClick={resetTheme} color="inherit">Reset</Button>
-                    <Button onClick={() => setSettingsOpen(false)} variant="contained" color="primary">Done</Button>
+                    <Button onClick={() => onSettingsOpenChange(false)} variant="contained" color="primary">Done</Button>
                 </Box>
             </Dialog>
 
