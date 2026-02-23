@@ -23,6 +23,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import MenuIcon from '@mui/icons-material/Menu';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import KeyboardCommandKeyIcon from '@mui/icons-material/KeyboardCommandKey';
 
 const drawerWidth = 280;
 
@@ -99,6 +100,21 @@ export const Layout = ({
     const { data: habits } = useHabits();
 
     const displayEntries = searchQuery ? searchResults : allEntries;
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const todayEntryExists = Boolean(allEntries?.find((entry) => entry.date === todayStr));
+    const openTasksCount = (tasks ?? []).filter((task) => task.status !== "done").length;
+    const activeGoalsCount = (goals ?? []).filter((goal) => goal.status === "active" || goal.status === "paused").length;
+    const completedHabitsToday = (habits ?? []).filter((habit) => habit.completed_dates.includes(todayStr)).length;
+    const totalHabits = habits?.length ?? 0;
+
+    const activeTabLabel: Record<LayoutProps["activeTab"], string> = {
+        planner: "Planner",
+        journal: "Journal",
+        tasks: "Tasks",
+        goals: "Goals",
+        habits: "Habits",
+        page: "Pages",
+    };
 
     const exportBackup = () => {
         const data = {
@@ -201,6 +217,21 @@ export const Layout = ({
                         Dev Journal
                     </Typography>
 
+                    <Chip
+                        size="small"
+                        label={`View: ${activeTabLabel[activeTab]}`}
+                        variant="outlined"
+                        sx={{ mr: { xs: 0.5, sm: 1.5 }, display: { xs: "none", sm: "inline-flex" } }}
+                    />
+
+                    <Chip
+                        size="small"
+                        icon={<KeyboardCommandKeyIcon sx={{ fontSize: 14 }} />}
+                        label="Ctrl/Cmd + K"
+                        variant="outlined"
+                        sx={{ mr: 1.5, display: { xs: "none", md: "inline-flex" } }}
+                    />
+
                     <Box sx={{
                         position: 'relative',
                         borderRadius: 2,
@@ -217,7 +248,7 @@ export const Layout = ({
                             <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
                         </Box>
                         <InputBase
-                            placeholder="Search entries..."
+                            placeholder="Search journal entries..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             sx={{
@@ -269,7 +300,12 @@ export const Layout = ({
                                 sx={navItemStyle(activeTab === 'planner')}
                             >
                                 <DashboardIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
-                                <ListItemText primary="Planner" primaryTypographyProps={{ fontWeight: 600 }} />
+                                <ListItemText
+                                    primary="Planner"
+                                    secondary="Daily overview"
+                                    primaryTypographyProps={{ fontWeight: 600 }}
+                                    secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                                />
                             </ListItemButton>
                         </ListItem>
                     </List>
@@ -293,9 +329,16 @@ export const Layout = ({
                                 sx={navItemStyle(activeTab === 'journal' && selectedDate === format(new Date(), "yyyy-MM-dd"))}
                             >
                                 <TodayIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
-                                <ListItemText primary="Today" primaryTypographyProps={{ fontWeight: 600 }} />
-                                {allEntries && allEntries.find(e => e.date === format(new Date(), "yyyy-MM-dd")) && (
+                                <ListItemText
+                                    primary="Today"
+                                    secondary="Current daily report"
+                                    primaryTypographyProps={{ fontWeight: 600 }}
+                                    secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                                />
+                                {todayEntryExists ? (
                                     <Chip label="Done" size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                ) : (
+                                    <Chip label="Missing" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
                                 )}
                             </ListItemButton>
                         </ListItem>
@@ -314,7 +357,9 @@ export const Layout = ({
                                     <EventNoteIcon sx={{ mr: 2, fontSize: 20, opacity: 0.6 }} />
                                     <ListItemText
                                         primary={format(parseISO(entry.date), "MMM d, yyyy")}
+                                        secondary={entry.date === todayStr ? "Today" : undefined}
                                         primaryTypographyProps={{ fontSize: '0.9rem' }}
+                                        secondaryTypographyProps={{ fontSize: "0.72rem" }}
                                     />
                                 </ListItemButton>
                             </ListItem>
@@ -338,7 +383,13 @@ export const Layout = ({
                                 sx={navItemStyle(activeTab === 'tasks')}
                             >
                                 <TaskAltIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
-                                <ListItemText primary="Tasks" primaryTypographyProps={{ fontWeight: 600 }} />
+                                <ListItemText
+                                    primary="Tasks"
+                                    secondary="Execution board"
+                                    primaryTypographyProps={{ fontWeight: 600 }}
+                                    secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                                />
+                                <Chip label={openTasksCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />
                             </ListItemButton>
                         </ListItem>
                         <ListItem disablePadding>
@@ -351,7 +402,13 @@ export const Layout = ({
                                 sx={navItemStyle(activeTab === 'goals')}
                             >
                                 <FlagIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
-                                <ListItemText primary="Goals" primaryTypographyProps={{ fontWeight: 600 }} />
+                                <ListItemText
+                                    primary="Goals"
+                                    secondary="Milestones"
+                                    primaryTypographyProps={{ fontWeight: 600 }}
+                                    secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                                />
+                                <Chip label={activeGoalsCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />
                             </ListItemButton>
                         </ListItem>
                         <ListItem disablePadding>
@@ -364,7 +421,18 @@ export const Layout = ({
                                 sx={navItemStyle(activeTab === 'habits')}
                             >
                                 <RepeatIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
-                                <ListItemText primary="Habits" primaryTypographyProps={{ fontWeight: 600 }} />
+                                <ListItemText
+                                    primary="Habits"
+                                    secondary="Daily consistency"
+                                    primaryTypographyProps={{ fontWeight: 600 }}
+                                    secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                                />
+                                <Chip
+                                    label={`${completedHabitsToday}/${totalHabits}`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ height: 20, fontSize: "0.7rem" }}
+                                />
                             </ListItemButton>
                         </ListItem>
                     </List>
@@ -400,7 +468,12 @@ export const Layout = ({
                                 sx={navItemStyle(activeTab === 'page' && selectedPageId === null)}
                             >
                                 <AddIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8, color: 'primary.main' }} />
-                                <ListItemText primary="New Page" primaryTypographyProps={{ fontWeight: 600, color: 'primary.main' }} />
+                                <ListItemText
+                                    primary="New Page"
+                                    secondary="Create note or doc"
+                                    primaryTypographyProps={{ fontWeight: 600, color: 'primary.main' }}
+                                    secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                                />
                             </ListItemButton>
                         </ListItem>
 
@@ -418,7 +491,9 @@ export const Layout = ({
                                     <ArticleIcon sx={{ mr: 2, fontSize: 20, opacity: 0.6 }} />
                                     <ListItemText
                                         primary={page.title || "Untitled"}
+                                        secondary="Knowledge page"
                                         primaryTypographyProps={{ fontSize: '0.9rem' }}
+                                        secondaryTypographyProps={{ fontSize: "0.72rem" }}
                                     />
                                 </ListItemButton>
                             </ListItem>
