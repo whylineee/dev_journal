@@ -42,3 +42,28 @@ pub struct Goal {
     pub created_at: String,
     pub updated_at: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Habit {
+    pub id: i64,
+    pub title: String,
+    pub description: String,
+    pub target_per_week: i64,
+    pub color: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HabitWithLogs {
+    pub id: i64,
+    pub title: String,
+    pub description: String,
+    pub target_per_week: i64,
+    pub color: String,
+    pub completed_dates: Vec<String>,
+    pub current_streak: i64,
+    pub this_week_count: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}

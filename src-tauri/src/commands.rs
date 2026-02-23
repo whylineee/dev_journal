@@ -1,7 +1,9 @@
-use crate::models::{Entry, Goal, Page, Task};
+use crate::models::{Entry, Goal, Habit, HabitWithLogs, Page, Task};
+use chrono::{Datelike, Duration, NaiveDate, Utc};
 use rusqlite::params;
 use rusqlite::Connection;
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::sync::Mutex;
 use tauri::State;
 
@@ -19,6 +21,10 @@ pub struct BackupPayload {
     pub tasks: Vec<BackupTaskInput>,
     #[serde(default)]
     pub goals: Vec<BackupGoalInput>,
+    #[serde(default)]
+    pub habits: Vec<BackupHabitInput>,
+    #[serde(default)]
+    pub habit_logs: Vec<BackupHabitLogInput>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -63,6 +69,25 @@ pub struct BackupGoalInput {
     pub updated_at: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct BackupHabitInput {
+    pub id: Option<i64>,
+    pub title: String,
+    pub description: Option<String>,
+    pub target_per_week: Option<i64>,
+    pub color: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BackupHabitLogInput {
+    pub id: Option<i64>,
+    pub habit_id: i64,
+    pub date: String,
+    pub created_at: Option<String>,
+}
+
 fn normalize_status(status: String) -> String {
     match status.as_str() {
         "todo" | "in_progress" | "done" => status,
@@ -90,6 +115,70 @@ fn normalize_goal_status(status: Option<String>) -> String {
 
 fn normalize_progress(progress: Option<i64>) -> i64 {
     progress.unwrap_or(0).clamp(0, 100)
+}
+
+fn normalize_target_per_week(target_per_week: Option<i64>) -> i64 {
+    target_per_week.unwrap_or(5).clamp(1, 14)
+}
+
+fn normalize_habit_color(color: Option<String>) -> String {
+    let fallback = "#60a5fa".to_string();
+    let value = color.unwrap_or(fallback.clone());
+    if value.trim().is_empty() {
+        fallback
+    } else {
+        value
+    }
+}
+
+fn normalize_habit_date(date: String) -> String {
+    if NaiveDate::parse_from_str(&date, "%Y-%m-%d").is_ok() {
+        return date;
+    }
+
+    Utc::now().format("%Y-%m-%d").to_string()
+}
+
+fn compute_current_streak(completed_dates: &[String]) -> i64 {
+    let parsed_dates: HashSet<NaiveDate> = completed_dates
+        .iter()
+        .filter_map(|date| NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
+        .collect();
+
+    if parsed_dates.is_empty() {
+        return 0;
+    }
+
+    let today = Utc::now().date_naive();
+    let yesterday = today - Duration::days(1);
+    let mut cursor = if parsed_dates.contains(&today) {
+        today
+    } else if parsed_dates.contains(&yesterday) {
+        yesterday
+    } else {
+        return 0;
+    };
+
+    let mut streak = 0;
+    while parsed_dates.contains(&cursor) {
+        streak += 1;
+        cursor -= Duration::days(1);
+    }
+
+    streak
+}
+
+fn compute_this_week_count(completed_dates: &[String]) -> i64 {
+    let today = Utc::now().date_naive();
+    let days_from_monday = i64::from(today.weekday().num_days_from_monday());
+    let week_start = today - Duration::days(days_from_monday);
+    let week_end = week_start + Duration::days(6);
+
+    completed_dates
+        .iter()
+        .filter_map(|date| NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
+        .filter(|date| *date >= week_start && *date <= week_end)
+        .count() as i64
 }
 
 #[tauri::command]
@@ -600,6 +689,176 @@ pub fn delete_goal(id: i64, state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn get_habits(state: State<'_, AppState>) -> Result<Vec<HabitWithLogs>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut habits_stmt = conn
+        .prepare(
+            "SELECT id, title, description, target_per_week, color, created_at, updated_at
+             FROM habits
+             ORDER BY updated_at DESC",
+        )
+        .map_err(|e| e.to_string())?;
+    let mut logs_stmt = conn
+        .prepare("SELECT date FROM habit_logs WHERE habit_id = ?1 ORDER BY date DESC")
+        .map_err(|e| e.to_string())?;
+
+    let habits_iter = habits_stmt
+        .query_map([], |row| {
+            Ok(Habit {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                description: row.get(2)?,
+                target_per_week: row.get(3)?,
+                color: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut habits = Vec::new();
+    for habit in habits_iter {
+        let habit = habit.map_err(|e| e.to_string())?;
+        let dates_iter = logs_stmt
+            .query_map(params![habit.id], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+
+        let mut completed_dates = Vec::new();
+        for date in dates_iter {
+            completed_dates.push(date.map_err(|e| e.to_string())?);
+        }
+
+        let current_streak = compute_current_streak(&completed_dates);
+        let this_week_count = compute_this_week_count(&completed_dates);
+
+        habits.push(HabitWithLogs {
+            id: habit.id,
+            title: habit.title,
+            description: habit.description,
+            target_per_week: habit.target_per_week,
+            color: habit.color,
+            completed_dates,
+            current_streak,
+            this_week_count,
+            created_at: habit.created_at,
+            updated_at: habit.updated_at,
+        });
+    }
+
+    Ok(habits)
+}
+
+#[tauri::command]
+pub fn create_habit(
+    title: String,
+    description: String,
+    target_per_week: Option<i64>,
+    color: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Habit, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = Utc::now().to_rfc3339();
+    let target_per_week = normalize_target_per_week(target_per_week);
+    let color = normalize_habit_color(color);
+
+    conn.execute(
+        "INSERT INTO habits (title, description, target_per_week, color, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![title, description, target_per_week, color, now, now],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let id = conn.last_insert_rowid();
+
+    Ok(Habit {
+        id,
+        title,
+        description,
+        target_per_week,
+        color,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub fn update_habit(
+    id: i64,
+    title: String,
+    description: String,
+    target_per_week: Option<i64>,
+    color: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = Utc::now().to_rfc3339();
+    let target_per_week = normalize_target_per_week(target_per_week);
+    let color = normalize_habit_color(color);
+
+    conn.execute(
+        "UPDATE habits
+         SET title = ?1, description = ?2, target_per_week = ?3, color = ?4, updated_at = ?5
+         WHERE id = ?6",
+        params![title, description, target_per_week, color, now, id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_habit(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let mut conn = state.db.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    tx.execute("DELETE FROM habit_logs WHERE habit_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM habits WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn toggle_habit_completion(
+    habit_id: i64,
+    date: String,
+    completed: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut conn = state.db.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let normalized_date = normalize_habit_date(date);
+    let now = Utc::now().to_rfc3339();
+
+    if completed {
+        tx.execute(
+            "INSERT INTO habit_logs (habit_id, date, created_at)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT(habit_id, date) DO UPDATE SET created_at = excluded.created_at",
+            params![habit_id, normalized_date, now],
+        )
+        .map_err(|e| e.to_string())?;
+    } else {
+        tx.execute(
+            "DELETE FROM habit_logs WHERE habit_id = ?1 AND date = ?2",
+            params![habit_id, normalized_date],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    tx.execute(
+        "UPDATE habits SET updated_at = ?1 WHERE id = ?2",
+        params![now, habit_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn import_backup(
     payload: BackupPayload,
     replace_existing: bool,
@@ -616,6 +875,10 @@ pub fn import_backup(
         tx.execute("DELETE FROM tasks", [])
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM goals", [])
+            .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM habit_logs", [])
+            .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM habits", [])
             .map_err(|e| e.to_string())?;
     }
 
@@ -729,6 +992,79 @@ pub fn import_backup(
                 "INSERT INTO goals (title, description, status, progress, target_date, created_at, updated_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![goal.title, description, status, progress, goal.target_date, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    for habit in payload.habits {
+        let created_at = habit.created_at.unwrap_or_else(|| now.clone());
+        let updated_at = habit.updated_at.unwrap_or_else(|| created_at.clone());
+        let description = habit.description.unwrap_or_default();
+        let target_per_week = normalize_target_per_week(habit.target_per_week);
+        let color = normalize_habit_color(habit.color);
+
+        if let Some(id) = habit.id {
+            tx.execute(
+                "INSERT INTO habits (id, title, description, target_per_week, color, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                 ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    description = excluded.description,
+                    target_per_week = excluded.target_per_week,
+                    color = excluded.color,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at",
+                params![
+                    id,
+                    habit.title,
+                    description,
+                    target_per_week,
+                    color,
+                    created_at,
+                    updated_at
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO habits (title, description, target_per_week, color, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    habit.title,
+                    description,
+                    target_per_week,
+                    color,
+                    created_at,
+                    updated_at
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    for log in payload.habit_logs {
+        let created_at = log.created_at.unwrap_or_else(|| now.clone());
+        let date = normalize_habit_date(log.date);
+
+        if let Some(id) = log.id {
+            tx.execute(
+                "INSERT INTO habit_logs (id, habit_id, date, created_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(id) DO UPDATE SET
+                    habit_id = excluded.habit_id,
+                    date = excluded.date,
+                    created_at = excluded.created_at",
+                params![id, log.habit_id, date, created_at],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO habit_logs (habit_id, date, created_at)
+                 VALUES (?1, ?2, ?3)
+                 ON CONFLICT(habit_id, date) DO UPDATE SET
+                    created_at = excluded.created_at",
+                params![log.habit_id, date, created_at],
             )
             .map_err(|e| e.to_string())?;
         }

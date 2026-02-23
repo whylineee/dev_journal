@@ -104,6 +104,40 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    apply_migration(conn, 4, |conn| {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS habits (
+                id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                target_per_week INTEGER NOT NULL DEFAULT 5,
+                color TEXT NOT NULL DEFAULT '#60a5fa',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS habit_logs (
+                id INTEGER PRIMARY KEY,
+                habit_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(habit_id, date),
+                FOREIGN KEY(habit_id) REFERENCES habits(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_habit_logs_habit_date ON habit_logs(habit_id, date)",
+            [],
+        )?;
+
+        Ok(())
+    })?;
+
     Ok(())
 }
 

@@ -6,6 +6,7 @@ import { GitCommits } from "./components/GitCommits";
 import { Stats } from "./components/Stats";
 import { TasksBoard } from "./components/TasksBoard";
 import { GoalsBoard } from "./components/GoalsBoard";
+import { HabitsBoard } from "./components/HabitsBoard";
 import { WeeklySummary } from "./components/WeeklySummary";
 import { CommandAction, CommandPalette } from "./components/CommandPalette";
 import { format } from "date-fns";
@@ -13,11 +14,12 @@ import { Box, Container } from "@mui/material";
 import { useEntries } from "./hooks/useEntries";
 import { usePages } from "./hooks/usePages";
 import { useGoals } from "./hooks/useGoals";
+import { useHabits } from "./hooks/useHabits";
 import { useThemeContext } from "./theme/ThemeContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'journal' | 'page' | 'tasks' | 'goals'>('journal');
+  const [activeTab, setActiveTab] = useState<'journal' | 'page' | 'tasks' | 'goals' | 'habits'>('journal');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState<boolean>(() => {
@@ -42,6 +44,7 @@ function App() {
   const { data: entries } = useEntries();
   const { data: pages } = usePages();
   const { data: goals } = useGoals();
+  const { data: habits } = useHabits();
   const { appearanceMode, setAppearanceMode } = useThemeContext();
   const lastReminderDateRef = useRef<string | null>(localStorage.getItem("devJournal_lastReminderDate"));
 
@@ -166,6 +169,16 @@ function App() {
         },
       },
       {
+        id: "open-habits",
+        title: "Open Habits Tracker",
+        subtitle: "Switch to routine and streak tracking",
+        section: "Quick Actions",
+        keywords: ["habits", "streak", "routine"],
+        onSelect: () => {
+          setActiveTab("habits");
+        },
+      },
+      {
         id: "new-page",
         title: "Create New Page",
         subtitle: "Open editor in new page mode",
@@ -239,8 +252,21 @@ function App() {
       });
     });
 
+    (habits ?? []).slice(0, 10).forEach((habit) => {
+      actions.push({
+        id: `habit-${habit.id}`,
+        title: `Open Habits: ${habit.title || "Untitled"}`,
+        subtitle: `Streak ${habit.current_streak}d`,
+        section: "Habits",
+        keywords: ["habit", "routine", habit.title ?? ""],
+        onSelect: () => {
+          setActiveTab("habits");
+        },
+      });
+    });
+
     return actions;
-  }, [appearanceMode, entries, goals, pages, setAppearanceMode]);
+  }, [appearanceMode, entries, goals, habits, pages, setAppearanceMode]);
 
   return (
     <>
@@ -286,6 +312,8 @@ function App() {
             <TasksBoard />
           ) : activeTab === 'goals' ? (
             <GoalsBoard />
+          ) : activeTab === 'habits' ? (
+            <HabitsBoard />
           ) : (
             <PageEditor
               pageId={selectedPageId}

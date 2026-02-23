@@ -4,6 +4,7 @@ import { useEntries, useImportBackup, useSearchEntries } from "../hooks/useEntri
 import { usePages } from "../hooks/usePages";
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
+import { useHabits } from "../hooks/useHabits";
 import { AppearanceMode, FontPreset, UiDensity, useThemeContext } from "../theme/ThemeContext";
 import { BackupPayload } from "../types";
 import { format, parseISO } from "date-fns";
@@ -16,6 +17,7 @@ import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import FlagIcon from '@mui/icons-material/Flag';
+import RepeatIcon from '@mui/icons-material/Repeat';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 
@@ -23,8 +25,8 @@ const drawerWidth = 280;
 
 interface LayoutProps {
     children: ReactNode;
-    activeTab: 'journal' | 'page' | 'tasks' | 'goals';
-    onTabChange: (tab: 'journal' | 'page' | 'tasks' | 'goals') => void;
+    activeTab: 'journal' | 'page' | 'tasks' | 'goals' | 'habits';
+    onTabChange: (tab: 'journal' | 'page' | 'tasks' | 'goals' | 'habits') => void;
     selectedDate: string;
     onSelectDate: (date: string) => void;
     selectedPageId: number | null;
@@ -88,6 +90,7 @@ export const Layout = ({
     const { data: pages } = usePages();
     const { data: tasks } = useTasks();
     const { data: goals } = useGoals();
+    const { data: habits } = useHabits();
 
     const displayEntries = searchQuery ? searchResults : allEntries;
 
@@ -98,6 +101,13 @@ export const Layout = ({
             pages: pages ?? [],
             tasks: tasks ?? [],
             goals: goals ?? [],
+            habits: habits ?? [],
+            habit_logs: (habits ?? []).flatMap((habit) =>
+                habit.completed_dates.map((date) => ({
+                    habit_id: habit.id,
+                    date,
+                }))
+            ),
         };
 
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -277,6 +287,16 @@ export const Layout = ({
                             >
                                 <FlagIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
                                 <ListItemText primary="Goals" primaryTypographyProps={{ fontWeight: 600 }} />
+                            </ListItemButton>
+                        </ListItem>
+                        <ListItem disablePadding>
+                            <ListItemButton
+                                selected={activeTab === 'habits'}
+                                onClick={() => onTabChange('habits')}
+                                sx={navItemStyle(activeTab === 'habits')}
+                            >
+                                <RepeatIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
+                                <ListItemText primary="Habits" primaryTypographyProps={{ fontWeight: 600 }} />
                             </ListItemButton>
                         </ListItem>
                     </List>

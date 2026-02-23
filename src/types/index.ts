@@ -41,6 +41,22 @@ export interface Goal {
     updated_at: string;
 }
 
+export interface Habit {
+    id: number;
+    title: string;
+    description: string;
+    target_per_week: number;
+    color: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface HabitWithLogs extends Habit {
+    completed_dates: string[];
+    current_streak: number;
+    this_week_count: number;
+}
+
 export interface BackupPayload {
     entries?: Array<{
         date: string;
@@ -75,5 +91,20 @@ export interface BackupPayload {
         target_date?: string | null;
         created_at?: string;
         updated_at?: string;
+    }>;
+    habits?: Array<{
+        id?: number;
+        title: string;
+        description?: string;
+        target_per_week?: number;
+        color?: string;
+        created_at?: string;
+        updated_at?: string;
+    }>;
+    habit_logs?: Array<{
+        id?: number;
+        habit_id: number;
+        date: string;
+        created_at?: string;
     }>;
 }

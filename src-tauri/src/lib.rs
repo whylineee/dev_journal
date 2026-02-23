@@ -56,6 +56,11 @@ pub fn run() {
             commands::create_goal,
             commands::update_goal,
             commands::delete_goal,
+            commands::get_habits,
+            commands::create_habit,
+            commands::update_habit,
+            commands::delete_habit,
+            commands::toggle_habit_completion,
             commands::import_backup
         ])
         .run(tauri::generate_context!())
