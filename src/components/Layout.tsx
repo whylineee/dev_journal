@@ -18,6 +18,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import FlagIcon from '@mui/icons-material/Flag';
 import RepeatIcon from '@mui/icons-material/Repeat';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 
@@ -25,8 +26,8 @@ const drawerWidth = 280;
 
 interface LayoutProps {
     children: ReactNode;
-    activeTab: 'journal' | 'page' | 'tasks' | 'goals' | 'habits';
-    onTabChange: (tab: 'journal' | 'page' | 'tasks' | 'goals' | 'habits') => void;
+    activeTab: 'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits';
+    onTabChange: (tab: 'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits') => void;
     selectedDate: string;
     onSelectDate: (date: string) => void;
     selectedPageId: number | null;
@@ -218,6 +219,23 @@ export const Layout = ({
             >
                 <Toolbar />
                 <Box sx={{ overflow: 'auto', py: 2 }}>
+                    <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', color: 'text.secondary', letterSpacing: '0.1em' }}>
+                        Overview
+                    </Typography>
+                    <List disablePadding>
+                        <ListItem disablePadding>
+                            <ListItemButton
+                                selected={activeTab === 'planner'}
+                                onClick={() => onTabChange('planner')}
+                                sx={navItemStyle(activeTab === 'planner')}
+                            >
+                                <DashboardIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
+                                <ListItemText primary="Planner" primaryTypographyProps={{ fontWeight: 600 }} />
+                            </ListItemButton>
+                        </ListItem>
+                    </List>
+
+                    <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.05)', mx: 2 }} />
 
                     {/* JOURNAL SECTION */}
                     <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', color: 'text.secondary', letterSpacing: '0.1em' }}>

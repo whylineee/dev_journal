@@ -7,6 +7,7 @@ import { Stats } from "./components/Stats";
 import { TasksBoard } from "./components/TasksBoard";
 import { GoalsBoard } from "./components/GoalsBoard";
 import { HabitsBoard } from "./components/HabitsBoard";
+import { PlannerBoard } from "./components/PlannerBoard";
 import { WeeklySummary } from "./components/WeeklySummary";
 import { CommandAction, CommandPalette } from "./components/CommandPalette";
 import { format } from "date-fns";
@@ -19,7 +20,7 @@ import { useThemeContext } from "./theme/ThemeContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'journal' | 'page' | 'tasks' | 'goals' | 'habits'>('journal');
+  const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits'>('planner');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState<boolean>(() => {
@@ -123,6 +124,16 @@ function App() {
   const commandActions = useMemo<CommandAction[]>(() => {
     const today = format(new Date(), "yyyy-MM-dd");
     const actions: CommandAction[] = [
+      {
+        id: "open-planner",
+        title: "Open Planner",
+        subtitle: "Switch to daily command center",
+        section: "Quick Actions",
+        keywords: ["planner", "today", "dashboard"],
+        onSelect: () => {
+          setActiveTab("planner");
+        },
+      },
       {
         id: "go-today",
         title: "Go to Today Journal",
@@ -308,6 +319,16 @@ function App() {
                 <GitCommits />
               </Box>
             </>
+          ) : activeTab === 'planner' ? (
+            <PlannerBoard
+              onOpenJournalToday={() => {
+                setActiveTab("journal");
+                setSelectedDate(format(new Date(), "yyyy-MM-dd"));
+              }}
+              onOpenTasks={() => setActiveTab("tasks")}
+              onOpenGoals={() => setActiveTab("goals")}
+              onOpenHabits={() => setActiveTab("habits")}
+            />
           ) : activeTab === 'tasks' ? (
             <TasksBoard />
           ) : activeTab === 'goals' ? (
