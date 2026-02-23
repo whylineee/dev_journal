@@ -1,13 +1,39 @@
-import React, { createContext, useContext, useState, useMemo, useEffect, ReactNode } from 'react';
-import { createTheme, ThemeProvider as MuiThemeProvider, Theme } from '@mui/material/styles';
+import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
+import { createTheme, Theme, ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 
 export type AppearanceMode = 'dark' | 'light';
 export type FontPreset = 'inter' | 'roboto' | 'mono';
 export type UiDensity = 'comfortable' | 'compact';
+export type ThemePresetId =
+    | 'monochrome'
+    | 'ocean'
+    | 'forest'
+    | 'sunset'
+    | 'midnight'
+    | 'cherry';
+
+interface ThemePresetPalette {
+    primary: string;
+    secondary: string;
+    backgroundDefault: string;
+    backgroundPaper: string;
+    textPrimary: string;
+    textSecondary: string;
+    divider: string;
+    bodyGradient: string;
+}
+
+interface ThemePreset {
+    id: ThemePresetId;
+    name: string;
+    description: string;
+    light: ThemePresetPalette;
+    dark: ThemePresetPalette;
+}
 
 interface ThemeContextType {
-    primaryColor: string;
-    setPrimaryColor: (color: string) => void;
+    themePreset: ThemePresetId;
+    setThemePreset: (preset: ThemePresetId) => void;
     appearanceMode: AppearanceMode;
     setAppearanceMode: (mode: AppearanceMode) => void;
     fontPreset: FontPreset;
@@ -19,8 +45,161 @@ interface ThemeContextType {
     resetTheme: () => void;
 }
 
-const defaultPrimaryColor = '#60a5fa';
-const defaultAppearanceMode: AppearanceMode = 'dark';
+export const THEME_PRESETS: ThemePreset[] = [
+    {
+        id: 'monochrome',
+        name: 'Monochrome',
+        description: 'Black and white, minimal contrast-first UI.',
+        light: {
+            primary: '#111111',
+            secondary: '#4b5563',
+            backgroundDefault: '#f7f7f7',
+            backgroundPaper: '#ffffff',
+            textPrimary: '#111111',
+            textSecondary: '#4b5563',
+            divider: 'rgba(17, 17, 17, 0.12)',
+            bodyGradient: 'radial-gradient(circle at 10% 10%, rgba(17,17,17,0.06), transparent 35%), radial-gradient(circle at 90% 20%, rgba(17,17,17,0.05), transparent 35%)',
+        },
+        dark: {
+            primary: '#f5f5f5',
+            secondary: '#a3a3a3',
+            backgroundDefault: '#0b0b0b',
+            backgroundPaper: '#141414',
+            textPrimary: '#f5f5f5',
+            textSecondary: '#a3a3a3',
+            divider: 'rgba(245, 245, 245, 0.14)',
+            bodyGradient: 'radial-gradient(circle at 15% 20%, rgba(255,255,255,0.09), transparent 35%), radial-gradient(circle at 85% 10%, rgba(255,255,255,0.06), transparent 35%)',
+        },
+    },
+    {
+        id: 'ocean',
+        name: 'Ocean Blue',
+        description: 'Deep blue workspace with calm aqua accents.',
+        light: {
+            primary: '#0f4c81',
+            secondary: '#1d7ca8',
+            backgroundDefault: '#eef6fb',
+            backgroundPaper: '#ffffff',
+            textPrimary: '#0f1f2e',
+            textSecondary: '#355064',
+            divider: 'rgba(15, 76, 129, 0.16)',
+            bodyGradient: 'radial-gradient(circle at 10% 5%, rgba(15,76,129,0.18), transparent 34%), radial-gradient(circle at 90% 10%, rgba(29,124,168,0.16), transparent 33%)',
+        },
+        dark: {
+            primary: '#6ec1ff',
+            secondary: '#3fa7d6',
+            backgroundDefault: '#071723',
+            backgroundPaper: '#0e2536',
+            textPrimary: '#e8f4ff',
+            textSecondary: '#9bc2dd',
+            divider: 'rgba(110, 193, 255, 0.18)',
+            bodyGradient: 'radial-gradient(circle at 15% 20%, rgba(110,193,255,0.16), transparent 35%), radial-gradient(circle at 85% 12%, rgba(63,167,214,0.16), transparent 35%)',
+        },
+    },
+    {
+        id: 'forest',
+        name: 'Forest Green',
+        description: 'Nature-inspired palette with balanced contrast.',
+        light: {
+            primary: '#146c43',
+            secondary: '#4f8a52',
+            backgroundDefault: '#eef6ef',
+            backgroundPaper: '#ffffff',
+            textPrimary: '#11251a',
+            textSecondary: '#3f5f49',
+            divider: 'rgba(20, 108, 67, 0.16)',
+            bodyGradient: 'radial-gradient(circle at 12% 8%, rgba(20,108,67,0.16), transparent 35%), radial-gradient(circle at 86% 10%, rgba(79,138,82,0.16), transparent 35%)',
+        },
+        dark: {
+            primary: '#7ddf9d',
+            secondary: '#4fb879',
+            backgroundDefault: '#091b13',
+            backgroundPaper: '#11281d',
+            textPrimary: '#e9faef',
+            textSecondary: '#9ed6b1',
+            divider: 'rgba(125, 223, 157, 0.18)',
+            bodyGradient: 'radial-gradient(circle at 12% 15%, rgba(125,223,157,0.14), transparent 35%), radial-gradient(circle at 88% 10%, rgba(79,184,121,0.16), transparent 35%)',
+        },
+    },
+    {
+        id: 'sunset',
+        name: 'Sunset Orange',
+        description: 'Warm orange-red tones for energetic planning.',
+        light: {
+            primary: '#c2410c',
+            secondary: '#ef4444',
+            backgroundDefault: '#fff4ec',
+            backgroundPaper: '#ffffff',
+            textPrimary: '#2b1408',
+            textSecondary: '#6b3b24',
+            divider: 'rgba(194, 65, 12, 0.15)',
+            bodyGradient: 'radial-gradient(circle at 12% 8%, rgba(194,65,12,0.17), transparent 34%), radial-gradient(circle at 88% 12%, rgba(239,68,68,0.16), transparent 33%)',
+        },
+        dark: {
+            primary: '#fdba74',
+            secondary: '#f87171',
+            backgroundDefault: '#1c0f08',
+            backgroundPaper: '#2a1810',
+            textPrimary: '#fff3e8',
+            textSecondary: '#f1bea2',
+            divider: 'rgba(253, 186, 116, 0.2)',
+            bodyGradient: 'radial-gradient(circle at 12% 16%, rgba(253,186,116,0.15), transparent 35%), radial-gradient(circle at 86% 8%, rgba(248,113,113,0.14), transparent 35%)',
+        },
+    },
+    {
+        id: 'midnight',
+        name: 'Midnight Violet',
+        description: 'Cool night palette with electric violet accents.',
+        light: {
+            primary: '#5b21b6',
+            secondary: '#7c3aed',
+            backgroundDefault: '#f4f1ff',
+            backgroundPaper: '#ffffff',
+            textPrimary: '#1f1538',
+            textSecondary: '#5a4a85',
+            divider: 'rgba(91, 33, 182, 0.16)',
+            bodyGradient: 'radial-gradient(circle at 10% 8%, rgba(91,33,182,0.18), transparent 34%), radial-gradient(circle at 88% 10%, rgba(124,58,237,0.16), transparent 34%)',
+        },
+        dark: {
+            primary: '#c4b5fd',
+            secondary: '#a78bfa',
+            backgroundDefault: '#150f26',
+            backgroundPaper: '#201735',
+            textPrimary: '#f5f3ff',
+            textSecondary: '#c4b5fd',
+            divider: 'rgba(196, 181, 253, 0.18)',
+            bodyGradient: 'radial-gradient(circle at 12% 15%, rgba(196,181,253,0.14), transparent 35%), radial-gradient(circle at 88% 12%, rgba(167,139,250,0.16), transparent 35%)',
+        },
+    },
+    {
+        id: 'cherry',
+        name: 'Cherry Blossom',
+        description: 'Soft rose palette with high readability.',
+        light: {
+            primary: '#be185d',
+            secondary: '#e11d48',
+            backgroundDefault: '#fff1f5',
+            backgroundPaper: '#ffffff',
+            textPrimary: '#3a0f24',
+            textSecondary: '#7f3b5b',
+            divider: 'rgba(190, 24, 93, 0.16)',
+            bodyGradient: 'radial-gradient(circle at 10% 8%, rgba(190,24,93,0.16), transparent 34%), radial-gradient(circle at 89% 12%, rgba(225,29,72,0.14), transparent 34%)',
+        },
+        dark: {
+            primary: '#f9a8d4',
+            secondary: '#fb7185',
+            backgroundDefault: '#240c18',
+            backgroundPaper: '#311424',
+            textPrimary: '#ffe7f2',
+            textSecondary: '#f3b4ce',
+            divider: 'rgba(249, 168, 212, 0.2)',
+            bodyGradient: 'radial-gradient(circle at 12% 18%, rgba(249,168,212,0.14), transparent 35%), radial-gradient(circle at 86% 10%, rgba(251,113,133,0.14), transparent 35%)',
+        },
+    },
+];
+
+const defaultThemePreset: ThemePresetId = 'monochrome';
+const defaultAppearanceMode: AppearanceMode = 'light';
 const defaultFontPreset: FontPreset = 'inter';
 const defaultUiDensity: UiDensity = 'comfortable';
 const defaultBorderRadius = 16;
@@ -49,13 +228,22 @@ const resolveFontFamily = (preset: FontPreset) => {
     return ['Inter', '"Helvetica Neue"', 'Arial', 'sans-serif'].join(',');
 };
 
+const isThemePresetId = (value: string | null): value is ThemePresetId => {
+    return THEME_PRESETS.some((preset) => preset.id === value);
+};
+
+const getThemePreset = (id: ThemePresetId) => {
+    return THEME_PRESETS.find((preset) => preset.id === id) ?? THEME_PRESETS[0];
+};
+
 export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ children }) => {
-    const [primaryColor, setPrimaryColor] = useState<string>(() => {
-        return localStorage.getItem('devJournal_primaryColor') || defaultPrimaryColor;
+    const [themePreset, setThemePreset] = useState<ThemePresetId>(() => {
+        const value = localStorage.getItem('devJournal_themePreset');
+        return isThemePresetId(value) ? value : defaultThemePreset;
     });
     const [appearanceMode, setAppearanceMode] = useState<AppearanceMode>(() => {
         const mode = localStorage.getItem('devJournal_appearanceMode');
-        return mode === 'light' ? 'light' : defaultAppearanceMode;
+        return mode === 'dark' || mode === 'light' ? mode : defaultAppearanceMode;
     });
     const [fontPreset, setFontPreset] = useState<FontPreset>(() => {
         const preset = localStorage.getItem('devJournal_fontPreset');
@@ -74,8 +262,8 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
     });
 
     useEffect(() => {
-        localStorage.setItem('devJournal_primaryColor', primaryColor);
-    }, [primaryColor]);
+        localStorage.setItem('devJournal_themePreset', themePreset);
+    }, [themePreset]);
 
     useEffect(() => {
         localStorage.setItem('devJournal_appearanceMode', appearanceMode);
@@ -94,15 +282,17 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
     }, [borderRadius]);
 
     const resetTheme = () => {
-        setPrimaryColor(defaultPrimaryColor);
+        setThemePreset(defaultThemePreset);
         setAppearanceMode(defaultAppearanceMode);
         setFontPreset(defaultFontPreset);
         setUiDensity(defaultUiDensity);
         setBorderRadius(defaultBorderRadius);
     };
 
-    const isDark = appearanceMode === 'dark';
     const fontFamily = resolveFontFamily(fontPreset);
+    const palette = appearanceMode === 'dark'
+        ? getThemePreset(themePreset).dark
+        : getThemePreset(themePreset).light;
 
     const theme: Theme = useMemo(
         () =>
@@ -110,20 +300,20 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
                 palette: {
                     mode: appearanceMode,
                     primary: {
-                        main: primaryColor,
+                        main: palette.primary,
                     },
                     secondary: {
-                        main: isDark ? '#a78bfa' : '#7c3aed',
+                        main: palette.secondary,
                     },
                     background: {
-                        default: isDark ? '#0f172a' : '#f3f6fb',
-                        paper: isDark ? '#1e293b' : '#ffffff',
+                        default: palette.backgroundDefault,
+                        paper: palette.backgroundPaper,
                     },
                     text: {
-                        primary: isDark ? '#f8fafc' : '#0f172a',
-                        secondary: isDark ? '#94a3b8' : '#475569',
+                        primary: palette.textPrimary,
+                        secondary: palette.textSecondary,
                     },
-                    divider: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.12)',
+                    divider: palette.divider,
                 },
                 shape: { borderRadius },
                 typography: {
@@ -138,30 +328,34 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
                     MuiCssBaseline: {
                         styleOverrides: {
                             body: {
-                                backgroundColor: isDark ? '#0f172a' : '#f3f6fb',
-                                backgroundImage: isDark
-                                    ? `radial-gradient(circle at 15% 50%, ${primaryColor}20, transparent 25%), radial-gradient(circle at 85% 30%, rgba(167, 139, 250, 0.08), transparent 25%)`
-                                    : `radial-gradient(circle at 15% 50%, ${primaryColor}18, transparent 30%), radial-gradient(circle at 85% 30%, rgba(37, 99, 235, 0.08), transparent 30%)`,
+                                backgroundColor: palette.backgroundDefault,
+                                backgroundImage: palette.bodyGradient,
                                 backgroundAttachment: 'fixed',
                                 minHeight: '100vh',
                             },
                             '::-webkit-scrollbar': { width: '8px', height: '8px' },
                             '::-webkit-scrollbar-track': { background: 'transparent' },
                             '::-webkit-scrollbar-thumb': {
-                                background: isDark ? '#334155' : '#cbd5e1',
+                                background: appearanceMode === 'dark' ? '#4a4a4a' : '#b0b0b0',
                                 borderRadius: '4px',
                             },
-                            '::-webkit-scrollbar-thumb:hover': { background: isDark ? '#475569' : '#94a3b8' },
+                            '::-webkit-scrollbar-thumb:hover': {
+                                background: appearanceMode === 'dark' ? '#6b6b6b' : '#8e8e8e',
+                            },
                         },
                     },
                     MuiPaper: {
                         styleOverrides: {
                             root: {
                                 backgroundImage: 'none',
-                                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.72)' : 'rgba(255, 255, 255, 0.85)',
+                                backgroundColor: appearanceMode === 'dark'
+                                    ? 'rgba(18, 18, 18, 0.76)'
+                                    : 'rgba(255, 255, 255, 0.86)',
                                 backdropFilter: 'blur(12px)',
-                                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
-                                boxShadow: isDark ? '0 4px 24px -4px rgba(0, 0, 0, 0.25)' : '0 4px 20px -8px rgba(15, 23, 42, 0.2)',
+                                border: `1px solid ${palette.divider}`,
+                                boxShadow: appearanceMode === 'dark'
+                                    ? '0 4px 24px -4px rgba(0, 0, 0, 0.36)'
+                                    : '0 4px 20px -8px rgba(15, 23, 42, 0.18)',
                             },
                         },
                     },
@@ -178,9 +372,9 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
                                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                             },
                             containedPrimary: {
-                                boxShadow: `0 4px 14px 0 ${primaryColor}40`,
+                                boxShadow: `0 4px 14px 0 ${palette.primary}50`,
                                 '&:hover': {
-                                    boxShadow: `0 6px 20px ${primaryColor}60`,
+                                    boxShadow: `0 6px 20px ${palette.primary}70`,
                                     transform: 'translateY(-1px)',
                                 },
                             },
@@ -194,14 +388,14 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
                         styleOverrides: {
                             root: {
                                 '& .MuiOutlinedInput-root': {
-                                    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.6)' : 'rgba(248, 250, 252, 0.75)',
+                                    backgroundColor: appearanceMode === 'dark' ? 'rgba(0, 0, 0, 0.24)' : 'rgba(255, 255, 255, 0.72)',
                                     transition: 'all 0.2s',
                                     borderRadius: Math.max(8, borderRadius - 4),
-                                    '& fieldset': { borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(15, 23, 42, 0.12)' },
-                                    '&:hover fieldset': { borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(15, 23, 42, 0.25)' },
-                                    '&.Mui-focused fieldset': { borderColor: primaryColor, borderWidth: '1px' },
+                                    '& fieldset': { borderColor: palette.divider },
+                                    '&:hover fieldset': { borderColor: palette.secondary },
+                                    '&.Mui-focused fieldset': { borderColor: palette.primary, borderWidth: '1px' },
                                     '&.Mui-focused': {
-                                        boxShadow: `0 0 0 4px ${primaryColor}20`,
+                                        boxShadow: `0 0 0 4px ${palette.primary}26`,
                                     },
                                 },
                             },
@@ -210,18 +404,22 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
                     MuiDrawer: {
                         styleOverrides: {
                             paper: {
-                                backgroundColor: isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.82)',
+                                backgroundColor: appearanceMode === 'dark'
+                                    ? 'rgba(10, 10, 10, 0.72)'
+                                    : 'rgba(255, 255, 255, 0.82)',
                                 backdropFilter: 'blur(20px)',
-                                borderRight: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
+                                borderRight: `1px solid ${palette.divider}`,
                             },
                         },
                     },
                     MuiAppBar: {
                         styleOverrides: {
                             root: {
-                                backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255, 255, 255, 0.75)',
+                                backgroundColor: appearanceMode === 'dark'
+                                    ? 'rgba(10, 10, 10, 0.62)'
+                                    : 'rgba(255, 255, 255, 0.82)',
                                 backdropFilter: 'blur(16px)',
-                                borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
+                                borderBottom: `1px solid ${palette.divider}`,
                                 boxShadow: 'none',
                             },
                         },
@@ -233,8 +431,8 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
                                 margin: '4px 8px',
                                 padding: uiDensity === 'compact' ? '6px 12px' : '8px 16px',
                                 '&.Mui-selected': {
-                                    backgroundColor: `${primaryColor}25`,
-                                    '&:hover': { backgroundColor: `${primaryColor}35` },
+                                    backgroundColor: `${palette.primary}25`,
+                                    '&:hover': { backgroundColor: `${palette.primary}35` },
                                     '&::before': {
                                         content: '""',
                                         position: 'absolute',
@@ -243,23 +441,23 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
                                         transform: 'translateY(-50%)',
                                         height: '60%',
                                         width: 4,
-                                        backgroundColor: primaryColor,
+                                        backgroundColor: palette.primary,
                                         borderRadius: '0 4px 4px 0',
-                                    }
+                                    },
                                 },
                             },
                         },
                     },
                 },
             }),
-        [appearanceMode, borderRadius, fontFamily, isDark, primaryColor, uiDensity]
+        [appearanceMode, borderRadius, fontFamily, palette, uiDensity]
     );
 
     return (
         <ThemeContext.Provider
             value={{
-                primaryColor,
-                setPrimaryColor,
+                themePreset,
+                setThemePreset,
                 appearanceMode,
                 setAppearanceMode,
                 fontPreset,

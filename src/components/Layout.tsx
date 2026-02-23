@@ -5,7 +5,7 @@ import { usePages } from "../hooks/usePages";
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits } from "../hooks/useHabits";
-import { AppearanceMode, FontPreset, UiDensity, useThemeContext } from "../theme/ThemeContext";
+import { AppearanceMode, FontPreset, THEME_PRESETS, ThemePresetId, UiDensity, useThemeContext } from "../theme/ThemeContext";
 import { BackupPayload } from "../types";
 import { format, parseISO } from "date-fns";
 import SearchIcon from '@mui/icons-material/Search';
@@ -71,8 +71,8 @@ export const Layout = ({
     const [importStatus, setImportStatus] = useState<string>("");
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const {
-        primaryColor,
-        setPrimaryColor,
+        themePreset,
+        setThemePreset,
         appearanceMode,
         setAppearanceMode,
         fontPreset,
@@ -374,31 +374,56 @@ export const Layout = ({
             {/* SETTINGS DIALOG */}
             <Dialog open={settingsOpen} onClose={() => onSettingsOpenChange(false)} PaperProps={{ sx: { bgcolor: 'background.paper', borderRadius: 3, p: 2, minWidth: 320 } }}>
                 <Typography variant="h6" gutterBottom>Customize Theme</Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>Select an accent color:</Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>Select a theme preset:</Typography>
 
-                <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
-                    {[
-                        { color: '#60a5fa', name: 'Blue' },
-                        { color: '#a78bfa', name: 'Purple' },
-                        { color: '#10b981', name: 'Emerald' },
-                        { color: '#f59e0b', name: 'Amber' },
-                        { color: '#ec4899', name: 'Pink' },
-                    ].map((preset) => (
-                        <Box
-                            key={preset.color}
-                            onClick={() => setPrimaryColor(preset.color)}
-                            sx={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: '50%',
-                                bgcolor: preset.color,
-                                cursor: 'pointer',
-                                border: primaryColor === preset.color ? '3px solid white' : '2px solid transparent',
-                                '&:hover': { transform: 'scale(1.1)' },
-                                transition: 'all 0.2s'
-                            }}
-                        />
+                <TextField
+                    select
+                    size="small"
+                    label="Theme preset"
+                    value={themePreset}
+                    onChange={(event) => setThemePreset(event.target.value as ThemePresetId)}
+                    sx={{ mt: 1, width: 220 }}
+                    SelectProps={{ native: true }}
+                >
+                    {THEME_PRESETS.map((preset) => (
+                        <option key={preset.id} value={preset.id}>
+                            {preset.name}
+                        </option>
                     ))}
+                </TextField>
+
+                <Box sx={{ mt: 2, display: "grid", gap: 1, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+                    {THEME_PRESETS.map((preset) => {
+                        const active = preset.id === themePreset;
+                        return (
+                            <Box
+                                key={preset.id}
+                                onClick={() => setThemePreset(preset.id)}
+                                sx={{
+                                    borderRadius: 2,
+                                    p: 1.25,
+                                    border: active ? "2px solid" : "1px solid",
+                                    borderColor: active ? "primary.main" : "divider",
+                                    cursor: "pointer",
+                                    transition: "all 0.2s",
+                                    "&:hover": { borderColor: "primary.main" },
+                                }}
+                            >
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                    {preset.name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+                                    {preset.description}
+                                </Typography>
+                                <Box sx={{ display: "flex", gap: 0.75, mt: 1 }}>
+                                    <Box sx={{ width: 18, height: 18, borderRadius: 1, bgcolor: preset.light.primary }} />
+                                    <Box sx={{ width: 18, height: 18, borderRadius: 1, bgcolor: preset.light.secondary }} />
+                                    <Box sx={{ width: 18, height: 18, borderRadius: 1, bgcolor: preset.dark.primary }} />
+                                    <Box sx={{ width: 18, height: 18, borderRadius: 1, bgcolor: preset.dark.backgroundDefault }} />
+                                </Box>
+                            </Box>
+                        );
+                    })}
                 </Box>
 
                 <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
