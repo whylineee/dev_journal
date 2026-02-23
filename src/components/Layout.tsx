@@ -1,5 +1,6 @@
-import { Box, AppBar, Toolbar, Typography, Drawer, List, ListItem, ListItemText, ListItemButton, Divider, InputBase, alpha, Chip, IconButton, Dialog, Button, FormControlLabel, Switch, TextField } from "@mui/material";
+import { Box, AppBar, Toolbar, Typography, Drawer, List, ListItem, ListItemText, ListItemButton, Divider, InputBase, alpha, Chip, IconButton, Dialog, Button, FormControlLabel, Switch, TextField, useMediaQuery } from "@mui/material";
 import { ChangeEvent, ReactNode, useRef, useState } from "react";
+import { useTheme } from "@mui/material/styles";
 import { useEntries, useImportBackup, useSearchEntries } from "../hooks/useEntries";
 import { usePages } from "../hooks/usePages";
 import { useTasks } from "../hooks/useTasks";
@@ -19,6 +20,7 @@ import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import FlagIcon from '@mui/icons-material/Flag';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import MenuIcon from '@mui/icons-material/Menu';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 
@@ -67,6 +69,9 @@ export const Layout = ({
     settingsOpen,
     onSettingsOpenChange,
 }: LayoutProps) => {
+    const muiTheme = useTheme();
+    const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
+    const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [replaceExistingOnImport, setReplaceExistingOnImport] = useState(true);
     const [importStatus, setImportStatus] = useState<string>("");
@@ -160,12 +165,39 @@ export const Layout = ({
         color: isSelected ? 'primary.main' : 'text.primary',
     });
 
+    const closeMobileDrawer = () => {
+        if (isMobile) {
+            setMobileDrawerOpen(false);
+        }
+    };
+
     return (
         <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', bgcolor: 'background.default' }}>
             <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <Toolbar>
+                    {isMobile ? (
+                        <IconButton
+                            color="inherit"
+                            onClick={() => setMobileDrawerOpen(true)}
+                            edge="start"
+                            sx={{ mr: 1 }}
+                        >
+                            <MenuIcon />
+                        </IconButton>
+                    ) : null}
                     <EditNoteIcon sx={{ mr: 2, color: 'primary.main', fontSize: 28 }} />
-                    <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 700, letterSpacing: '-0.02em', color: 'text.primary' }}>
+                    <Typography
+                        variant="h6"
+                        noWrap
+                        component="div"
+                        sx={{
+                            flexGrow: 1,
+                            fontWeight: 700,
+                            letterSpacing: '-0.02em',
+                            color: 'text.primary',
+                            fontSize: { xs: "1rem", sm: "1.1rem" },
+                        }}
+                    >
                         Dev Journal
                     </Typography>
 
@@ -176,9 +208,9 @@ export const Layout = ({
                         '&:hover': {
                             backgroundColor: alpha('#f8fafc', 0.15),
                         },
-                        ml: 2,
-                        width: '100%',
-                        maxWidth: 300,
+                        ml: { xs: 1, sm: 2 },
+                        width: { xs: "100%", sm: '100%' },
+                        maxWidth: { xs: 200, sm: 300 },
                         border: '1px solid rgba(255,255,255,0.1)'
                     }}>
                         <Box sx={{ padding: '0 12px', height: '100%', position: 'absolute', pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -196,6 +228,7 @@ export const Layout = ({
                                     paddingLeft: '36px',
                                     transition: 'width 0.2s',
                                     width: '100%',
+                                    fontSize: { xs: "0.85rem", sm: "0.95rem" },
                                 },
                             }}
                         />
@@ -204,15 +237,18 @@ export const Layout = ({
             </AppBar>
 
             <Drawer
-                variant="permanent"
+                variant={isMobile ? "temporary" : "permanent"}
+                open={isMobile ? mobileDrawerOpen : true}
+                onClose={() => setMobileDrawerOpen(false)}
+                ModalProps={{ keepMounted: true }}
                 sx={{
-                    width: drawerWidth,
+                    width: { md: drawerWidth },
                     flexShrink: 0,
                     [`& .MuiDrawer-paper`]: {
                         width: drawerWidth,
                         boxSizing: 'border-box',
                         borderRight: '1px solid rgba(255,255,255,0.05)',
-                        backgroundColor: 'rgba(15, 23, 42, 0.5)',
+                        backgroundColor: 'rgba(15, 23, 42, 0.65)',
                         backdropFilter: 'blur(20px)'
                     },
                 }}
@@ -226,7 +262,10 @@ export const Layout = ({
                         <ListItem disablePadding>
                             <ListItemButton
                                 selected={activeTab === 'planner'}
-                                onClick={() => onTabChange('planner')}
+                                onClick={() => {
+                                    onTabChange('planner');
+                                    closeMobileDrawer();
+                                }}
                                 sx={navItemStyle(activeTab === 'planner')}
                             >
                                 <DashboardIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
@@ -249,6 +288,7 @@ export const Layout = ({
                                     setSearchQuery("");
                                     onTabChange('journal');
                                     onSelectDate(format(new Date(), "yyyy-MM-dd"));
+                                    closeMobileDrawer();
                                 }}
                                 sx={navItemStyle(activeTab === 'journal' && selectedDate === format(new Date(), "yyyy-MM-dd"))}
                             >
@@ -267,6 +307,7 @@ export const Layout = ({
                                     onClick={() => {
                                         onTabChange('journal');
                                         onSelectDate(entry.date);
+                                        closeMobileDrawer();
                                     }}
                                     sx={navItemStyle(activeTab === 'journal' && selectedDate === entry.date)}
                                 >
@@ -290,7 +331,10 @@ export const Layout = ({
                         <ListItem disablePadding>
                             <ListItemButton
                                 selected={activeTab === 'tasks'}
-                                onClick={() => onTabChange('tasks')}
+                                onClick={() => {
+                                    onTabChange('tasks');
+                                    closeMobileDrawer();
+                                }}
                                 sx={navItemStyle(activeTab === 'tasks')}
                             >
                                 <TaskAltIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
@@ -300,7 +344,10 @@ export const Layout = ({
                         <ListItem disablePadding>
                             <ListItemButton
                                 selected={activeTab === 'goals'}
-                                onClick={() => onTabChange('goals')}
+                                onClick={() => {
+                                    onTabChange('goals');
+                                    closeMobileDrawer();
+                                }}
                                 sx={navItemStyle(activeTab === 'goals')}
                             >
                                 <FlagIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
@@ -310,7 +357,10 @@ export const Layout = ({
                         <ListItem disablePadding>
                             <ListItemButton
                                 selected={activeTab === 'habits'}
-                                onClick={() => onTabChange('habits')}
+                                onClick={() => {
+                                    onTabChange('habits');
+                                    closeMobileDrawer();
+                                }}
                                 sx={navItemStyle(activeTab === 'habits')}
                             >
                                 <RepeatIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
@@ -328,7 +378,11 @@ export const Layout = ({
                         </Typography>
                         <IconButton
                             size="small"
-                            onClick={() => { onTabChange('page'); onSelectPage(null); }}
+                            onClick={() => {
+                                onTabChange('page');
+                                onSelectPage(null);
+                                closeMobileDrawer();
+                            }}
                             sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main', bgcolor: 'rgba(96, 165, 250, 0.1)' } }}
                         >
                             <AddIcon fontSize="small" />
@@ -341,6 +395,7 @@ export const Layout = ({
                                 onClick={() => {
                                     onTabChange('page');
                                     onSelectPage(null);
+                                    closeMobileDrawer();
                                 }}
                                 sx={navItemStyle(activeTab === 'page' && selectedPageId === null)}
                             >
@@ -356,6 +411,7 @@ export const Layout = ({
                                     onClick={() => {
                                         onTabChange('page');
                                         onSelectPage(page.id);
+                                        closeMobileDrawer();
                                     }}
                                     sx={navItemStyle(activeTab === 'page' && selectedPageId === page.id)}
                                 >
@@ -372,7 +428,13 @@ export const Layout = ({
 
                 {/* SETTINGS / THEME BUTTON */}
                 <Box sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center' }}>
-                    <IconButton onClick={() => onSettingsOpenChange(true)} sx={{ color: 'text.secondary' }}>
+                    <IconButton
+                        onClick={() => {
+                            onSettingsOpenChange(true);
+                            closeMobileDrawer();
+                        }}
+                        sx={{ color: 'text.secondary' }}
+                    >
                         <SettingsIcon />
                     </IconButton>
                     <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>Settings & Theme</Typography>
@@ -381,8 +443,8 @@ export const Layout = ({
 
             <Box component="main" sx={{
                 flexGrow: 1,
-                p: { xs: 2, md: 4 },
-                pt: { xs: 10, md: 10 },
+                p: { xs: 1.5, sm: 2, md: 4 },
+                pt: { xs: 9, md: 10 },
                 overflow: 'auto',
                 position: 'relative'
             }}>
@@ -390,7 +452,20 @@ export const Layout = ({
             </Box>
 
             {/* SETTINGS DIALOG */}
-            <Dialog open={settingsOpen} onClose={() => onSettingsOpenChange(false)} PaperProps={{ sx: { bgcolor: 'background.paper', borderRadius: 3, p: 2, minWidth: 320 } }}>
+            <Dialog
+                open={settingsOpen}
+                onClose={() => onSettingsOpenChange(false)}
+                PaperProps={{
+                    sx: {
+                        bgcolor: 'background.paper',
+                        borderRadius: 3,
+                        p: 2,
+                        width: { xs: "calc(100% - 24px)", sm: "min(760px, 100%)" },
+                        maxHeight: "calc(100% - 24px)",
+                        m: 1.5,
+                    }
+                }}
+            >
                 <Typography variant="h6" gutterBottom>Customize Theme</Typography>
                 <Typography variant="body2" color="text.secondary" gutterBottom>Select a theme preset:</Typography>
 
@@ -400,7 +475,7 @@ export const Layout = ({
                     label="Theme preset"
                     value={themePreset}
                     onChange={(event) => setThemePreset(event.target.value as ThemePresetId)}
-                    sx={{ mt: 1, width: 220 }}
+                    sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
                     SelectProps={{ native: true }}
                 >
                     {THEME_PRESETS.map((preset) => (
@@ -452,7 +527,7 @@ export const Layout = ({
                     label="Theme mode"
                     value={appearanceMode}
                     onChange={(event) => setAppearanceMode(event.target.value as AppearanceMode)}
-                    sx={{ mt: 1, width: 220 }}
+                    sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
                     SelectProps={{ native: true }}
                 >
                     <option value="dark">Dark</option>
@@ -465,7 +540,7 @@ export const Layout = ({
                     label="Font"
                     value={fontPreset}
                     onChange={(event) => setFontPreset(event.target.value as FontPreset)}
-                    sx={{ mt: 1, width: 220 }}
+                    sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
                     SelectProps={{ native: true }}
                 >
                     <option value="inter">Inter</option>
@@ -479,7 +554,7 @@ export const Layout = ({
                     label="Density"
                     value={uiDensity}
                     onChange={(event) => setUiDensity(event.target.value as UiDensity)}
-                    sx={{ mt: 1, width: 220 }}
+                    sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
                     SelectProps={{ native: true }}
                 >
                     <option value="comfortable">Comfortable</option>
@@ -497,7 +572,7 @@ export const Layout = ({
                             setBorderRadius(Math.min(24, Math.max(6, value)));
                         }
                     }}
-                    sx={{ mt: 1, width: 220 }}
+                    sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
                     inputProps={{ min: 6, max: 24, step: 1 }}
                 />
 
@@ -557,13 +632,13 @@ export const Layout = ({
                             onReminderHourChange(normalized);
                         }
                     }}
-                    sx={{ mt: 1, width: 220 }}
+                    sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
                     inputProps={{ min: 0, max: 23, step: 1 }}
                 />
 
                 <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Data</Typography>
-                <Button onClick={exportBackup} startIcon={<DownloadIcon />} variant="outlined">
+                <Button onClick={exportBackup} startIcon={<DownloadIcon />} variant="outlined" sx={{ width: { xs: "100%", sm: "auto" } }}>
                     Export Backup (JSON)
                 </Button>
                 <FormControlLabel
@@ -580,7 +655,7 @@ export const Layout = ({
                     onClick={openImportPicker}
                     startIcon={<UploadFileIcon />}
                     variant="outlined"
-                    sx={{ mt: 1 }}
+                    sx={{ mt: 1, width: { xs: "100%", sm: "auto" } }}
                     disabled={importBackupMutation.isPending}
                 >
                     {importBackupMutation.isPending ? "Importing..." : "Import Backup (JSON)"}

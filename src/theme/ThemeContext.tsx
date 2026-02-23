@@ -6,7 +6,12 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Theme, ThemeProvider as MuiThemeProvider, createTheme } from "@mui/material/styles";
+import {
+  Theme,
+  ThemeProvider as MuiThemeProvider,
+  createTheme,
+  responsiveFontSizes,
+} from "@mui/material/styles";
 import {
   DEFAULT_THEME_PRESET,
   ThemePresetId,
@@ -98,7 +103,7 @@ const buildMuiTheme = ({
   palette: ReturnType<typeof getThemePreset>["light"];
   uiDensity: UiDensity;
 }): Theme => {
-  return createTheme({
+  const baseTheme = createTheme({
     palette: {
       mode: appearanceMode,
       primary: { main: palette.primary },
@@ -116,14 +121,27 @@ const buildMuiTheme = ({
     shape: { borderRadius },
     typography: {
       fontFamily,
-      h4: { fontWeight: 700, letterSpacing: "-0.02em" },
-      h5: { fontWeight: 600, letterSpacing: "-0.01em" },
-      h6: { fontWeight: 600 },
-      subtitle1: { fontWeight: 500 },
+      h4: { fontWeight: 700, letterSpacing: "-0.02em", fontSize: "1.9rem" },
+      h5: { fontWeight: 600, letterSpacing: "-0.01em", fontSize: "1.45rem" },
+      h6: { fontWeight: 600, fontSize: "1.12rem" },
+      subtitle1: { fontWeight: 500, fontSize: "0.95rem" },
       subtitle2: {
         fontWeight: 500,
         letterSpacing: "0.05em",
         textTransform: "uppercase",
+      },
+      body1: {
+        fontSize: "0.96rem",
+        lineHeight: 1.55,
+      },
+      body2: {
+        fontSize: "0.88rem",
+        lineHeight: 1.5,
+      },
+      button: {
+        fontSize: "0.87rem",
+        letterSpacing: "0.01em",
+        fontWeight: 600,
       },
     },
     components: {
@@ -172,7 +190,8 @@ const buildMuiTheme = ({
             textTransform: "none",
             fontWeight: 600,
             borderRadius: Math.max(8, borderRadius - 4),
-            padding: uiDensity === "compact" ? "6px 16px" : "8px 24px",
+            minHeight: uiDensity === "compact" ? 32 : 38,
+            padding: uiDensity === "compact" ? "5px 14px" : "8px 20px",
             transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
           },
           containedPrimary: {
@@ -208,6 +227,17 @@ const buildMuiTheme = ({
                 boxShadow: `0 0 0 4px ${palette.primary}26`,
               },
             },
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            fontWeight: 500,
+          },
+          label: {
+            paddingLeft: 8,
+            paddingRight: 8,
           },
         },
       },
@@ -262,6 +292,8 @@ const buildMuiTheme = ({
       },
     },
   });
+
+  return responsiveFontSizes(baseTheme);
 };
 
 export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ children }) => {
