@@ -16,8 +16,8 @@ const drawerWidth = 280;
 
 interface LayoutProps {
     children: ReactNode;
-    activeTab: 'journal' | 'page';
-    onTabChange: (tab: 'journal' | 'page') => void;
+    activeTab: 'journal' | 'page' | 'tasks';
+    onTabChange: (tab: 'journal' | 'page' | 'tasks') => void;
     selectedDate: string;
     onSelectDate: (date: string) => void;
     selectedPageId: number | null;
@@ -144,6 +144,25 @@ export const Layout = ({ children, activeTab, onTabChange, selectedDate, onSelec
                                 </ListItemButton>
                             </ListItem>
                         ))}
+                    </List>
+
+                    <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.05)', mx: 2 }} />
+
+                    {/* TASKS SECTION */}
+                    <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', color: 'text.secondary', letterSpacing: '0.1em' }}>
+                        Management
+                    </Typography>
+                    <List disablePadding>
+                        <ListItem disablePadding>
+                            <ListItemButton
+                                selected={activeTab === 'tasks'}
+                                onClick={() => onTabChange('tasks')}
+                                sx={navItemStyle(activeTab === 'tasks')}
+                            >
+                                <EventNoteIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
+                                <ListItemText primary="Tasks" primaryTypographyProps={{ fontWeight: 600 }} />
+                            </ListItemButton>
+                        </ListItem>
                     </List>
 
                     <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.05)', mx: 2 }} />

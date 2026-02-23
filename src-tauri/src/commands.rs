@@ -204,3 +204,89 @@ pub fn delete_page(id: i64, state: State<'_, AppState>) -> Result<(), String> {
     
     Ok(())
 }
+
+use crate::models::Task;
+
+#[tauri::command]
+pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT id, title, description, status, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
+    
+    let tasks_iter = stmt.query_map([], |row| {
+        Ok(Task {
+            id: row.get(0)?,
+            title: row.get(1)?,
+            description: row.get(2)?,
+            status: row.get(3)?,
+            created_at: row.get(4)?,
+            updated_at: row.get(5)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut tasks = Vec::new();
+    for task in tasks_iter {
+        tasks.push(task.map_err(|e| e.to_string())?);
+    }
+    
+    Ok(tasks)
+}
+
+#[tauri::command]
+pub fn create_task(title: String, description: String, status: String, state: State<'_, AppState>) -> Result<Task, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+    
+    conn.execute(
+        "INSERT INTO tasks (title, description, status, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![title, description, status, now, now],
+    ).map_err(|e| e.to_string())?;
+    
+    let id = conn.last_insert_rowid();
+    
+    Ok(Task {
+        id,
+        title,
+        description,
+        status,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub fn update_task(id: i64, title: String, description: String, status: String, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+    
+    conn.execute(
+        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, updated_at = ?4 WHERE id = ?5",
+        params![title, description, status, now, id],
+    ).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_task_status(id: i64, status: String, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+    
+    conn.execute(
+        "UPDATE tasks SET status = ?1, updated_at = ?2 WHERE id = ?3",
+        params![status, now, id],
+    ).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_task(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "DELETE FROM tasks WHERE id = ?1",
+        params![id],
+    ).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}

@@ -17,3 +17,13 @@ pub struct Page {
     pub created_at: String,
     pub updated_at: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Task {
+    pub id: i64,
+    pub title: String,
+    pub description: String,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
