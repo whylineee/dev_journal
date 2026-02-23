@@ -26,6 +26,9 @@ export interface Task {
     priority: TaskPriority;
     due_date: string | null;
     completed_at: string | null;
+    time_estimate_minutes: number;
+    timer_started_at: string | null;
+    timer_accumulated_seconds: number;
     created_at: string;
     updated_at: string;
 }
@@ -79,6 +82,9 @@ export interface BackupPayload {
         priority?: TaskPriority;
         due_date?: string | null;
         completed_at?: string | null;
+        time_estimate_minutes?: number;
+        timer_started_at?: string | null;
+        timer_accumulated_seconds?: number;
         created_at?: string;
         updated_at?: string;
     }>;

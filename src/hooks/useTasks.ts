@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { Task, TaskPriority, TaskStatus } from "../types";
 
@@ -20,14 +20,23 @@ export const useCreateTask = () => {
             status,
             priority,
             due_date,
+            time_estimate_minutes,
         }: {
             title: string;
             description: string;
             status: TaskStatus;
             priority: TaskPriority;
             due_date: string | null;
+            time_estimate_minutes: number;
         }) => {
-            return await invoke<Task>("create_task", { title, description, status, priority, dueDate: due_date });
+            return await invoke<Task>("create_task", {
+                title,
+                description,
+                status,
+                priority,
+                dueDate: due_date,
+                timeEstimateMinutes: time_estimate_minutes,
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -45,6 +54,7 @@ export const useUpdateTask = () => {
             status,
             priority,
             due_date,
+            time_estimate_minutes,
         }: {
             id: number;
             title: string;
@@ -52,8 +62,17 @@ export const useUpdateTask = () => {
             status: TaskStatus;
             priority: TaskPriority;
             due_date: string | null;
+            time_estimate_minutes: number;
         }) => {
-            await invoke("update_task", { id, title, description, status, priority, dueDate: due_date });
+            await invoke("update_task", {
+                id,
+                title,
+                description,
+                status,
+                priority,
+                dueDate: due_date,
+                timeEstimateMinutes: time_estimate_minutes,
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -66,6 +85,42 @@ export const useUpdateTaskStatus = () => {
     return useMutation({
         mutationFn: async ({ id, status }: { id: number; status: TaskStatus }) => {
             await invoke("update_task_status", { id, status });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        },
+    });
+};
+
+export const useStartTaskTimer = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => {
+            await invoke("start_task_timer", { id });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        },
+    });
+};
+
+export const usePauseTaskTimer = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => {
+            await invoke("pause_task_timer", { id });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        },
+    });
+};
+
+export const useResetTaskTimer = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => {
+            await invoke("reset_task_timer", { id });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["tasks"] });

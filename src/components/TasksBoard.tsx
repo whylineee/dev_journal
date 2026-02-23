@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Checkbox,
   Chip,
   Dialog,
   DialogActions,
@@ -12,6 +13,7 @@ import {
   Paper,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import AddTaskIcon from "@mui/icons-material/AddTask";
@@ -19,10 +21,17 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import PauseIcon from "@mui/icons-material/Pause";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import TimerIcon from "@mui/icons-material/Timer";
 import { format, isBefore, isToday, parseISO, startOfDay } from "date-fns";
 import {
   useCreateTask,
   useDeleteTask,
+  usePauseTaskTimer,
+  useResetTaskTimer,
+  useStartTaskTimer,
   useTasks,
   useUpdateTask,
   useUpdateTaskStatus,
@@ -90,6 +99,46 @@ const isTaskOverdue = (task: Task) => {
   }
 };
 
+const parseRfc3339 = (value: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+};
+
+const getElapsedSeconds = (task: Task, nowMs: number) => {
+  const startedAt = parseRfc3339(task.timer_started_at);
+  const runningSeconds = startedAt ? Math.max(0, Math.floor((nowMs - startedAt.getTime()) / 1000)) : 0;
+  return Math.max(0, task.timer_accumulated_seconds + runningSeconds);
+};
+
+const formatDuration = (totalSeconds: number) => {
+  const safe = Math.max(0, totalSeconds);
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const seconds = safe % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+};
+
+const normalizeEstimateMinutes = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(10080, Math.round(value)));
+};
+
 const compareTasks = (a: Task, b: Task) => {
   const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
   if (priorityDiff !== 0) {
@@ -115,6 +164,9 @@ export const TasksBoard = () => {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const updateStatus = useUpdateTaskStatus();
+  const startTimer = useStartTaskTimer();
+  const pauseTimer = usePauseTaskTimer();
+  const resetTimer = useResetTaskTimer();
   const deleteTask = useDeleteTask();
 
   const [query, setQuery] = useState("");
@@ -128,12 +180,22 @@ export const TasksBoard = () => {
   const [status, setStatus] = useState<TaskStatus>("todo");
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [dueDate, setDueDate] = useState("");
+  const [timeEstimateMinutes, setTimeEstimateMinutes] = useState(0);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const busy =
     createTask.isPending ||
     updateTask.isPending ||
     updateStatus.isPending ||
+    startTimer.isPending ||
+    pauseTimer.isPending ||
+    resetTimer.isPending ||
     deleteTask.isPending;
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("devJournal_tasks_overdue_only", String(showOverdueOnly));
@@ -164,8 +226,9 @@ export const TasksBoard = () => {
     }).length;
 
     const done = tasks.filter((task) => task.status === "done").length;
+    const activeTimers = tasks.filter((task) => Boolean(task.timer_started_at)).length;
 
-    return { overdue, dueToday, done, total: tasks.length };
+    return { overdue, dueToday, done, total: tasks.length, activeTimers };
   }, [tasks]);
 
   const filteredTasks = useMemo(() => {
@@ -212,6 +275,7 @@ export const TasksBoard = () => {
     setStatus("todo");
     setPriority("medium");
     setDueDate("");
+    setTimeEstimateMinutes(0);
     setDialogOpen(true);
   };
 
@@ -222,6 +286,7 @@ export const TasksBoard = () => {
     setStatus(task.status);
     setPriority(task.priority);
     setDueDate(task.due_date ?? "");
+    setTimeEstimateMinutes(task.time_estimate_minutes);
     setDialogOpen(true);
   };
 
@@ -231,6 +296,8 @@ export const TasksBoard = () => {
       return;
     }
 
+    const normalizedTimeEstimate = normalizeEstimateMinutes(timeEstimateMinutes);
+
     if (editingTask) {
       updateTask.mutate({
         id: editingTask.id,
@@ -239,6 +306,7 @@ export const TasksBoard = () => {
         status,
         priority,
         due_date: dueDate || null,
+        time_estimate_minutes: normalizedTimeEstimate,
       });
     } else {
       createTask.mutate({
@@ -247,6 +315,7 @@ export const TasksBoard = () => {
         status,
         priority,
         due_date: dueDate || null,
+        time_estimate_minutes: normalizedTimeEstimate,
       });
     }
 
@@ -262,6 +331,10 @@ export const TasksBoard = () => {
       return;
     }
     updateStatus.mutate({ id: task.id, status: nextStatus });
+  };
+
+  const toggleDone = (task: Task, checked: boolean) => {
+    updateStatus.mutate({ id: task.id, status: checked ? "done" : "todo" });
   };
 
   return (
@@ -297,6 +370,7 @@ export const TasksBoard = () => {
           <Chip label={`Done: ${stats.done}`} color="success" variant="outlined" size="small" />
           <Chip label={`Due today: ${stats.dueToday}`} color="info" variant="outlined" size="small" />
           <Chip label={`Overdue: ${stats.overdue}`} color={stats.overdue > 0 ? "error" : "default"} variant="outlined" size="small" />
+          <Chip label={`Active timers: ${stats.activeTimers}`} color={stats.activeTimers > 0 ? "warning" : "default"} variant="outlined" size="small" />
         </Stack>
 
         <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
@@ -372,6 +446,10 @@ export const TasksBoard = () => {
             <Stack spacing={1.5}>
               {grouped[column.status].map((task) => {
                 const overdue = isTaskOverdue(task);
+                const isRunning = Boolean(task.timer_started_at);
+                const elapsedSeconds = getElapsedSeconds(task, nowMs);
+                const estimatedSeconds = task.time_estimate_minutes * 60;
+                const remainingSeconds = estimatedSeconds - elapsedSeconds;
 
                 return (
                   <Paper
@@ -383,10 +461,26 @@ export const TasksBoard = () => {
                     }}
                   >
                     <Stack direction="row" justifyContent="space-between" spacing={1}>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
-                          {task.title}
-                        </Typography>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <Checkbox
+                            size="small"
+                            checked={task.status === "done"}
+                            onChange={(event) => toggleDone(task, event.target.checked)}
+                            disabled={busy}
+                          />
+                          <Typography
+                            variant="subtitle2"
+                            sx={{
+                              fontWeight: 700,
+                              textDecoration: task.status === "done" ? "line-through" : "none",
+                            }}
+                            noWrap
+                          >
+                            {task.title}
+                          </Typography>
+                        </Stack>
+
                         {task.description ? (
                           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                             {task.description}
@@ -408,6 +502,54 @@ export const TasksBoard = () => {
                               variant="outlined"
                             />
                           ) : null}
+                          <Chip
+                            size="small"
+                            icon={<TimerIcon fontSize="small" />}
+                            label={`Spent: ${formatDuration(elapsedSeconds)}`}
+                            color={isRunning ? "warning" : "default"}
+                            variant="outlined"
+                          />
+                          {task.time_estimate_minutes > 0 ? (
+                            <>
+                              <Chip
+                                size="small"
+                                label={`Target: ${task.time_estimate_minutes}m`}
+                                variant="outlined"
+                              />
+                              <Chip
+                                size="small"
+                                label={remainingSeconds >= 0 ? `Left: ${formatDuration(remainingSeconds)}` : `Over: ${formatDuration(Math.abs(remainingSeconds))}`}
+                                color={remainingSeconds < 0 ? "error" : "success"}
+                                variant="outlined"
+                              />
+                            </>
+                          ) : null}
+                        </Stack>
+
+                        <Stack direction="row" spacing={0.75} sx={{ mt: 1.2, flexWrap: "wrap", gap: 0.75 }}>
+                          <Tooltip title={isRunning ? "Pause timer" : "Start timer"}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color={isRunning ? "warning" : "primary"}
+                                onClick={() => (isRunning ? pauseTimer.mutate(task.id) : startTimer.mutate(task.id))}
+                                disabled={busy || task.status === "done"}
+                              >
+                                {isRunning ? <PauseIcon fontSize="small" /> : <PlayArrowIcon fontSize="small" />}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title="Reset timer">
+                            <span>
+                              <IconButton
+                                size="small"
+                                onClick={() => resetTimer.mutate(task.id)}
+                                disabled={busy || elapsedSeconds === 0}
+                              >
+                                <RestartAltIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                         </Stack>
 
                         <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 1 }}>
@@ -507,13 +649,25 @@ export const TasksBoard = () => {
               </TextField>
             </Stack>
 
-            <TextField
-              type="date"
-              label="Due date"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+              <TextField
+                type="date"
+                label="Due date"
+                value={dueDate}
+                onChange={(event) => setDueDate(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+
+              <TextField
+                type="number"
+                label="Time limit (minutes)"
+                value={timeEstimateMinutes}
+                onChange={(event) => setTimeEstimateMinutes(normalizeEstimateMinutes(Number(event.target.value)))}
+                inputProps={{ min: 0, max: 10080, step: 5 }}
+                fullWidth
+              />
+            </Stack>
           </Stack>
         </DialogContent>
 

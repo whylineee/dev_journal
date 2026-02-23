@@ -1,7 +1,7 @@
 use crate::models::{Entry, Goal, Habit, HabitWithLogs, Page, Task};
 use chrono::{Datelike, Duration, NaiveDate, Utc};
-use rusqlite::params;
 use rusqlite::Connection;
+use rusqlite::{params, OptionalExtension};
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -53,6 +53,9 @@ pub struct BackupTaskInput {
     pub priority: Option<String>,
     pub due_date: Option<String>,
     pub completed_at: Option<String>,
+    pub time_estimate_minutes: Option<i64>,
+    pub timer_started_at: Option<String>,
+    pub timer_accumulated_seconds: Option<i64>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
 }
@@ -102,6 +105,25 @@ fn normalize_priority(priority: Option<String>) -> String {
         }
         _ => "medium".to_string(),
     }
+}
+
+fn normalize_time_estimate_minutes(value: Option<i64>) -> i64 {
+    value.unwrap_or(0).clamp(0, 10_080)
+}
+
+fn normalize_accumulated_seconds(value: Option<i64>) -> i64 {
+    value.unwrap_or(0).max(0)
+}
+
+fn elapsed_since(started_at: &str) -> i64 {
+    let parsed = chrono::DateTime::parse_from_rfc3339(started_at);
+    if let Ok(date_time) = parsed {
+        return (Utc::now() - date_time.with_timezone(&Utc))
+            .num_seconds()
+            .max(0);
+    }
+
+    0
 }
 
 fn normalize_goal_status(status: Option<String>) -> String {
@@ -424,7 +446,7 @@ pub fn delete_page(id: i64, state: State<'_, AppState>) -> Result<(), String> {
 #[tauri::command]
 pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let mut stmt = conn.prepare("SELECT id, title, description, status, priority, due_date, completed_at, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT id, title, description, status, priority, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
 
     let tasks_iter = stmt
         .query_map([], |row| {
@@ -436,8 +458,11 @@ pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
                 priority: row.get(4)?,
                 due_date: row.get(5)?,
                 completed_at: row.get(6)?,
-                created_at: row.get(7)?,
-                updated_at: row.get(8)?,
+                time_estimate_minutes: row.get(7)?,
+                timer_started_at: row.get(8)?,
+                timer_accumulated_seconds: row.get(9)?,
+                created_at: row.get(10)?,
+                updated_at: row.get(11)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -457,6 +482,7 @@ pub fn create_task(
     status: String,
     priority: Option<String>,
     due_date: Option<String>,
+    time_estimate_minutes: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<Task, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
@@ -468,10 +494,25 @@ pub fn create_task(
     } else {
         None
     };
+    let time_estimate_minutes = normalize_time_estimate_minutes(time_estimate_minutes);
+    let timer_started_at: Option<String> = None;
+    let timer_accumulated_seconds = 0_i64;
 
     conn.execute(
-        "INSERT INTO tasks (title, description, status, priority, due_date, completed_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![title, description, status, priority, due_date, completed_at, now, now],
+        "INSERT INTO tasks (title, description, status, priority, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![
+            title,
+            description,
+            status,
+            priority,
+            due_date,
+            completed_at,
+            time_estimate_minutes,
+            timer_started_at,
+            timer_accumulated_seconds,
+            now,
+            now
+        ],
     ).map_err(|e| e.to_string())?;
 
     let id = conn.last_insert_rowid();
@@ -484,6 +525,9 @@ pub fn create_task(
         priority,
         due_date,
         completed_at,
+        time_estimate_minutes,
+        timer_started_at,
+        timer_accumulated_seconds,
         created_at: now.clone(),
         updated_at: now,
     })
@@ -497,12 +541,40 @@ pub fn update_task(
     status: String,
     priority: Option<String>,
     due_date: Option<String>,
+    time_estimate_minutes: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().to_rfc3339();
     let status = normalize_status(status);
     let normalized_priority = normalize_priority(priority);
+    let normalized_time_estimate_minutes = normalize_time_estimate_minutes(time_estimate_minutes);
+    let mut timer_started_at: Option<String> = conn
+        .query_row(
+            "SELECT timer_started_at FROM tasks WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .flatten();
+    let mut timer_accumulated_seconds: i64 = conn
+        .query_row(
+            "SELECT timer_accumulated_seconds FROM tasks WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(0);
+
+    if status == "done" {
+        if let Some(started_at) = timer_started_at.as_deref() {
+            timer_accumulated_seconds += elapsed_since(started_at);
+        }
+        timer_started_at = None;
+    }
+
     let completed_at = if status == "done" {
         Some(now.clone())
     } else {
@@ -510,8 +582,20 @@ pub fn update_task(
     };
 
     conn.execute(
-        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, priority = ?4, due_date = ?5, completed_at = ?6, updated_at = ?7 WHERE id = ?8",
-        params![title, description, status, normalized_priority, due_date, completed_at, now, id],
+        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, priority = ?4, due_date = ?5, completed_at = ?6, time_estimate_minutes = ?7, timer_started_at = ?8, timer_accumulated_seconds = ?9, updated_at = ?10 WHERE id = ?11",
+        params![
+            title,
+            description,
+            status,
+            normalized_priority,
+            due_date,
+            completed_at,
+            normalized_time_estimate_minutes,
+            timer_started_at,
+            timer_accumulated_seconds,
+            now,
+            id
+        ],
     ).map_err(|e| e.to_string())?;
 
     Ok(())
@@ -526,6 +610,32 @@ pub fn update_task_status(
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().to_rfc3339();
     let status = normalize_status(status);
+    let mut timer_started_at: Option<String> = conn
+        .query_row(
+            "SELECT timer_started_at FROM tasks WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .flatten();
+    let mut timer_accumulated_seconds: i64 = conn
+        .query_row(
+            "SELECT timer_accumulated_seconds FROM tasks WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(0);
+
+    if status == "done" {
+        if let Some(started_at) = timer_started_at.as_deref() {
+            timer_accumulated_seconds += elapsed_since(started_at);
+        }
+        timer_started_at = None;
+    }
+
     let completed_at = if status == "done" {
         Some(now.clone())
     } else {
@@ -533,8 +643,97 @@ pub fn update_task_status(
     };
 
     conn.execute(
-        "UPDATE tasks SET status = ?1, completed_at = ?2, updated_at = ?3 WHERE id = ?4",
-        params![status, completed_at, now, id],
+        "UPDATE tasks SET status = ?1, completed_at = ?2, timer_started_at = ?3, timer_accumulated_seconds = ?4, updated_at = ?5 WHERE id = ?6",
+        params![status, completed_at, timer_started_at, timer_accumulated_seconds, now, id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn start_task_timer(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let task_row: Option<(String, Option<String>)> = conn
+        .query_row(
+            "SELECT status, timer_started_at FROM tasks WHERE id = ?1",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let Some((status, existing_started_at)) = task_row else {
+        return Ok(());
+    };
+
+    if existing_started_at.is_some() {
+        return Ok(());
+    }
+
+    let next_status = if status == "done" {
+        "in_progress".to_string()
+    } else {
+        status
+    };
+    let completed_at: Option<String> = if next_status == "done" {
+        Some(now.clone())
+    } else {
+        None
+    };
+
+    conn.execute(
+        "UPDATE tasks SET status = ?1, completed_at = ?2, timer_started_at = ?3, updated_at = ?4 WHERE id = ?5",
+        params![next_status, completed_at, now, now, id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn pause_task_timer(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let task_row: Option<(Option<String>, i64)> = conn
+        .query_row(
+            "SELECT timer_started_at, timer_accumulated_seconds FROM tasks WHERE id = ?1",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let Some((timer_started_at, timer_accumulated_seconds)) = task_row else {
+        return Ok(());
+    };
+
+    let Some(started_at) = timer_started_at else {
+        return Ok(());
+    };
+
+    let next_accumulated_seconds = timer_accumulated_seconds + elapsed_since(&started_at);
+
+    conn.execute(
+        "UPDATE tasks SET timer_started_at = NULL, timer_accumulated_seconds = ?1, updated_at = ?2 WHERE id = ?3",
+        params![next_accumulated_seconds, now, id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn reset_task_timer(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    conn.execute(
+        "UPDATE tasks SET timer_started_at = NULL, timer_accumulated_seconds = 0, updated_at = ?1 WHERE id = ?2",
+        params![now, id],
     )
     .map_err(|e| e.to_string())?;
 
@@ -935,11 +1134,22 @@ pub fn import_backup(
         let priority = normalize_priority(task.priority);
         let due_date = task.due_date;
         let completed_at = task.completed_at;
+        let time_estimate_minutes = normalize_time_estimate_minutes(task.time_estimate_minutes);
+        let mut timer_started_at = task.timer_started_at;
+        let mut timer_accumulated_seconds =
+            normalize_accumulated_seconds(task.timer_accumulated_seconds);
+
+        if status == "done" {
+            if let Some(started_at) = timer_started_at.as_deref() {
+                timer_accumulated_seconds += elapsed_since(started_at);
+            }
+            timer_started_at = None;
+        }
 
         if let Some(id) = task.id {
             tx.execute(
-                "INSERT INTO tasks (id, title, description, status, priority, due_date, completed_at, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                "INSERT INTO tasks (id, title, description, status, priority, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
                  ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     description = excluded.description,
@@ -947,16 +1157,44 @@ pub fn import_backup(
                     priority = excluded.priority,
                     due_date = excluded.due_date,
                     completed_at = excluded.completed_at,
+                    time_estimate_minutes = excluded.time_estimate_minutes,
+                    timer_started_at = excluded.timer_started_at,
+                    timer_accumulated_seconds = excluded.timer_accumulated_seconds,
                     created_at = excluded.created_at,
                     updated_at = excluded.updated_at",
-                params![id, task.title, task.description, status, priority, due_date, completed_at, created_at, updated_at],
+                params![
+                    id,
+                    task.title,
+                    task.description,
+                    status,
+                    priority,
+                    due_date,
+                    completed_at,
+                    time_estimate_minutes,
+                    timer_started_at,
+                    timer_accumulated_seconds,
+                    created_at,
+                    updated_at
+                ],
             )
             .map_err(|e| e.to_string())?;
         } else {
             tx.execute(
-                "INSERT INTO tasks (title, description, status, priority, due_date, completed_at, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![task.title, task.description, status, priority, due_date, completed_at, created_at, updated_at],
+                "INSERT INTO tasks (title, description, status, priority, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                params![
+                    task.title,
+                    task.description,
+                    status,
+                    priority,
+                    due_date,
+                    completed_at,
+                    time_estimate_minutes,
+                    timer_started_at,
+                    timer_accumulated_seconds,
+                    created_at,
+                    updated_at
+                ],
             )
             .map_err(|e| e.to_string())?;
         }

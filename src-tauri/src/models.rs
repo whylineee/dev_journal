@@ -27,6 +27,9 @@ pub struct Task {
     pub priority: String,
     pub due_date: Option<String>,
     pub completed_at: Option<String>,
+    pub time_estimate_minutes: i64,
+    pub timer_started_at: Option<String>,
+    pub timer_accumulated_seconds: i64,
     pub created_at: String,
     pub updated_at: String,
 }

@@ -138,6 +138,29 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    apply_migration(conn, 5, |conn| {
+        ensure_column(
+            conn,
+            "tasks",
+            "time_estimate_minutes",
+            "INTEGER NOT NULL DEFAULT 0",
+        )?;
+        ensure_column(conn, "tasks", "timer_started_at", "TEXT")?;
+        ensure_column(
+            conn,
+            "tasks",
+            "timer_accumulated_seconds",
+            "INTEGER NOT NULL DEFAULT 0",
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_timer_started_at ON tasks(timer_started_at)",
+            [],
+        )?;
+
+        Ok(())
+    })?;
+
     Ok(())
 }
 
