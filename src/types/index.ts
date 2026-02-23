@@ -24,3 +24,27 @@ export interface Task {
     created_at: string;
     updated_at: string;
 }
+
+export interface BackupPayload {
+    entries?: Array<{
+        date: string;
+        yesterday: string;
+        today: string;
+        created_at?: string;
+    }>;
+    pages?: Array<{
+        id?: number;
+        title: string;
+        content: string;
+        created_at?: string;
+        updated_at?: string;
+    }>;
+    tasks?: Array<{
+        id?: number;
+        title: string;
+        description: string;
+        status: string;
+        created_at?: string;
+        updated_at?: string;
+    }>;
+}

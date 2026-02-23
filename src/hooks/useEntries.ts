@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import { BackupPayload } from "../types";
 
 export const useEntries = () => {
     return useQuery({
@@ -37,9 +38,38 @@ export const useSaveEntry = () => {
     });
 };
 
+export const useDeleteEntry = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (date: string) => {
+            return api.deleteEntry(date);
+        },
+        onSuccess: (_, date) => {
+            queryClient.invalidateQueries({ queryKey: ["entries"] });
+            queryClient.invalidateQueries({ queryKey: ["entry", date] });
+        },
+    });
+};
+
 export const useGitCommits = () => {
     return useQuery({
         queryKey: ["commits"],
         queryFn: api.getGitCommits,
+    });
+};
+
+export const useImportBackup = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ payload, replaceExisting }: { payload: BackupPayload, replaceExisting: boolean }) => {
+            return api.importBackup(payload, replaceExisting);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["entries"] });
+            queryClient.invalidateQueries({ queryKey: ["pages"] });
+            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        },
     });
 };

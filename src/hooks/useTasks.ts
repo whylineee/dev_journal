@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
-import { Task } from "../types";
+import { Task, TaskStatus } from "../types";
 
 export const useTasks = () => {
     return useQuery({
@@ -14,7 +14,7 @@ export const useTasks = () => {
 export const useCreateTask = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ title, description, status }: { title: string; description: string; status: string }) => {
+        mutationFn: async ({ title, description, status }: { title: string; description: string; status: TaskStatus }) => {
             return await invoke<Task>("create_task", { title, description, status });
         },
         onSuccess: () => {
@@ -26,7 +26,7 @@ export const useCreateTask = () => {
 export const useUpdateTask = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ id, title, description, status }: { id: number; title: string; description: string; status: string }) => {
+        mutationFn: async ({ id, title, description, status }: { id: number; title: string; description: string; status: TaskStatus }) => {
             await invoke("update_task", { id, title, description, status });
         },
         onSuccess: () => {
@@ -38,7 +38,7 @@ export const useUpdateTask = () => {
 export const useUpdateTaskStatus = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ id, status }: { id: number; status: string }) => {
+        mutationFn: async ({ id, status }: { id: number; status: TaskStatus }) => {
             await invoke("update_task_status", { id, status });
         },
         onSuccess: () => {

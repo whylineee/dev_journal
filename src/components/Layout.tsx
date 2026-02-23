@@ -1,8 +1,10 @@
-import { Box, AppBar, Toolbar, Typography, Drawer, List, ListItem, ListItemText, ListItemButton, Divider, InputBase, alpha, Chip, IconButton, Dialog, Button } from "@mui/material";
-import { ReactNode, useState } from "react";
-import { useEntries, useSearchEntries } from "../hooks/useEntries";
+import { Box, AppBar, Toolbar, Typography, Drawer, List, ListItem, ListItemText, ListItemButton, Divider, InputBase, alpha, Chip, IconButton, Dialog, Button, FormControlLabel, Switch, TextField } from "@mui/material";
+import { ChangeEvent, ReactNode, useRef, useState } from "react";
+import { useEntries, useImportBackup, useSearchEntries } from "../hooks/useEntries";
 import { usePages } from "../hooks/usePages";
-import { useThemeContext } from "../theme/ThemeContext";
+import { useTasks } from "../hooks/useTasks";
+import { AppearanceMode, FontPreset, UiDensity, useThemeContext } from "../theme/ThemeContext";
+import { BackupPayload } from "../types";
 import { format, parseISO } from "date-fns";
 import SearchIcon from '@mui/icons-material/Search';
 import EditNoteIcon from '@mui/icons-material/EditNote';
@@ -11,6 +13,9 @@ import EventNoteIcon from '@mui/icons-material/EventNote';
 import ArticleIcon from '@mui/icons-material/Article';
 import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
+import TaskAltIcon from '@mui/icons-material/TaskAlt';
+import DownloadIcon from '@mui/icons-material/Download';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 
 const drawerWidth = 280;
 
@@ -22,18 +27,112 @@ interface LayoutProps {
     onSelectDate: (date: string) => void;
     selectedPageId: number | null;
     onSelectPage: (id: number | null) => void;
+    reminderEnabled: boolean;
+    onReminderEnabledChange: (enabled: boolean) => void;
+    reminderHour: number;
+    onReminderHourChange: (hour: number) => void;
+    journalPreviewEnabled: boolean;
+    onJournalPreviewEnabledChange: (enabled: boolean) => void;
+    pagePreviewEnabled: boolean;
+    onPagePreviewEnabledChange: (enabled: boolean) => void;
+    autosaveEnabled: boolean;
+    onAutosaveEnabledChange: (enabled: boolean) => void;
 }
 
-export const Layout = ({ children, activeTab, onTabChange, selectedDate, onSelectDate, selectedPageId, onSelectPage }: LayoutProps) => {
+export const Layout = ({
+    children,
+    activeTab,
+    onTabChange,
+    selectedDate,
+    onSelectDate,
+    selectedPageId,
+    onSelectPage,
+    reminderEnabled,
+    onReminderEnabledChange,
+    reminderHour,
+    onReminderHourChange,
+    journalPreviewEnabled,
+    onJournalPreviewEnabledChange,
+    pagePreviewEnabled,
+    onPagePreviewEnabledChange,
+    autosaveEnabled,
+    onAutosaveEnabledChange,
+}: LayoutProps) => {
     const [searchQuery, setSearchQuery] = useState("");
     const [settingsOpen, setSettingsOpen] = useState(false);
-    const { primaryColor, setPrimaryColor, resetTheme } = useThemeContext();
+    const [replaceExistingOnImport, setReplaceExistingOnImport] = useState(true);
+    const [importStatus, setImportStatus] = useState<string>("");
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const {
+        primaryColor,
+        setPrimaryColor,
+        appearanceMode,
+        setAppearanceMode,
+        fontPreset,
+        setFontPreset,
+        uiDensity,
+        setUiDensity,
+        borderRadius,
+        setBorderRadius,
+        resetTheme,
+    } = useThemeContext();
 
     const { data: allEntries } = useEntries();
     const { data: searchResults } = useSearchEntries(searchQuery);
+    const importBackupMutation = useImportBackup();
     const { data: pages } = usePages();
+    const { data: tasks } = useTasks();
 
     const displayEntries = searchQuery ? searchResults : allEntries;
+
+    const exportBackup = () => {
+        const data = {
+            exported_at: new Date().toISOString(),
+            entries: allEntries ?? [],
+            pages: pages ?? [],
+            tasks: tasks ?? [],
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `dev-journal-backup-${format(new Date(), "yyyy-MM-dd")}.json`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const openImportPicker = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleImportBackup = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        try {
+            const text = await file.text();
+            const parsed = JSON.parse(text) as BackupPayload;
+
+            importBackupMutation.mutate(
+                { payload: parsed, replaceExisting: replaceExistingOnImport },
+                {
+                    onSuccess: () => {
+                        setImportStatus("Backup imported successfully.");
+                    },
+                    onError: () => {
+                        setImportStatus("Import failed. Check JSON format.");
+                    },
+                }
+            );
+        } catch {
+            setImportStatus("Import failed. Invalid JSON file.");
+        } finally {
+            event.target.value = "";
+        }
+    };
 
     const navItemStyle = (isSelected: boolean) => ({
         borderRadius: 2,
@@ -159,7 +258,7 @@ export const Layout = ({ children, activeTab, onTabChange, selectedDate, onSelec
                                 onClick={() => onTabChange('tasks')}
                                 sx={navItemStyle(activeTab === 'tasks')}
                             >
-                                <EventNoteIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
+                                <TaskAltIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
                                 <ListItemText primary="Tasks" primaryTypographyProps={{ fontWeight: 600 }} />
                             </ListItemButton>
                         </ListItem>
@@ -264,6 +363,160 @@ export const Layout = ({ children, activeTab, onTabChange, selectedDate, onSelec
                         />
                     ))}
                 </Box>
+
+                <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Appearance</Typography>
+                <TextField
+                    select
+                    size="small"
+                    label="Theme mode"
+                    value={appearanceMode}
+                    onChange={(event) => setAppearanceMode(event.target.value as AppearanceMode)}
+                    sx={{ mt: 1, width: 220 }}
+                    SelectProps={{ native: true }}
+                >
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                </TextField>
+
+                <TextField
+                    select
+                    size="small"
+                    label="Font"
+                    value={fontPreset}
+                    onChange={(event) => setFontPreset(event.target.value as FontPreset)}
+                    sx={{ mt: 1, width: 220 }}
+                    SelectProps={{ native: true }}
+                >
+                    <option value="inter">Inter</option>
+                    <option value="roboto">Roboto</option>
+                    <option value="mono">Mono</option>
+                </TextField>
+
+                <TextField
+                    select
+                    size="small"
+                    label="Density"
+                    value={uiDensity}
+                    onChange={(event) => setUiDensity(event.target.value as UiDensity)}
+                    sx={{ mt: 1, width: 220 }}
+                    SelectProps={{ native: true }}
+                >
+                    <option value="comfortable">Comfortable</option>
+                    <option value="compact">Compact</option>
+                </TextField>
+
+                <TextField
+                    type="number"
+                    size="small"
+                    label="Corner radius (6-24)"
+                    value={borderRadius}
+                    onChange={(event) => {
+                        const value = Number(event.target.value);
+                        if (Number.isFinite(value)) {
+                            setBorderRadius(Math.min(24, Math.max(6, value)));
+                        }
+                    }}
+                    sx={{ mt: 1, width: 220 }}
+                    inputProps={{ min: 6, max: 24, step: 1 }}
+                />
+
+                <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Productivity</Typography>
+                <FormControlLabel
+                    sx={{ mt: 1 }}
+                    control={
+                        <Switch
+                            checked={journalPreviewEnabled}
+                            onChange={(event) => onJournalPreviewEnabledChange(event.target.checked)}
+                        />
+                    }
+                    label="Show journal markdown preview"
+                />
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={pagePreviewEnabled}
+                            onChange={(event) => onPagePreviewEnabledChange(event.target.checked)}
+                        />
+                    }
+                    label="Show page markdown preview"
+                />
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={autosaveEnabled}
+                            onChange={(event) => onAutosaveEnabledChange(event.target.checked)}
+                        />
+                    }
+                    label="Enable draft autosave"
+                />
+
+                <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Reminders</Typography>
+                <FormControlLabel
+                    sx={{ mt: 1 }}
+                    control={
+                        <Switch
+                            checked={reminderEnabled}
+                            onChange={(event) => onReminderEnabledChange(event.target.checked)}
+                        />
+                    }
+                    label="Enable daily journal reminder"
+                />
+
+                <TextField
+                    type="number"
+                    size="small"
+                    label="Reminder hour (0-23)"
+                    value={reminderHour}
+                    onChange={(event) => {
+                        const value = Number(event.target.value);
+                        if (Number.isInteger(value)) {
+                            const normalized = Math.min(23, Math.max(0, value));
+                            onReminderHourChange(normalized);
+                        }
+                    }}
+                    sx={{ mt: 1, width: 220 }}
+                    inputProps={{ min: 0, max: 23, step: 1 }}
+                />
+
+                <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Data</Typography>
+                <Button onClick={exportBackup} startIcon={<DownloadIcon />} variant="outlined">
+                    Export Backup (JSON)
+                </Button>
+                <FormControlLabel
+                    sx={{ mt: 1, display: 'block' }}
+                    control={
+                        <Switch
+                            checked={replaceExistingOnImport}
+                            onChange={(event) => setReplaceExistingOnImport(event.target.checked)}
+                        />
+                    }
+                    label="Replace existing data on import"
+                />
+                <Button
+                    onClick={openImportPicker}
+                    startIcon={<UploadFileIcon />}
+                    variant="outlined"
+                    sx={{ mt: 1 }}
+                    disabled={importBackupMutation.isPending}
+                >
+                    {importBackupMutation.isPending ? "Importing..." : "Import Backup (JSON)"}
+                </Button>
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={handleImportBackup}
+                    style={{ display: 'none' }}
+                />
+                {importStatus ? (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                        {importStatus}
+                    </Typography>
+                ) : null}
 
                 <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                     <Button onClick={resetTheme} color="inherit">Reset</Button>

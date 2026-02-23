@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Entry } from "../types";
+import { BackupPayload, Entry } from "../types";
 
 export const api = {
     getEntries: async (): Promise<Entry[]> => {
@@ -14,11 +14,19 @@ export const api = {
         return await invoke("save_entry", { date, yesterday, today });
     },
 
+    deleteEntry: async (date: string): Promise<void> => {
+        return await invoke("delete_entry", { date });
+    },
+
     searchEntries: async (query: string): Promise<Entry[]> => {
         return await invoke("search_entries", { query });
     },
 
     getGitCommits: async (): Promise<string[]> => {
         return await invoke("get_git_commits");
+    },
+
+    importBackup: async (payload: BackupPayload, replaceExisting: boolean): Promise<void> => {
+        return await invoke("import_backup", { payload, replaceExisting });
     }
 };

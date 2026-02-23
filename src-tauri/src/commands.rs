@@ -3,9 +3,47 @@ use rusqlite::params;
 use std::sync::Mutex;
 use tauri::State;
 use rusqlite::Connection;
+use serde::Deserialize;
 
 pub struct AppState {
     pub db: Mutex<Connection>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct BackupPayload {
+    #[serde(default)]
+    pub entries: Vec<BackupEntryInput>,
+    #[serde(default)]
+    pub pages: Vec<BackupPageInput>,
+    #[serde(default)]
+    pub tasks: Vec<BackupTaskInput>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BackupEntryInput {
+    pub date: String,
+    pub yesterday: String,
+    pub today: String,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BackupPageInput {
+    pub id: Option<i64>,
+    pub title: String,
+    pub content: String,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BackupTaskInput {
+    pub id: Option<i64>,
+    pub title: String,
+    pub description: String,
+    pub status: String,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
 }
 
 #[tauri::command]
@@ -68,6 +106,16 @@ pub fn save_entry(date: String, yesterday: String, today: String, state: State<'
         params![date, yesterday, today, created_at],
     ).map_err(|e| e.to_string())?;
     
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_entry(date: String, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+
+    conn.execute("DELETE FROM entries WHERE date = ?1", params![date])
+        .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
@@ -288,5 +336,97 @@ pub fn delete_task(id: i64, state: State<'_, AppState>) -> Result<(), String> {
         params![id],
     ).map_err(|e| e.to_string())?;
     
+    Ok(())
+}
+
+#[tauri::command]
+pub fn import_backup(
+    payload: BackupPayload,
+    replace_existing: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut conn = state.db.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    if replace_existing {
+        tx.execute("DELETE FROM entries", []).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM pages", []).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM tasks", []).map_err(|e| e.to_string())?;
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    for entry in payload.entries {
+        tx.execute(
+            "INSERT INTO entries (date, yesterday, today, created_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(date) DO UPDATE SET
+                yesterday = excluded.yesterday,
+                today = excluded.today,
+                created_at = excluded.created_at",
+            params![
+                entry.date,
+                entry.yesterday,
+                entry.today,
+                entry.created_at.unwrap_or_else(|| now.clone())
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    for page in payload.pages {
+        let created_at = page.created_at.unwrap_or_else(|| now.clone());
+        let updated_at = page.updated_at.unwrap_or_else(|| created_at.clone());
+
+        if let Some(id) = page.id {
+            tx.execute(
+                "INSERT INTO pages (id, title, content, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    content = excluded.content,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at",
+                params![id, page.title, page.content, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO pages (title, content, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![page.title, page.content, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    for task in payload.tasks {
+        let created_at = task.created_at.unwrap_or_else(|| now.clone());
+        let updated_at = task.updated_at.unwrap_or_else(|| created_at.clone());
+
+        if let Some(id) = task.id {
+            tx.execute(
+                "INSERT INTO tasks (id, title, description, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                 ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    description = excluded.description,
+                    status = excluded.status,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at",
+                params![id, task.title, task.description, task.status, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO tasks (title, description, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![task.title, task.description, task.status, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
