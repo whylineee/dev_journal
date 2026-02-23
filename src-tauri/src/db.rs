@@ -81,6 +81,29 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    apply_migration(conn, 3, |conn| {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS goals (
+                id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'active',
+                progress INTEGER NOT NULL DEFAULT 0,
+                target_date TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_goals_status_target_date ON goals(status, target_date)",
+            [],
+        )?;
+
+        Ok(())
+    })?;
+
     Ok(())
 }
 

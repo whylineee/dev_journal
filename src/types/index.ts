@@ -16,6 +16,7 @@ export interface Page {
 
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
+export type GoalStatus = "active" | "paused" | "completed" | "archived";
 
 export interface Task {
     id: number;
@@ -25,6 +26,17 @@ export interface Task {
     priority: TaskPriority;
     due_date: string | null;
     completed_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Goal {
+    id: number;
+    title: string;
+    description: string;
+    status: GoalStatus;
+    progress: number;
+    target_date: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -51,6 +63,16 @@ export interface BackupPayload {
         priority?: TaskPriority;
         due_date?: string | null;
         completed_at?: string | null;
+        created_at?: string;
+        updated_at?: string;
+    }>;
+    goals?: Array<{
+        id?: number;
+        title: string;
+        description?: string;
+        status?: GoalStatus;
+        progress?: number;
+        target_date?: string | null;
         created_at?: string;
         updated_at?: string;
     }>;

@@ -3,8 +3,8 @@ mod db;
 mod models;
 mod tray;
 
-use tauri::{Manager, WindowEvent};
 use std::sync::Mutex;
+use tauri::{Manager, WindowEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -52,6 +52,10 @@ pub fn run() {
             commands::update_task,
             commands::update_task_status,
             commands::delete_task,
+            commands::get_goals,
+            commands::create_goal,
+            commands::update_goal,
+            commands::delete_goal,
             commands::import_backup
         ])
         .run(tauri::generate_context!())

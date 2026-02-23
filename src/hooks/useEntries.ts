@@ -70,6 +70,7 @@ export const useImportBackup = () => {
             queryClient.invalidateQueries({ queryKey: ["entries"] });
             queryClient.invalidateQueries({ queryKey: ["pages"] });
             queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            queryClient.invalidateQueries({ queryKey: ["goals"] });
         },
     });
 };

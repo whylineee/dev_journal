@@ -5,17 +5,19 @@ import { PageEditor } from "./components/PageEditor";
 import { GitCommits } from "./components/GitCommits";
 import { Stats } from "./components/Stats";
 import { TasksBoard } from "./components/TasksBoard";
+import { GoalsBoard } from "./components/GoalsBoard";
 import { WeeklySummary } from "./components/WeeklySummary";
 import { CommandAction, CommandPalette } from "./components/CommandPalette";
 import { format } from "date-fns";
 import { Box, Container } from "@mui/material";
 import { useEntries } from "./hooks/useEntries";
 import { usePages } from "./hooks/usePages";
+import { useGoals } from "./hooks/useGoals";
 import { useThemeContext } from "./theme/ThemeContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'journal' | 'page' | 'tasks'>('journal');
+  const [activeTab, setActiveTab] = useState<'journal' | 'page' | 'tasks' | 'goals'>('journal');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState<boolean>(() => {
@@ -39,6 +41,7 @@ function App() {
 
   const { data: entries } = useEntries();
   const { data: pages } = usePages();
+  const { data: goals } = useGoals();
   const { appearanceMode, setAppearanceMode } = useThemeContext();
   const lastReminderDateRef = useRef<string | null>(localStorage.getItem("devJournal_lastReminderDate"));
 
@@ -153,6 +156,16 @@ function App() {
         },
       },
       {
+        id: "open-goals",
+        title: "Open Goals Board",
+        subtitle: "Switch to long-term goals tracking",
+        section: "Quick Actions",
+        keywords: ["goals", "milestones", "planning"],
+        onSelect: () => {
+          setActiveTab("goals");
+        },
+      },
+      {
         id: "new-page",
         title: "Create New Page",
         subtitle: "Open editor in new page mode",
@@ -213,8 +226,21 @@ function App() {
       });
     });
 
+    (goals ?? []).slice(0, 10).forEach((goal) => {
+      actions.push({
+        id: `goal-${goal.id}`,
+        title: `Open Goals: ${goal.title || "Untitled"}`,
+        subtitle: `${goal.progress}% complete`,
+        section: "Goals",
+        keywords: ["goal", "milestone", goal.title ?? ""],
+        onSelect: () => {
+          setActiveTab("goals");
+        },
+      });
+    });
+
     return actions;
-  }, [appearanceMode, entries, pages, setAppearanceMode]);
+  }, [appearanceMode, entries, goals, pages, setAppearanceMode]);
 
   return (
     <>
@@ -258,6 +284,8 @@ function App() {
             </>
           ) : activeTab === 'tasks' ? (
             <TasksBoard />
+          ) : activeTab === 'goals' ? (
+            <GoalsBoard />
           ) : (
             <PageEditor
               pageId={selectedPageId}

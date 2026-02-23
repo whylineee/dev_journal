@@ -3,6 +3,7 @@ import { ChangeEvent, ReactNode, useRef, useState } from "react";
 import { useEntries, useImportBackup, useSearchEntries } from "../hooks/useEntries";
 import { usePages } from "../hooks/usePages";
 import { useTasks } from "../hooks/useTasks";
+import { useGoals } from "../hooks/useGoals";
 import { AppearanceMode, FontPreset, UiDensity, useThemeContext } from "../theme/ThemeContext";
 import { BackupPayload } from "../types";
 import { format, parseISO } from "date-fns";
@@ -14,6 +15,7 @@ import ArticleIcon from '@mui/icons-material/Article';
 import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
+import FlagIcon from '@mui/icons-material/Flag';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 
@@ -21,8 +23,8 @@ const drawerWidth = 280;
 
 interface LayoutProps {
     children: ReactNode;
-    activeTab: 'journal' | 'page' | 'tasks';
-    onTabChange: (tab: 'journal' | 'page' | 'tasks') => void;
+    activeTab: 'journal' | 'page' | 'tasks' | 'goals';
+    onTabChange: (tab: 'journal' | 'page' | 'tasks' | 'goals') => void;
     selectedDate: string;
     onSelectDate: (date: string) => void;
     selectedPageId: number | null;
@@ -85,6 +87,7 @@ export const Layout = ({
     const importBackupMutation = useImportBackup();
     const { data: pages } = usePages();
     const { data: tasks } = useTasks();
+    const { data: goals } = useGoals();
 
     const displayEntries = searchQuery ? searchResults : allEntries;
 
@@ -94,6 +97,7 @@ export const Layout = ({
             entries: allEntries ?? [],
             pages: pages ?? [],
             tasks: tasks ?? [],
+            goals: goals ?? [],
         };
 
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -263,6 +267,16 @@ export const Layout = ({
                             >
                                 <TaskAltIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
                                 <ListItemText primary="Tasks" primaryTypographyProps={{ fontWeight: 600 }} />
+                            </ListItemButton>
+                        </ListItem>
+                        <ListItem disablePadding>
+                            <ListItemButton
+                                selected={activeTab === 'goals'}
+                                onClick={() => onTabChange('goals')}
+                                sx={navItemStyle(activeTab === 'goals')}
+                            >
+                                <FlagIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
+                                <ListItemText primary="Goals" primaryTypographyProps={{ fontWeight: 600 }} />
                             </ListItemButton>
                         </ListItem>
                     </List>

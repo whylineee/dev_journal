@@ -30,3 +30,15 @@ pub struct Task {
     pub created_at: String,
     pub updated_at: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Goal {
+    pub id: i64,
+    pub title: String,
+    pub description: String,
+    pub status: String,
+    pub progress: i64,
+    pub target_date: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
