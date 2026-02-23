@@ -13,12 +13,13 @@ import ChecklistIcon from "@mui/icons-material/Checklist";
 import FlagIcon from "@mui/icons-material/Flag";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import { addDays, format, isBefore, parseISO, startOfDay } from "date-fns";
+import { format } from "date-fns";
 import { useEntries } from "../hooks/useEntries";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits, useToggleHabitCompletion } from "../hooks/useHabits";
 import { useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
-import { Goal, Task } from "../types";
+import { isGoalNearDeadline } from "../utils/goalUtils";
+import { isTaskDueToday, isTaskOverdue } from "../utils/taskUtils";
 
 interface PlannerBoardProps {
   onOpenJournalToday: () => void;
@@ -27,48 +28,13 @@ interface PlannerBoardProps {
   onOpenHabits: () => void;
 }
 
-const isTaskOverdue = (task: Task) => {
-  if (!task.due_date || task.status === "done") {
-    return false;
-  }
-
-  try {
-    return isBefore(startOfDay(parseISO(task.due_date)), startOfDay(new Date()));
-  } catch {
-    return false;
-  }
-};
-
-const isTaskDueToday = (task: Task) => {
-  if (!task.due_date || task.status === "done") {
-    return false;
-  }
-
-  return task.due_date === format(new Date(), "yyyy-MM-dd");
-};
-
-const isGoalNearDeadline = (goal: Goal, thresholdDays: number) => {
-  if (!goal.target_date || goal.status === "completed" || goal.status === "archived") {
-    return false;
-  }
-
-  try {
-    const target = startOfDay(parseISO(goal.target_date));
-    const today = startOfDay(new Date());
-    const threshold = startOfDay(addDays(today, thresholdDays));
-
-    return target >= today && target <= threshold;
-  } catch {
-    return false;
-  }
-};
-
 export const PlannerBoard = ({
   onOpenJournalToday,
   onOpenTasks,
   onOpenGoals,
   onOpenHabits,
 }: PlannerBoardProps) => {
+  // Planner intentionally aggregates all domains into one daily operational view.
   const today = format(new Date(), "yyyy-MM-dd");
   const toggleHabitCompletion = useToggleHabitCompletion();
   const updateTaskStatus = useUpdateTaskStatus();

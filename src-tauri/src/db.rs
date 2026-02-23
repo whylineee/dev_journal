@@ -2,6 +2,7 @@ use rusqlite::{params, Connection, Result};
 use std::fs;
 use std::path::PathBuf;
 
+/// Initializes SQLite connection, enables DB PRAGMAs, and applies migrations.
 pub fn init(app_data_dir: PathBuf) -> Result<Connection> {
     if !app_data_dir.exists() {
         fs::create_dir_all(&app_data_dir).expect("Failed to create app data directory");
@@ -30,6 +31,7 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         [],
     )?;
 
+    // v1: base journal/page/task entities.
     apply_migration(conn, 1, |conn| {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS entries (
@@ -68,6 +70,7 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v2: task priority + due date support.
     apply_migration(conn, 2, |conn| {
         ensure_column(conn, "tasks", "priority", "TEXT NOT NULL DEFAULT 'medium'")?;
         ensure_column(conn, "tasks", "due_date", "TEXT")?;
@@ -81,6 +84,7 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v3: goals domain.
     apply_migration(conn, 3, |conn| {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS goals (
@@ -104,6 +108,7 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v4: habits and daily completion logs.
     apply_migration(conn, 4, |conn| {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS habits (
@@ -138,6 +143,7 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v5: persistent task timer fields.
     apply_migration(conn, 5, |conn| {
         ensure_column(
             conn,

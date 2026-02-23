@@ -25,7 +25,6 @@ import PauseIcon from "@mui/icons-material/Pause";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import TimerIcon from "@mui/icons-material/Timer";
-import { format, isBefore, isToday, parseISO, startOfDay } from "date-fns";
 import {
   useCreateTask,
   useDeleteTask,
@@ -37,19 +36,22 @@ import {
   useUpdateTaskStatus,
 } from "../hooks/useTasks";
 import { Task, TaskPriority, TaskStatus } from "../types";
+import {
+  compareTasks,
+  formatDuration,
+  formatTaskDateOnly,
+  formatTaskDateTime,
+  getTaskElapsedSeconds,
+  isTaskDueToday,
+  isTaskOverdue,
+  normalizeEstimateMinutes,
+} from "../utils/taskUtils";
 
 const columns: Array<{ status: TaskStatus; label: string; color: "default" | "warning" | "info" | "success" }> = [
   { status: "todo", label: "To Do", color: "warning" },
   { status: "in_progress", label: "In Progress", color: "info" },
   { status: "done", label: "Done", color: "success" },
 ];
-
-const priorityOrder: Record<TaskPriority, number> = {
-  urgent: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-};
 
 const priorityColor: Record<TaskPriority, "default" | "info" | "warning" | "error"> = {
   low: "default",
@@ -71,95 +73,8 @@ const priorityLabel: Record<TaskPriority, string> = {
   urgent: "Urgent",
 };
 
-const formatDateTime = (value: string) => {
-  try {
-    return format(parseISO(value), "MMM d, HH:mm");
-  } catch {
-    return value;
-  }
-};
-
-const formatDateOnly = (value: string) => {
-  try {
-    return format(parseISO(value), "MMM d");
-  } catch {
-    return value;
-  }
-};
-
-const isTaskOverdue = (task: Task) => {
-  if (!task.due_date || task.status === "done") {
-    return false;
-  }
-
-  try {
-    return isBefore(startOfDay(parseISO(task.due_date)), startOfDay(new Date()));
-  } catch {
-    return false;
-  }
-};
-
-const parseRfc3339 = (value: string | null) => {
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
-};
-
-const getElapsedSeconds = (task: Task, nowMs: number) => {
-  const startedAt = parseRfc3339(task.timer_started_at);
-  const runningSeconds = startedAt ? Math.max(0, Math.floor((nowMs - startedAt.getTime()) / 1000)) : 0;
-  return Math.max(0, task.timer_accumulated_seconds + runningSeconds);
-};
-
-const formatDuration = (totalSeconds: number) => {
-  const safe = Math.max(0, totalSeconds);
-  const hours = Math.floor(safe / 3600);
-  const minutes = Math.floor((safe % 3600) / 60);
-  const seconds = safe % 60;
-
-  if (hours > 0) {
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  }
-
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-};
-
-const normalizeEstimateMinutes = (value: number) => {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.min(10080, Math.round(value)));
-};
-
-const compareTasks = (a: Task, b: Task) => {
-  const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
-  if (priorityDiff !== 0) {
-    return priorityDiff;
-  }
-
-  if (a.due_date && b.due_date) {
-    const byDue = a.due_date.localeCompare(b.due_date);
-    if (byDue !== 0) {
-      return byDue;
-    }
-  } else if (a.due_date && !b.due_date) {
-    return -1;
-  } else if (!a.due_date && b.due_date) {
-    return 1;
-  }
-
-  return b.updated_at.localeCompare(a.updated_at);
-};
-
 export const TasksBoard = () => {
+  // `nowMs` is updated every second to render live timer values without round-trips.
   const { data: tasks = [], isLoading } = useTasks();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
@@ -213,17 +128,7 @@ export const TasksBoard = () => {
 
   const stats = useMemo(() => {
     const overdue = tasks.filter((task) => isTaskOverdue(task)).length;
-    const dueToday = tasks.filter((task) => {
-      if (!task.due_date || task.status === "done") {
-        return false;
-      }
-
-      try {
-        return isToday(parseISO(task.due_date));
-      } catch {
-        return false;
-      }
-    }).length;
+    const dueToday = tasks.filter((task) => isTaskDueToday(task)).length;
 
     const done = tasks.filter((task) => task.status === "done").length;
     const activeTimers = tasks.filter((task) => Boolean(task.timer_started_at)).length;
@@ -447,7 +352,7 @@ export const TasksBoard = () => {
               {grouped[column.status].map((task) => {
                 const overdue = isTaskOverdue(task);
                 const isRunning = Boolean(task.timer_started_at);
-                const elapsedSeconds = getElapsedSeconds(task, nowMs);
+                const elapsedSeconds = getTaskElapsedSeconds(task, nowMs);
                 const estimatedSeconds = task.time_estimate_minutes * 60;
                 const remainingSeconds = estimatedSeconds - elapsedSeconds;
 
@@ -497,7 +402,11 @@ export const TasksBoard = () => {
                           {task.due_date ? (
                             <Chip
                               size="small"
-                              label={overdue ? `Overdue: ${formatDateOnly(task.due_date)}` : `Due: ${formatDateOnly(task.due_date)}`}
+                              label={
+                                overdue
+                                  ? `Overdue: ${formatTaskDateOnly(task.due_date)}`
+                                  : `Due: ${formatTaskDateOnly(task.due_date)}`
+                              }
                               color={overdue ? "error" : "default"}
                               variant="outlined"
                             />
@@ -553,7 +462,7 @@ export const TasksBoard = () => {
                         </Stack>
 
                         <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 1 }}>
-                          Updated: {formatDateTime(task.updated_at)}
+                          Updated: {formatTaskDateTime(task.updated_at)}
                         </Typography>
                       </Box>
 

@@ -11,6 +11,8 @@ pub struct AppState {
     pub db: Mutex<Connection>,
 }
 
+/// JSON payload accepted by the import command.
+/// Each field is optional in incoming backup files.
 #[derive(Debug, Default, Deserialize)]
 pub struct BackupPayload {
     #[serde(default)]
@@ -107,6 +109,7 @@ fn normalize_priority(priority: Option<String>) -> String {
     }
 }
 
+/// Caps estimate to a sane range (0..=7 days) to avoid malformed values.
 fn normalize_time_estimate_minutes(value: Option<i64>) -> i64 {
     value.unwrap_or(0).clamp(0, 10_080)
 }
@@ -115,6 +118,8 @@ fn normalize_accumulated_seconds(value: Option<i64>) -> i64 {
     value.unwrap_or(0).max(0)
 }
 
+/// Converts an RFC3339 timestamp into seconds from now.
+/// Invalid timestamps are treated as zero elapsed seconds.
 fn elapsed_since(started_at: &str) -> i64 {
     let parsed = chrono::DateTime::parse_from_rfc3339(started_at);
     if let Ok(date_time) = parsed {
