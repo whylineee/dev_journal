@@ -42,8 +42,25 @@ pub struct BackupTaskInput {
     pub title: String,
     pub description: String,
     pub status: String,
+    pub priority: Option<String>,
+    pub due_date: Option<String>,
+    pub completed_at: Option<String>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
+}
+
+fn normalize_status(status: String) -> String {
+    match status.as_str() {
+        "todo" | "in_progress" | "done" => status,
+        _ => "todo".to_string(),
+    }
+}
+
+fn normalize_priority(priority: Option<String>) -> String {
+    match priority.as_deref() {
+        Some("low") | Some("medium") | Some("high") | Some("urgent") => priority.unwrap_or_else(|| "medium".to_string()),
+        _ => "medium".to_string(),
+    }
 }
 
 #[tauri::command]
@@ -258,7 +275,7 @@ use crate::models::Task;
 #[tauri::command]
 pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let mut stmt = conn.prepare("SELECT id, title, description, status, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT id, title, description, status, priority, due_date, completed_at, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
     
     let tasks_iter = stmt.query_map([], |row| {
         Ok(Task {
@@ -266,8 +283,11 @@ pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
             title: row.get(1)?,
             description: row.get(2)?,
             status: row.get(3)?,
-            created_at: row.get(4)?,
-            updated_at: row.get(5)?,
+            priority: row.get(4)?,
+            due_date: row.get(5)?,
+            completed_at: row.get(6)?,
+            created_at: row.get(7)?,
+            updated_at: row.get(8)?,
         })
     }).map_err(|e| e.to_string())?;
 
@@ -280,13 +300,23 @@ pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
 }
 
 #[tauri::command]
-pub fn create_task(title: String, description: String, status: String, state: State<'_, AppState>) -> Result<Task, String> {
+pub fn create_task(
+    title: String,
+    description: String,
+    status: String,
+    priority: Option<String>,
+    due_date: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Task, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().to_rfc3339();
+    let status = normalize_status(status);
+    let priority = normalize_priority(priority);
+    let completed_at = if status == "done" { Some(now.clone()) } else { None };
     
     conn.execute(
-        "INSERT INTO tasks (title, description, status, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![title, description, status, now, now],
+        "INSERT INTO tasks (title, description, status, priority, due_date, completed_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![title, description, status, priority, due_date, completed_at, now, now],
     ).map_err(|e| e.to_string())?;
     
     let id = conn.last_insert_rowid();
@@ -296,19 +326,33 @@ pub fn create_task(title: String, description: String, status: String, state: St
         title,
         description,
         status,
+        priority,
+        due_date,
+        completed_at,
         created_at: now.clone(),
         updated_at: now,
     })
 }
 
 #[tauri::command]
-pub fn update_task(id: i64, title: String, description: String, status: String, state: State<'_, AppState>) -> Result<(), String> {
+pub fn update_task(
+    id: i64,
+    title: String,
+    description: String,
+    status: String,
+    priority: Option<String>,
+    due_date: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().to_rfc3339();
+    let status = normalize_status(status);
+    let normalized_priority = normalize_priority(priority);
+    let completed_at = if status == "done" { Some(now.clone()) } else { None };
     
     conn.execute(
-        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, updated_at = ?4 WHERE id = ?5",
-        params![title, description, status, now, id],
+        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, priority = ?4, due_date = ?5, completed_at = ?6, updated_at = ?7 WHERE id = ?8",
+        params![title, description, status, normalized_priority, due_date, completed_at, now, id],
     ).map_err(|e| e.to_string())?;
     
     Ok(())
@@ -318,10 +362,12 @@ pub fn update_task(id: i64, title: String, description: String, status: String, 
 pub fn update_task_status(id: i64, status: String, state: State<'_, AppState>) -> Result<(), String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().to_rfc3339();
+    let status = normalize_status(status);
+    let completed_at = if status == "done" { Some(now.clone()) } else { None };
     
     conn.execute(
-        "UPDATE tasks SET status = ?1, updated_at = ?2 WHERE id = ?3",
-        params![status, now, id],
+        "UPDATE tasks SET status = ?1, completed_at = ?2, updated_at = ?3 WHERE id = ?4",
+        params![status, completed_at, now, id],
     ).map_err(|e| e.to_string())?;
     
     Ok(())
@@ -403,25 +449,32 @@ pub fn import_backup(
     for task in payload.tasks {
         let created_at = task.created_at.unwrap_or_else(|| now.clone());
         let updated_at = task.updated_at.unwrap_or_else(|| created_at.clone());
+        let status = normalize_status(task.status);
+        let priority = normalize_priority(task.priority);
+        let due_date = task.due_date;
+        let completed_at = task.completed_at;
 
         if let Some(id) = task.id {
             tx.execute(
-                "INSERT INTO tasks (id, title, description, status, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                "INSERT INTO tasks (id, title, description, status, priority, due_date, completed_at, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
                  ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     description = excluded.description,
                     status = excluded.status,
+                    priority = excluded.priority,
+                    due_date = excluded.due_date,
+                    completed_at = excluded.completed_at,
                     created_at = excluded.created_at,
                     updated_at = excluded.updated_at",
-                params![id, task.title, task.description, task.status, created_at, updated_at],
+                params![id, task.title, task.description, status, priority, due_date, completed_at, created_at, updated_at],
             )
             .map_err(|e| e.to_string())?;
         } else {
             tx.execute(
-                "INSERT INTO tasks (title, description, status, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![task.title, task.description, task.status, created_at, updated_at],
+                "INSERT INTO tasks (title, description, status, priority, due_date, completed_at, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![task.title, task.description, status, priority, due_date, completed_at, created_at, updated_at],
             )
             .map_err(|e| e.to_string())?;
         }

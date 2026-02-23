@@ -15,12 +15,16 @@ export interface Page {
 }
 
 export type TaskStatus = "todo" | "in_progress" | "done";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export interface Task {
     id: number;
     title: string;
     description: string;
     status: TaskStatus;
+    priority: TaskPriority;
+    due_date: string | null;
+    completed_at: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -44,6 +48,9 @@ export interface BackupPayload {
         title: string;
         description: string;
         status: string;
+        priority?: TaskPriority;
+        due_date?: string | null;
+        completed_at?: string | null;
         created_at?: string;
         updated_at?: string;
     }>;
