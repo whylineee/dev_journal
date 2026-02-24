@@ -4,6 +4,7 @@ import Markdown from "react-markdown";
 import { useDeleteEntry, useEntry, useSaveEntry } from "../hooks/useEntries";
 import { format, parseISO } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { alpha, useTheme } from "@mui/material/styles";
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import CodeIcon from '@mui/icons-material/Code';
@@ -29,6 +30,7 @@ const formatDraftTime = (value: string) => {
 };
 
 export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormProps) => {
+    const muiTheme = useTheme();
     const { data: entry, isLoading } = useEntry(date);
     const saveMutation = useSaveEntry();
     const deleteMutation = useDeleteEntry();
@@ -173,6 +175,13 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
 
     const isToday = format(new Date(), "yyyy-MM-dd") === date;
     const displayDate = isToday ? "Today" : format(parseISO(date), "MMMM d, yyyy");
+    const toolbarButtonSx = {
+        color: "text.secondary",
+        "&:hover": {
+            color: "text.primary",
+            bgcolor: alpha(muiTheme.palette.primary.main, 0.12),
+        },
+    };
 
     if (isLoading) return (
         <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
@@ -188,37 +197,53 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
         >
             <Box sx={{ maxWidth: 900, mx: "auto" }}>
                 <Box display="flex" justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} mb={2} flexDirection={{ xs: "column", md: "row" }} gap={2}>
-                    <Typography variant="h4" sx={{
-                        background: 'linear-gradient(to right, #93c5fd, #c4b5fd)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                    }}>
+                    <Typography
+                        variant="h4"
+                        sx={{
+                            color: "text.primary",
+                            fontWeight: 700,
+                            letterSpacing: "-0.02em",
+                            fontSize: { xs: "2rem", md: "2.35rem" },
+                        }}
+                    >
                         {displayDate}
                     </Typography>
 
-                    <Paper elevation={0} sx={{ display: 'flex', gap: 0.5, p: 0.5, borderRadius: 3, bgcolor: 'rgba(15, 23, 42, 0.4)', flexWrap: 'wrap' }}>
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            display: 'flex',
+                            gap: 0.5,
+                            p: 0.5,
+                            borderRadius: 3,
+                            bgcolor: alpha(muiTheme.palette.background.paper, 0.94),
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            flexWrap: 'wrap',
+                        }}
+                    >
                         <Tooltip title="Bold">
-                            <IconButton size="small" onClick={() => insertFormat('**', '**')}>
+                            <IconButton size="small" onClick={() => insertFormat('**', '**')} sx={toolbarButtonSx}>
                                 <FormatBoldIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Italic">
-                            <IconButton size="small" onClick={() => insertFormat('*', '*')}>
+                            <IconButton size="small" onClick={() => insertFormat('*', '*')} sx={toolbarButtonSx}>
                                 <FormatItalicIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Code">
-                            <IconButton size="small" onClick={() => insertFormat('`', '`')}>
+                            <IconButton size="small" onClick={() => insertFormat('`', '`')} sx={toolbarButtonSx}>
                                 <CodeIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Bullet List">
-                            <IconButton size="small" onClick={() => insertFormat('- ', '')}>
+                            <IconButton size="small" onClick={() => insertFormat('- ', '')} sx={toolbarButtonSx}>
                                 <FormatListBulletedIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Copy yesterday to today">
-                            <IconButton size="small" onClick={copyYesterdayToToday}>
+                            <IconButton size="small" onClick={copyYesterdayToToday} sx={toolbarButtonSx}>
                                 <ContentCopyIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
@@ -237,10 +262,18 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                     ) : null}
                 </Box>
 
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>
-                    <Box sx={{ flex: 1 }}>
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            flex: 1,
+                            p: { xs: 2, md: 2.5 },
+                            borderColor: 'divider',
+                            bgcolor: alpha(muiTheme.palette.background.paper, 0.72),
+                        }}
+                    >
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                            <Typography variant="h6" color="primary.light" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.primary' }}>
                                 <span style={{ fontSize: '1.2em' }}>⏮</span> Yesterday
                             </Typography>
                             <Button size="small" variant="text" onClick={() => insertTemplate('yesterday')}>Template</Button>
@@ -258,18 +291,26 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                         <AnimatePresence>
                             {previewEnabled && yesterday.length > 0 && (
                                 <Box component={motion.div} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                                    <Paper sx={{ mt: 2, p: 2, minHeight: 60, bgcolor: 'rgba(30, 41, 59, 0.4)', borderRadius: 2 }} variant="outlined">
+                                    <Paper sx={{ mt: 2, p: 2, minHeight: 60, bgcolor: 'action.hover', borderRadius: 2 }} variant="outlined">
                                         <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, mb: 1, display: 'block' }}>Preview</Typography>
                                         <Markdown>{yesterday}</Markdown>
                                     </Paper>
                                 </Box>
                             )}
                         </AnimatePresence>
-                    </Box>
+                    </Paper>
 
-                    <Box sx={{ flex: 1 }}>
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            flex: 1,
+                            p: { xs: 2, md: 2.5 },
+                            borderColor: 'divider',
+                            bgcolor: alpha(muiTheme.palette.background.paper, 0.72),
+                        }}
+                    >
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                            <Typography variant="h6" color="secondary.light" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.primary' }}>
                                 <span style={{ fontSize: '1.2em' }}>🎯</span> Today
                             </Typography>
                             <Button size="small" variant="text" onClick={() => insertTemplate('today')}>Template</Button>
@@ -287,18 +328,27 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                         <AnimatePresence>
                             {previewEnabled && today.length > 0 && (
                                 <Box component={motion.div} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                                    <Paper sx={{ mt: 2, p: 2, minHeight: 60, bgcolor: 'rgba(30, 41, 59, 0.4)', borderRadius: 2 }} variant="outlined">
+                                    <Paper sx={{ mt: 2, p: 2, minHeight: 60, bgcolor: 'action.hover', borderRadius: 2 }} variant="outlined">
                                         <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, mb: 1, display: 'block' }}>Preview</Typography>
                                         <Markdown>{today}</Markdown>
                                     </Paper>
                                 </Box>
                             )}
                         </AnimatePresence>
-                    </Box>
+                    </Paper>
                 </Box>
 
-                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box
+                    sx={{
+                        mt: 3,
+                        display: 'flex',
+                        flexDirection: { xs: 'column', md: 'row' },
+                        justifyContent: 'space-between',
+                        alignItems: { xs: 'stretch', md: 'center' },
+                        gap: 1.5,
+                    }}
+                >
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', order: { xs: 2, md: 1 } }}>
                         <Button
                             variant="text"
                             color="inherit"
@@ -327,7 +377,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                         startIcon={<SaveIcon />}
                         onClick={handleSave}
                         disabled={saveMutation.isPending}
-                        sx={{ px: 4, py: 1.5 }}
+                        sx={{ px: 4, py: 1.5, minWidth: { xs: '100%', md: 220 }, order: { xs: 1, md: 2 } }}
                     >
                         {saveMutation.isPending ? "Saving..." : "Save Journal"}
                     </Button>

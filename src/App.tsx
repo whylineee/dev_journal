@@ -72,6 +72,13 @@ function App() {
         return;
       }
 
+      const tauriInvoke = typeof window !== "undefined"
+        ? (window as { __TAURI_INTERNALS__?: { invoke?: unknown } }).__TAURI_INTERNALS__?.invoke
+        : undefined;
+      if (typeof tauriInvoke !== "function") {
+        return;
+      }
+
       const now = new Date();
       if (now.getHours() < reminderHour) {
         return;

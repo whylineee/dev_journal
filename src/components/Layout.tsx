@@ -179,6 +179,17 @@ export const Layout = ({
         mx: 1,
         transition: 'all 0.2s',
         color: isSelected ? 'primary.main' : 'text.primary',
+        '&:hover': {
+            backgroundColor: alpha(muiTheme.palette.primary.main, 0.08),
+        },
+        ...(isSelected
+            ? {
+                backgroundColor: alpha(muiTheme.palette.primary.main, 0.16),
+                '&:hover': {
+                    backgroundColor: alpha(muiTheme.palette.primary.main, 0.22),
+                },
+            }
+            : {}),
     });
 
     const closeMobileDrawer = () => {
@@ -188,8 +199,8 @@ export const Layout = ({
     };
 
     return (
-        <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', bgcolor: 'background.default' }}>
-            <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <Box sx={{ display: 'flex', height: '100dvh', overflow: 'hidden', bgcolor: 'background.default' }}>
+            <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
                 <Toolbar>
                     {isMobile ? (
                         <IconButton
@@ -235,14 +246,15 @@ export const Layout = ({
                     <Box sx={{
                         position: 'relative',
                         borderRadius: 2,
-                        backgroundColor: alpha('#f8fafc', 0.1),
+                        backgroundColor: alpha(muiTheme.palette.text.primary, 0.04),
                         '&:hover': {
-                            backgroundColor: alpha('#f8fafc', 0.15),
+                            backgroundColor: alpha(muiTheme.palette.text.primary, 0.08),
                         },
                         ml: { xs: 1, sm: 2 },
                         width: { xs: "100%", sm: '100%' },
-                        maxWidth: { xs: 200, sm: 300 },
-                        border: '1px solid rgba(255,255,255,0.1)'
+                        maxWidth: { xs: 180, sm: 320 },
+                        border: '1px solid',
+                        borderColor: 'divider',
                     }}>
                         <Box sx={{ padding: '0 12px', height: '100%', position: 'absolute', pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
@@ -252,7 +264,7 @@ export const Layout = ({
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             sx={{
-                                color: 'inherit',
+                                color: 'text.primary',
                                 width: '100%',
                                 '& .MuiInputBase-input': {
                                     padding: '8px 8px 8px 0',
@@ -260,6 +272,10 @@ export const Layout = ({
                                     transition: 'width 0.2s',
                                     width: '100%',
                                     fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                                    '&::placeholder': {
+                                        color: muiTheme.palette.text.secondary,
+                                        opacity: 1,
+                                    },
                                 },
                             }}
                         />
@@ -271,16 +287,25 @@ export const Layout = ({
                 variant={isMobile ? "temporary" : "permanent"}
                 open={isMobile ? mobileDrawerOpen : true}
                 onClose={() => setMobileDrawerOpen(false)}
-                ModalProps={{ keepMounted: true }}
+                ModalProps={{
+                    keepMounted: true,
+                    BackdropProps: {
+                        sx: {
+                            backgroundColor: alpha(muiTheme.palette.common.black, 0.32),
+                        },
+                    },
+                }}
                 sx={{
                     width: { md: drawerWidth },
                     flexShrink: 0,
                     [`& .MuiDrawer-paper`]: {
                         width: drawerWidth,
                         boxSizing: 'border-box',
-                        borderRight: '1px solid rgba(255,255,255,0.05)',
-                        backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                        backdropFilter: 'blur(20px)'
+                        borderRight: '1px solid',
+                        borderColor: 'divider',
+                        backgroundColor: 'background.paper',
+                        backgroundImage: 'none',
+                        backdropFilter: 'blur(10px)',
                     },
                 }}
             >
@@ -310,7 +335,7 @@ export const Layout = ({
                         </ListItem>
                     </List>
 
-                    <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.05)', mx: 2 }} />
+                    <Divider sx={{ my: 2, borderColor: 'divider', mx: 2 }} />
 
                     {/* JOURNAL SECTION */}
                     <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', color: 'text.secondary', letterSpacing: '0.1em' }}>
@@ -366,7 +391,7 @@ export const Layout = ({
                         ))}
                     </List>
 
-                    <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.05)', mx: 2 }} />
+                    <Divider sx={{ my: 2, borderColor: 'divider', mx: 2 }} />
 
                     {/* TASKS SECTION */}
                     <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', color: 'text.secondary', letterSpacing: '0.1em' }}>
@@ -437,7 +462,7 @@ export const Layout = ({
                         </ListItem>
                     </List>
 
-                    <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.05)', mx: 2 }} />
+                    <Divider sx={{ my: 2, borderColor: 'divider', mx: 2 }} />
 
                     {/* PAGES SECTION */}
                     <Box sx={{ px: 3, mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -502,7 +527,7 @@ export const Layout = ({
                 </Box>
 
                 {/* SETTINGS / THEME BUTTON */}
-                <Box sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center' }}>
                     <IconButton
                         onClick={() => {
                             onSettingsOpenChange(true);
@@ -594,7 +619,7 @@ export const Layout = ({
                     })}
                 </Box>
 
-                <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
+                <Divider sx={{ my: 3, borderColor: 'divider' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Appearance</Typography>
                 <TextField
                     select
@@ -651,7 +676,7 @@ export const Layout = ({
                     inputProps={{ min: 6, max: 24, step: 1 }}
                 />
 
-                <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
+                <Divider sx={{ my: 3, borderColor: 'divider' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Productivity</Typography>
                 <FormControlLabel
                     sx={{ mt: 1 }}
@@ -682,7 +707,7 @@ export const Layout = ({
                     label="Enable draft autosave"
                 />
 
-                <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
+                <Divider sx={{ my: 3, borderColor: 'divider' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Reminders</Typography>
                 <FormControlLabel
                     sx={{ mt: 1 }}
@@ -711,7 +736,7 @@ export const Layout = ({
                     inputProps={{ min: 0, max: 23, step: 1 }}
                 />
 
-                <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.08)' }} />
+                <Divider sx={{ my: 3, borderColor: 'divider' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Data</Typography>
                 <Button onClick={exportBackup} startIcon={<DownloadIcon />} variant="outlined" sx={{ width: { xs: "100%", sm: "auto" } }}>
                     Export Backup (JSON)
