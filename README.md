@@ -56,17 +56,17 @@ npm run tauri build
 ### Release (macOS ARM64)
 Поточний production-потік для macOS:
 
-1. Побудувати `.app`:
+1. Побудувати реліз лише в `.dmg`:
    ```bash
-   npm run tauri build
+   npm run tauri build -- --bundles dmg
    ```
-2. Запакувати застосунок у zip:
+2. Перевірити артефакт:
    ```bash
-   ditto -c -k --sequesterRsrc --keepParent "src-tauri/target/release/bundle/macos/Dev Journal.app" "releases/Dev-Journal-0.1.0-macos-arm64.zip"
+   ls -lah "src-tauri/target/release/bundle/dmg/Dev Journal_1.0.0_aarch64.dmg"
    ```
 3. Згенерувати checksum:
    ```bash
-   shasum -a 256 "releases/Dev-Journal-0.1.0-macos-arm64.zip"
+   shasum -a 256 "src-tauri/target/release/bundle/dmg/Dev Journal_1.0.0_aarch64.dmg"
    ```
 
 ## 📂 Архітектура та структура проєкту
