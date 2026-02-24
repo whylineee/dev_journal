@@ -4,7 +4,7 @@
 - Platform: macOS
 - Architecture: Apple Silicon (arm64)
 - Artifact: `Dev Journal_1.0.2_aarch64.dmg`
-- SHA-256: `5090b6173fd2a2ef7032f04fbe9d188fe5761778d111692d31e8646a405a20c0`
+- SHA-256: `ba48ec86ffba71e50e38532edeeee624fdfa1a3579cbf5d8d988cd92085a5d67`
 
 ## Included scope
 - Виправлено контраст і читабельність у sidebar/header/journal editor.
