@@ -62,11 +62,11 @@ npm run tauri build
    ```
 2. Перевірити артефакт:
    ```bash
-   ls -lah "src-tauri/target/release/bundle/dmg/Dev Journal_1.0.0_aarch64.dmg"
+   ls -lah "src-tauri/target/release/bundle/dmg/Dev Journal_1.0.2_aarch64.dmg"
    ```
 3. Згенерувати checksum:
    ```bash
-   shasum -a 256 "src-tauri/target/release/bundle/dmg/Dev Journal_1.0.0_aarch64.dmg"
+   shasum -a 256 "src-tauri/target/release/bundle/dmg/Dev Journal_1.0.2_aarch64.dmg"
    ```
 
 ## 📂 Архітектура та структура проєкту
