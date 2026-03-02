@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CssBaseline } from "@mui/material";
 import App from "./App";
 import { CustomThemeProvider } from "./theme/ThemeContext";
+import { I18nProvider } from "./i18n/I18nContext";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
@@ -23,8 +24,10 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <CustomThemeProvider>
-        <CssBaseline />
-        <App />
+        <I18nProvider>
+          <CssBaseline />
+          <App />
+        </I18nProvider>
       </CustomThemeProvider>
     </QueryClientProvider>
   </React.StrictMode>

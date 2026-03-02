@@ -12,6 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import { useI18n } from "../i18n/I18nContext";
 
 export interface CommandAction {
   id: string;
@@ -31,6 +32,7 @@ interface CommandPaletteProps {
 const normalize = (value: string) => value.trim().toLowerCase();
 
 export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) => {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -109,7 +111,7 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
         <TextField
           autoFocus
           fullWidth
-          placeholder="Type a command or search"
+          placeholder={t("Type a command or search")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           InputProps={{
@@ -123,7 +125,7 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
 
         <Box sx={{ mt: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="caption" color="text.secondary">
-            {filteredActions.length} commands
+            {t("{count} commands", { count: filteredActions.length })}
           </Typography>
           <Chip size="small" label="Ctrl/Cmd + K" variant="outlined" />
         </Box>
@@ -149,7 +151,7 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
 
           {filteredActions.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 2 }}>
-              No commands found.
+              {t("No commands found.")}
             </Typography>
           ) : null}
         </List>

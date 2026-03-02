@@ -46,6 +46,7 @@ import {
   isTaskOverdue,
   normalizeEstimateMinutes,
 } from "../utils/taskUtils";
+import { useI18n } from "../i18n/I18nContext";
 
 const columns: Array<{ status: TaskStatus; label: string; color: "default" | "warning" | "info" | "success" }> = [
   { status: "todo", label: "To Do", color: "warning" },
@@ -74,6 +75,7 @@ const priorityLabel: Record<TaskPriority, string> = {
 };
 
 export const TasksBoard = () => {
+  const { t } = useI18n();
   // `nowMs` is updated every second to render live timer values without round-trips.
   const { data: tasks = [], isLoading } = useTasks();
   const createTask = useCreateTask();
@@ -253,10 +255,10 @@ export const TasksBoard = () => {
         >
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Tasks Board
+              {t("Tasks Board")}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Prioritize, track deadlines, and keep delivery predictable.
+              {t("Switch to tasks management view")}
             </Typography>
           </Box>
 
@@ -266,21 +268,21 @@ export const TasksBoard = () => {
             onClick={openCreateDialog}
             disabled={busy}
           >
-            New Task
+            {t("Add Task")}
           </Button>
         </Stack>
 
         <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
           <Chip label={`Total: ${stats.total}`} variant="outlined" size="small" />
           <Chip label={`Done: ${stats.done}`} color="success" variant="outlined" size="small" />
-          <Chip label={`Due today: ${stats.dueToday}`} color="info" variant="outlined" size="small" />
+          <Chip label={`${t("Due today")}: ${stats.dueToday}`} color="info" variant="outlined" size="small" />
           <Chip label={`Overdue: ${stats.overdue}`} color={stats.overdue > 0 ? "error" : "default"} variant="outlined" size="small" />
           <Chip label={`Active timers: ${stats.activeTimers}`} color={stats.activeTimers > 0 ? "warning" : "default"} variant="outlined" size="small" />
         </Stack>
 
         <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
           <TextField
-            placeholder="Search tasks"
+            placeholder={t("Search...")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             fullWidth
@@ -295,13 +297,13 @@ export const TasksBoard = () => {
 
           <TextField
             select
-            label="Status"
+            label={t("Status")}
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as "all" | TaskStatus)}
             sx={{ minWidth: 170 }}
             SelectProps={{ native: true }}
           >
-            <option value="all">All statuses</option>
+            <option value="all">{t("All statuses")}</option>
             <option value="todo">To Do</option>
             <option value="in_progress">In Progress</option>
             <option value="done">Done</option>
@@ -309,13 +311,13 @@ export const TasksBoard = () => {
 
           <TextField
             select
-            label="Priority"
+            label={t("Priority")}
             value={priorityFilter}
             onChange={(event) => setPriorityFilter(event.target.value as "all" | TaskPriority)}
             sx={{ minWidth: 170 }}
             SelectProps={{ native: true }}
           >
-            <option value="all">All priorities</option>
+            <option value="all">{t("All priorities")}</option>
             <option value="urgent">Urgent</option>
             <option value="high">High</option>
             <option value="medium">Medium</option>
@@ -328,7 +330,7 @@ export const TasksBoard = () => {
             onClick={() => setShowOverdueOnly((prev) => !prev)}
             startIcon={<WarningAmberIcon />}
           >
-            Overdue Only
+            {t("Overdue Only")}
           </Button>
         </Stack>
       </Paper>

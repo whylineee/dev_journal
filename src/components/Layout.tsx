@@ -7,6 +7,7 @@ import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits } from "../hooks/useHabits";
 import { AppearanceMode, FontPreset, THEME_PRESETS, ThemePresetId, UiDensity, useThemeContext } from "../theme/ThemeContext";
+import { useI18n } from "../i18n/I18nContext";
 import { BackupPayload } from "../types";
 import { format, parseISO } from "date-fns";
 import SearchIcon from '@mui/icons-material/Search';
@@ -24,6 +25,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import KeyboardCommandKeyIcon from '@mui/icons-material/KeyboardCommandKey';
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 
 const drawerWidth = 280;
 
@@ -71,6 +73,7 @@ export const Layout = ({
     onSettingsOpenChange,
 }: LayoutProps) => {
     const muiTheme = useTheme();
+    const { language, setLanguage, t } = useI18n();
     const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
     const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -108,12 +111,12 @@ export const Layout = ({
     const totalHabits = habits?.length ?? 0;
 
     const activeTabLabel: Record<LayoutProps["activeTab"], string> = {
-        planner: "Planner",
-        journal: "Journal",
-        tasks: "Tasks",
-        goals: "Goals",
-        habits: "Habits",
-        page: "Pages",
+        planner: t("Planner"),
+        journal: t("Journal"),
+        tasks: t("Tasks"),
+        goals: t("Goals"),
+        habits: t("Habits"),
+        page: t("Pages"),
     };
 
     const exportBackup = () => {
@@ -159,15 +162,15 @@ export const Layout = ({
                 { payload: parsed, replaceExisting: replaceExistingOnImport },
                 {
                     onSuccess: () => {
-                        setImportStatus("Backup imported successfully.");
+                        setImportStatus(t("Backup imported successfully."));
                     },
                     onError: () => {
-                        setImportStatus("Import failed. Check JSON format.");
+                        setImportStatus(t("Import failed. Check JSON format."));
                     },
                 }
             );
         } catch {
-            setImportStatus("Import failed. Invalid JSON file.");
+            setImportStatus(t("Import failed. Invalid JSON file."));
         } finally {
             event.target.value = "";
         }
@@ -200,7 +203,14 @@ export const Layout = ({
 
     return (
         <Box sx={{ display: 'flex', height: '100dvh', overflow: 'hidden', bgcolor: 'background.default' }}>
-            <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+            <AppBar
+                position="fixed"
+                sx={{
+                    zIndex: (theme) => theme.zIndex.drawer + 1,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                }}
+            >
                 <Toolbar>
                     {isMobile ? (
                         <IconButton
@@ -225,23 +235,48 @@ export const Layout = ({
                             fontSize: { xs: "1rem", sm: "1.1rem" },
                         }}
                     >
-                        Dev Journal
+                        {t("Dev Journal")}
                     </Typography>
 
                     <Chip
                         size="small"
-                        label={`View: ${activeTabLabel[activeTab]}`}
+                        label={t("View: {tab}", { tab: activeTabLabel[activeTab] })}
                         variant="outlined"
                         sx={{ mr: { xs: 0.5, sm: 1.5 }, display: { xs: "none", sm: "inline-flex" } }}
                     />
 
                     <Chip
                         size="small"
+                        icon={<CalendarTodayIcon sx={{ fontSize: 12 }} />}
+                        label={format(new Date(), "MMM d")}
+                        variant="outlined"
+                        sx={{ mr: 1, display: { xs: "none", lg: "inline-flex" } }}
+                    />
+
+                    <Chip
+                        size="small"
                         icon={<KeyboardCommandKeyIcon sx={{ fontSize: 14 }} />}
-                        label="Ctrl/Cmd + K"
+                        label={t("Ctrl/Cmd + K")}
                         variant="outlined"
                         sx={{ mr: 1.5, display: { xs: "none", md: "inline-flex" } }}
                     />
+
+                    <TextField
+                        select
+                        size="small"
+                        value={language}
+                        onChange={(event) => setLanguage(event.target.value === "uk" ? "uk" : "en")}
+                        sx={{
+                            mr: 1,
+                            minWidth: 86,
+                            display: { xs: "none", sm: "inline-flex" },
+                            "& .MuiOutlinedInput-root": { bgcolor: "transparent" },
+                        }}
+                        SelectProps={{ native: true }}
+                    >
+                        <option value="en">EN</option>
+                        <option value="uk">UKR</option>
+                    </TextField>
 
                     <Box sx={{
                         position: 'relative',
@@ -260,7 +295,7 @@ export const Layout = ({
                             <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
                         </Box>
                         <InputBase
-                            placeholder={isMobile ? "Search..." : "Search journal entries..."}
+                            placeholder={isMobile ? t("Search...") : t("Search journal entries...")}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             sx={{
@@ -311,8 +346,32 @@ export const Layout = ({
             >
                 <Toolbar />
                 <Box sx={{ overflow: 'auto', py: 2 }}>
+                    <Box
+                        sx={{
+                            mx: 2,
+                            mb: 2,
+                            p: 1.5,
+                            borderRadius: 2.5,
+                            border: "1px solid",
+                            borderColor: "divider",
+                            bgcolor: alpha(muiTheme.palette.primary.main, 0.06),
+                        }}
+                    >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.25 }}>
+                            {format(new Date(), "EEEE, MMM d")}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                            {t("View: {tab}", { tab: activeTabLabel[activeTab] })}
+                        </Typography>
+                        <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                            <Chip size="small" variant="outlined" label={`${t("Tasks")}: ${openTasksCount}`} />
+                            <Chip size="small" variant="outlined" label={`${t("Goals")}: ${activeGoalsCount}`} />
+                            <Chip size="small" variant="outlined" label={`${t("Habits")}: ${completedHabitsToday}/${totalHabits}`} />
+                        </Box>
+                    </Box>
+
                     <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', color: 'text.secondary', letterSpacing: '0.1em' }}>
-                        Overview
+                        {t("Overview")}
                     </Typography>
                     <List disablePadding>
                         <ListItem disablePadding>
@@ -326,8 +385,8 @@ export const Layout = ({
                             >
                                 <DashboardIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
                                 <ListItemText
-                                    primary="Planner"
-                                    secondary="Daily overview"
+                                    primary={t("Planner")}
+                                    secondary={t("Daily overview")}
                                     primaryTypographyProps={{ fontWeight: 600 }}
                                     secondaryTypographyProps={{ fontSize: "0.75rem" }}
                                 />
@@ -339,7 +398,7 @@ export const Layout = ({
 
                     {/* JOURNAL SECTION */}
                     <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', color: 'text.secondary', letterSpacing: '0.1em' }}>
-                        Daily Journal
+                        {t("Daily Journal")}
                     </Typography>
                     <List disablePadding>
                         <ListItem disablePadding>
@@ -355,15 +414,15 @@ export const Layout = ({
                             >
                                 <TodayIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
                                 <ListItemText
-                                    primary="Today"
-                                    secondary="Current daily report"
+                                    primary={t("Today")}
+                                    secondary={t("Current daily report")}
                                     primaryTypographyProps={{ fontWeight: 600 }}
                                     secondaryTypographyProps={{ fontSize: "0.75rem" }}
                                 />
                                 {todayEntryExists ? (
-                                    <Chip label="Done" size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                    <Chip label={t("Done")} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
                                 ) : (
-                                    <Chip label="Missing" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                    <Chip label={t("Missing")} size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
                                 )}
                             </ListItemButton>
                         </ListItem>
@@ -382,7 +441,7 @@ export const Layout = ({
                                     <EventNoteIcon sx={{ mr: 2, fontSize: 20, opacity: 0.6 }} />
                                     <ListItemText
                                         primary={format(parseISO(entry.date), "MMM d, yyyy")}
-                                        secondary={entry.date === todayStr ? "Today" : undefined}
+                                        secondary={entry.date === todayStr ? t("Today") : undefined}
                                         primaryTypographyProps={{ fontSize: '0.9rem' }}
                                         secondaryTypographyProps={{ fontSize: "0.72rem" }}
                                     />
@@ -395,7 +454,7 @@ export const Layout = ({
 
                     {/* TASKS SECTION */}
                     <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', color: 'text.secondary', letterSpacing: '0.1em' }}>
-                        Management
+                        {t("Management")}
                     </Typography>
                     <List disablePadding>
                         <ListItem disablePadding>
@@ -409,8 +468,8 @@ export const Layout = ({
                             >
                                 <TaskAltIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
                                 <ListItemText
-                                    primary="Tasks"
-                                    secondary="Execution board"
+                                    primary={t("Tasks")}
+                                    secondary={t("Execution board")}
                                     primaryTypographyProps={{ fontWeight: 600 }}
                                     secondaryTypographyProps={{ fontSize: "0.75rem" }}
                                 />
@@ -428,8 +487,8 @@ export const Layout = ({
                             >
                                 <FlagIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
                                 <ListItemText
-                                    primary="Goals"
-                                    secondary="Milestones"
+                                    primary={t("Goals")}
+                                    secondary={t("Milestones")}
                                     primaryTypographyProps={{ fontWeight: 600 }}
                                     secondaryTypographyProps={{ fontSize: "0.75rem" }}
                                 />
@@ -447,8 +506,8 @@ export const Layout = ({
                             >
                                 <RepeatIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
                                 <ListItemText
-                                    primary="Habits"
-                                    secondary="Daily consistency"
+                                    primary={t("Habits")}
+                                    secondary={t("Daily consistency")}
                                     primaryTypographyProps={{ fontWeight: 600 }}
                                     secondaryTypographyProps={{ fontSize: "0.75rem" }}
                                 />
@@ -467,7 +526,7 @@ export const Layout = ({
                     {/* PAGES SECTION */}
                     <Box sx={{ px: 3, mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.1em' }}>
-                            Pages
+                            {t("Pages")}
                         </Typography>
                         <IconButton
                             size="small"
@@ -494,8 +553,8 @@ export const Layout = ({
                             >
                                 <AddIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8, color: 'primary.main' }} />
                                 <ListItemText
-                                    primary="New Page"
-                                    secondary="Create note or doc"
+                                    primary={t("New Page")}
+                                    secondary={t("Create note or doc")}
                                     primaryTypographyProps={{ fontWeight: 600, color: 'primary.main' }}
                                     secondaryTypographyProps={{ fontSize: "0.75rem" }}
                                 />
@@ -516,7 +575,7 @@ export const Layout = ({
                                     <ArticleIcon sx={{ mr: 2, fontSize: 20, opacity: 0.6 }} />
                                     <ListItemText
                                         primary={page.title || "Untitled"}
-                                        secondary="Knowledge page"
+                                        secondary={t("Knowledge page")}
                                         primaryTypographyProps={{ fontSize: '0.9rem' }}
                                         secondaryTypographyProps={{ fontSize: "0.72rem" }}
                                     />
@@ -537,7 +596,7 @@ export const Layout = ({
                     >
                         <SettingsIcon />
                     </IconButton>
-                    <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>Settings & Theme</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>{t("Settings & Theme")}</Typography>
                 </Box>
             </Drawer>
 
@@ -566,13 +625,13 @@ export const Layout = ({
                     }
                 }}
             >
-                <Typography variant="h6" gutterBottom>Customize Theme</Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>Select a theme preset:</Typography>
+                <Typography variant="h6" gutterBottom>{t("Customize Theme")}</Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>{t("Select a theme preset:")}</Typography>
 
                 <TextField
                     select
                     size="small"
-                    label="Theme preset"
+                    label={t("Theme preset")}
                     value={themePreset}
                     onChange={(event) => setThemePreset(event.target.value as ThemePresetId)}
                     sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
@@ -620,24 +679,24 @@ export const Layout = ({
                 </Box>
 
                 <Divider sx={{ my: 3, borderColor: 'divider' }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Appearance</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t("Appearance")}</Typography>
                 <TextField
                     select
                     size="small"
-                    label="Theme mode"
+                    label={t("Theme mode")}
                     value={appearanceMode}
                     onChange={(event) => setAppearanceMode(event.target.value as AppearanceMode)}
                     sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
                     SelectProps={{ native: true }}
                 >
-                    <option value="dark">Dark</option>
-                    <option value="light">Light</option>
+                    <option value="dark">{t("Dark")}</option>
+                    <option value="light">{t("Light")}</option>
                 </TextField>
 
                 <TextField
                     select
                     size="small"
-                    label="Font"
+                    label={t("Font")}
                     value={fontPreset}
                     onChange={(event) => setFontPreset(event.target.value as FontPreset)}
                     sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
@@ -651,20 +710,20 @@ export const Layout = ({
                 <TextField
                     select
                     size="small"
-                    label="Density"
+                    label={t("Density")}
                     value={uiDensity}
                     onChange={(event) => setUiDensity(event.target.value as UiDensity)}
                     sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
                     SelectProps={{ native: true }}
                 >
-                    <option value="comfortable">Comfortable</option>
-                    <option value="compact">Compact</option>
+                    <option value="comfortable">{t("Comfortable")}</option>
+                    <option value="compact">{t("Compact")}</option>
                 </TextField>
 
                 <TextField
                     type="number"
                     size="small"
-                    label="Corner radius (6-24)"
+                    label={t("Corner radius (6-24)")}
                     value={borderRadius}
                     onChange={(event) => {
                         const value = Number(event.target.value);
@@ -676,8 +735,21 @@ export const Layout = ({
                     inputProps={{ min: 6, max: 24, step: 1 }}
                 />
 
+                <TextField
+                    select
+                    size="small"
+                    label={t("Language")}
+                    value={language}
+                    onChange={(event) => setLanguage(event.target.value === "uk" ? "uk" : "en")}
+                    sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
+                    SelectProps={{ native: true }}
+                >
+                    <option value="en">{t("English")}</option>
+                    <option value="uk">{t("Ukrainian")}</option>
+                </TextField>
+
                 <Divider sx={{ my: 3, borderColor: 'divider' }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Productivity</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t("Productivity")}</Typography>
                 <FormControlLabel
                     sx={{ mt: 1 }}
                     control={
@@ -686,7 +758,7 @@ export const Layout = ({
                             onChange={(event) => onJournalPreviewEnabledChange(event.target.checked)}
                         />
                     }
-                    label="Show journal markdown preview"
+                    label={t("Show journal markdown preview")}
                 />
                 <FormControlLabel
                     control={
@@ -695,7 +767,7 @@ export const Layout = ({
                             onChange={(event) => onPagePreviewEnabledChange(event.target.checked)}
                         />
                     }
-                    label="Show page markdown preview"
+                    label={t("Show page markdown preview")}
                 />
                 <FormControlLabel
                     control={
@@ -704,11 +776,11 @@ export const Layout = ({
                             onChange={(event) => onAutosaveEnabledChange(event.target.checked)}
                         />
                     }
-                    label="Enable draft autosave"
+                    label={t("Enable draft autosave")}
                 />
 
                 <Divider sx={{ my: 3, borderColor: 'divider' }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Reminders</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t("Reminders")}</Typography>
                 <FormControlLabel
                     sx={{ mt: 1 }}
                     control={
@@ -717,13 +789,13 @@ export const Layout = ({
                             onChange={(event) => onReminderEnabledChange(event.target.checked)}
                         />
                     }
-                    label="Enable daily journal reminder"
+                    label={t("Enable daily journal reminder")}
                 />
 
                 <TextField
                     type="number"
                     size="small"
-                    label="Reminder hour (0-23)"
+                    label={t("Reminder hour (0-23)")}
                     value={reminderHour}
                     onChange={(event) => {
                         const value = Number(event.target.value);
@@ -737,9 +809,9 @@ export const Layout = ({
                 />
 
                 <Divider sx={{ my: 3, borderColor: 'divider' }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Data</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t("Data")}</Typography>
                 <Button onClick={exportBackup} startIcon={<DownloadIcon />} variant="outlined" sx={{ width: { xs: "100%", sm: "auto" } }}>
-                    Export Backup (JSON)
+                    {t("Export Backup (JSON)")}
                 </Button>
                 <FormControlLabel
                     sx={{ mt: 1, display: 'block' }}
@@ -749,7 +821,7 @@ export const Layout = ({
                             onChange={(event) => setReplaceExistingOnImport(event.target.checked)}
                         />
                     }
-                    label="Replace existing data on import"
+                    label={t("Replace existing data on import")}
                 />
                 <Button
                     onClick={openImportPicker}
@@ -758,7 +830,7 @@ export const Layout = ({
                     sx={{ mt: 1, width: { xs: "100%", sm: "auto" } }}
                     disabled={importBackupMutation.isPending}
                 >
-                    {importBackupMutation.isPending ? "Importing..." : "Import Backup (JSON)"}
+                    {importBackupMutation.isPending ? t("Importing...") : t("Import Backup (JSON)")}
                 </Button>
                 <input
                     ref={fileInputRef}
@@ -774,8 +846,8 @@ export const Layout = ({
                 ) : null}
 
                 <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                    <Button onClick={resetTheme} color="inherit">Reset</Button>
-                    <Button onClick={() => onSettingsOpenChange(false)} variant="contained" color="primary">Done</Button>
+                    <Button onClick={resetTheme} color="inherit">{t("Reset")}</Button>
+                    <Button onClick={() => onSettingsOpenChange(false)} variant="contained" color="primary">{t("Done")}</Button>
                 </Box>
             </Dialog>
 

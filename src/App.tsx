@@ -17,6 +17,7 @@ import { usePages } from "./hooks/usePages";
 import { useGoals } from "./hooks/useGoals";
 import { useHabits } from "./hooks/useHabits";
 import { useThemeContext } from "./theme/ThemeContext";
+import { useI18n } from "./i18n/I18nContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
   const { data: goals } = useGoals();
   const { data: habits } = useHabits();
   const { appearanceMode, setAppearanceMode } = useThemeContext();
+  const { language, setLanguage, t } = useI18n();
   const lastReminderDateRef = useRef<string | null>(localStorage.getItem("devJournal_lastReminderDate"));
 
   useEffect(() => {
@@ -102,8 +104,10 @@ function App() {
 
       if (permissionGranted) {
         sendNotification({
-          title: 'Dev Journal Reminder',
-          body: `It's past ${String(reminderHour).padStart(2, "0")}:00. Time to write your dev journal!`,
+          title: t("Dev Journal Reminder"),
+          body: t("It's past {hour}:00. Time to write your dev journal!", {
+            hour: String(reminderHour).padStart(2, "0"),
+          }),
         });
         lastReminderDateRef.current = todayStr;
         localStorage.setItem("devJournal_lastReminderDate", todayStr);
@@ -114,7 +118,7 @@ function App() {
     checkTime();
 
     return () => clearInterval(interval);
-  }, [entries, reminderEnabled, reminderHour]);
+  }, [entries, reminderEnabled, reminderHour, t]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -133,9 +137,9 @@ function App() {
     const actions: CommandAction[] = [
       {
         id: "open-planner",
-        title: "Open Planner",
-        subtitle: "Switch to daily command center",
-        section: "Quick Actions",
+        title: t("Open Planner"),
+        subtitle: t("Switch to daily command center"),
+        section: t("Quick Actions"),
         keywords: ["planner", "today", "dashboard"],
         onSelect: () => {
           setActiveTab("planner");
@@ -143,9 +147,9 @@ function App() {
       },
       {
         id: "go-today",
-        title: "Go to Today Journal",
-        subtitle: "Open today's daily entry",
-        section: "Quick Actions",
+        title: t("Go to Today Journal"),
+        subtitle: t("Open today's daily entry"),
+        section: t("Quick Actions"),
         keywords: ["today", "journal", "daily"],
         onSelect: () => {
           setActiveTab("journal");
@@ -154,9 +158,9 @@ function App() {
       },
       {
         id: "open-tasks",
-        title: "Open Tasks Board",
-        subtitle: "Switch to tasks management view",
-        section: "Quick Actions",
+        title: t("Open Tasks Board"),
+        subtitle: t("Switch to tasks management view"),
+        section: t("Quick Actions"),
         keywords: ["tasks", "kanban"],
         onSelect: () => {
           localStorage.setItem("devJournal_tasks_overdue_only", "false");
@@ -166,9 +170,9 @@ function App() {
       },
       {
         id: "open-overdue-tasks",
-        title: "Open Overdue Tasks",
-        subtitle: "Switch to tasks with overdue filter",
-        section: "Quick Actions",
+        title: t("Open Overdue Tasks"),
+        subtitle: t("Switch to tasks with overdue filter"),
+        section: t("Quick Actions"),
         keywords: ["tasks", "overdue", "deadline"],
         onSelect: () => {
           localStorage.setItem("devJournal_tasks_overdue_only", "true");
@@ -178,9 +182,9 @@ function App() {
       },
       {
         id: "open-goals",
-        title: "Open Goals Board",
-        subtitle: "Switch to long-term goals tracking",
-        section: "Quick Actions",
+        title: t("Open Goals Board"),
+        subtitle: t("Switch to long-term goals tracking"),
+        section: t("Quick Actions"),
         keywords: ["goals", "milestones", "planning"],
         onSelect: () => {
           setActiveTab("goals");
@@ -188,9 +192,9 @@ function App() {
       },
       {
         id: "open-habits",
-        title: "Open Habits Tracker",
-        subtitle: "Switch to routine and streak tracking",
-        section: "Quick Actions",
+        title: t("Open Habits Tracker"),
+        subtitle: t("Switch to routine and streak tracking"),
+        section: t("Quick Actions"),
         keywords: ["habits", "streak", "routine"],
         onSelect: () => {
           setActiveTab("habits");
@@ -198,9 +202,9 @@ function App() {
       },
       {
         id: "new-page",
-        title: "Create New Page",
-        subtitle: "Open editor in new page mode",
-        section: "Quick Actions",
+        title: t("Create New Page"),
+        subtitle: t("Open editor in new page mode"),
+        section: t("Quick Actions"),
         keywords: ["page", "new", "note"],
         onSelect: () => {
           setActiveTab("page");
@@ -209,9 +213,9 @@ function App() {
       },
       {
         id: "open-settings",
-        title: "Open Settings",
-        subtitle: "Theme, reminders and data controls",
-        section: "Quick Actions",
+        title: t("Open Settings"),
+        subtitle: t("Theme, reminders and data controls"),
+        section: t("Quick Actions"),
         keywords: ["settings", "theme", "preferences"],
         onSelect: () => {
           setSettingsOpen(true);
@@ -219,12 +223,24 @@ function App() {
       },
       {
         id: "toggle-theme-mode",
-        title: `Switch to ${appearanceMode === "dark" ? "Light" : "Dark"} Mode`,
+        title: t("Switch to {mode} Mode", {
+          mode: appearanceMode === "dark" ? t("Light") : t("Dark"),
+        }),
         subtitle: "Toggle appearance mode instantly",
-        section: "Quick Actions",
+        section: t("Quick Actions"),
         keywords: ["theme", "dark", "light"],
         onSelect: () => {
           setAppearanceMode(appearanceMode === "dark" ? "light" : "dark");
+        },
+      },
+      {
+        id: "toggle-language",
+        title: `${t("Language")}: ${language === "en" ? t("English") : t("Ukrainian")}`,
+        subtitle: `${t("Switch to {mode} Mode", { mode: language === "en" ? t("Ukrainian") : t("English") })}`,
+        section: t("Quick Actions"),
+        keywords: ["language", "locale", "ua", "en"],
+        onSelect: () => {
+          setLanguage(language === "en" ? "uk" : "en");
         },
       },
     ];
@@ -233,8 +249,8 @@ function App() {
       actions.push({
         id: `entry-${entry.date}`,
         title: `Open Journal: ${entry.date}`,
-        subtitle: "Jump to saved daily entry",
-        section: "Journal",
+        subtitle: t("Jump to saved daily entry"),
+        section: t("Journal"),
         keywords: ["journal", entry.date],
         onSelect: () => {
           setActiveTab("journal");
@@ -247,8 +263,8 @@ function App() {
       actions.push({
         id: `page-${page.id}`,
         title: `Open Page: ${page.title || "Untitled"}`,
-        subtitle: "Jump to page editor",
-        section: "Pages",
+        subtitle: t("Jump to page editor"),
+        section: t("Pages"),
         keywords: ["page", page.title ?? ""],
         onSelect: () => {
           setActiveTab("page");
@@ -260,9 +276,9 @@ function App() {
     (goals ?? []).slice(0, 10).forEach((goal) => {
       actions.push({
         id: `goal-${goal.id}`,
-        title: `Open Goals: ${goal.title || "Untitled"}`,
+        title: t("Open Goals: {title}", { title: goal.title || "Untitled" }),
         subtitle: `${goal.progress}% complete`,
-        section: "Goals",
+        section: t("Goals"),
         keywords: ["goal", "milestone", goal.title ?? ""],
         onSelect: () => {
           setActiveTab("goals");
@@ -273,9 +289,9 @@ function App() {
     (habits ?? []).slice(0, 10).forEach((habit) => {
       actions.push({
         id: `habit-${habit.id}`,
-        title: `Open Habits: ${habit.title || "Untitled"}`,
-        subtitle: `Streak ${habit.current_streak}d`,
-        section: "Habits",
+        title: t("Open Habits: {title}", { title: habit.title || "Untitled" }),
+        subtitle: t("Streak {count}d", { count: habit.current_streak }),
+        section: t("Habits"),
         keywords: ["habit", "routine", habit.title ?? ""],
         onSelect: () => {
           setActiveTab("habits");
@@ -284,7 +300,7 @@ function App() {
     });
 
     return actions;
-  }, [appearanceMode, entries, goals, habits, pages, setAppearanceMode]);
+  }, [appearanceMode, entries, goals, habits, language, pages, setAppearanceMode, setLanguage, t]);
 
   return (
     <>

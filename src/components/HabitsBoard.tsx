@@ -28,6 +28,7 @@ import {
   useUpdateHabit,
 } from "../hooks/useHabits";
 import { HabitWithLogs } from "../types";
+import { useI18n } from "../i18n/I18nContext";
 
 const weekDates = Array.from({ length: 7 }, (_, index) =>
   format(subDays(new Date(), 6 - index), "yyyy-MM-dd")
@@ -59,6 +60,7 @@ const compareHabits = (a: HabitWithLogs, b: HabitWithLogs) => {
 };
 
 export const HabitsBoard = () => {
+  const { t } = useI18n();
   const { data: habits = [], isLoading } = useHabits();
   const createHabit = useCreateHabit();
   const updateHabit = useUpdateHabit();
@@ -179,10 +181,10 @@ export const HabitsBoard = () => {
         >
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Habits Tracker
+              {t("Open Habits Tracker")}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Build routines with daily check-ins, weekly targets, and streaks.
+              {t("Switch to routine and streak tracking")}
             </Typography>
           </Box>
 
@@ -192,7 +194,7 @@ export const HabitsBoard = () => {
             onClick={openCreateDialog}
             disabled={busy}
           >
-            New Habit
+            {t("New Habit")}
           </Button>
         </Stack>
 
@@ -204,7 +206,7 @@ export const HabitsBoard = () => {
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mt: 2 }}>
           <TextField
-            placeholder="Search habits"
+            placeholder={t("Search...")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             fullWidth
@@ -221,7 +223,7 @@ export const HabitsBoard = () => {
             color={onlyNeedsAttention ? "warning" : "inherit"}
             onClick={() => setOnlyNeedsAttention((prev) => !prev)}
           >
-            Needs Attention
+            {t("Needs Attention")}
           </Button>
         </Stack>
       </Paper>

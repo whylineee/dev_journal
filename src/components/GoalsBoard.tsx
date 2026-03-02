@@ -22,6 +22,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { format, isBefore, parseISO, startOfDay } from "date-fns";
 import { Goal, GoalStatus } from "../types";
 import { useCreateGoal, useDeleteGoal, useGoals, useUpdateGoal } from "../hooks/useGoals";
+import { useI18n } from "../i18n/I18nContext";
 
 const statusLabel: Record<GoalStatus, string> = {
   active: "Active",
@@ -87,6 +88,7 @@ const compareGoals = (a: Goal, b: Goal) => {
 const normalizeProgress = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
 export const GoalsBoard = () => {
+  const { t } = useI18n();
   const { data: goals = [], isLoading } = useGoals();
   const createGoal = useCreateGoal();
   const updateGoal = useUpdateGoal();
@@ -209,10 +211,10 @@ export const GoalsBoard = () => {
         >
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Goals & Milestones
+              {t("Goals")}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Plan long-term outcomes and track progress by target dates.
+              {t("Switch to long-term goals tracking")}
             </Typography>
           </Box>
 
@@ -222,7 +224,7 @@ export const GoalsBoard = () => {
             onClick={openCreateDialog}
             disabled={busy}
           >
-            New Goal
+            {t("New Goal")}
           </Button>
         </Stack>
 
@@ -235,7 +237,7 @@ export const GoalsBoard = () => {
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mt: 2 }}>
           <TextField
-            placeholder="Search goals"
+            placeholder={t("Search...")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             fullWidth
@@ -250,7 +252,7 @@ export const GoalsBoard = () => {
 
           <TextField
             select
-            label="Status"
+            label={t("Status")}
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as "all" | GoalStatus)}
             sx={{ minWidth: 180 }}

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -6,6 +6,7 @@ import {
   Chip,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import TodayIcon from "@mui/icons-material/Today";
@@ -13,13 +14,16 @@ import ChecklistIcon from "@mui/icons-material/Checklist";
 import FlagIcon from "@mui/icons-material/Flag";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import AddTaskIcon from "@mui/icons-material/AddTask";
+import { alpha, useTheme } from "@mui/material/styles";
 import { format } from "date-fns";
 import { useEntries } from "../hooks/useEntries";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits, useToggleHabitCompletion } from "../hooks/useHabits";
-import { useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
+import { useCreateTask, useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
 import { isGoalNearDeadline } from "../utils/goalUtils";
 import { isTaskDueToday, isTaskOverdue } from "../utils/taskUtils";
+import { useI18n } from "../i18n/I18nContext";
 
 interface PlannerBoardProps {
   onOpenJournalToday: () => void;
@@ -34,15 +38,21 @@ export const PlannerBoard = ({
   onOpenGoals,
   onOpenHabits,
 }: PlannerBoardProps) => {
-  // Planner intentionally aggregates all domains into one daily operational view.
+  const { t } = useI18n();
+  const muiTheme = useTheme();
   const today = format(new Date(), "yyyy-MM-dd");
   const toggleHabitCompletion = useToggleHabitCompletion();
   const updateTaskStatus = useUpdateTaskStatus();
+  const createTask = useCreateTask();
 
   const { data: entries = [] } = useEntries();
   const { data: tasks = [] } = useTasks();
   const { data: goals = [] } = useGoals();
   const { data: habits = [] } = useHabits();
+
+  const [quickTaskTitle, setQuickTaskTitle] = useState("");
+  const [quickDueToday, setQuickDueToday] = useState(true);
+  const [quickTaskFeedback, setQuickTaskFeedback] = useState("");
 
   const todayEntryExists = useMemo(
     () => entries.some((entry) => entry.date === today),
@@ -73,11 +83,46 @@ export const PlannerBoard = ({
     [habits, today]
   );
 
-  const busy = toggleHabitCompletion.isPending || updateTaskStatus.isPending;
+  const busy =
+    toggleHabitCompletion.isPending ||
+    updateTaskStatus.isPending ||
+    createTask.isPending;
+
+  const handleQuickAddTask = () => {
+    const title = quickTaskTitle.trim();
+    if (!title) {
+      return;
+    }
+
+    createTask.mutate(
+      {
+        title,
+        description: "",
+        status: "todo",
+        priority: "medium",
+        due_date: quickDueToday ? today : null,
+        time_estimate_minutes: 0,
+      },
+      {
+        onSuccess: () => {
+          setQuickTaskTitle("");
+          setQuickTaskFeedback(t("Task added to board."));
+        },
+      }
+    );
+  };
 
   return (
     <Box sx={{ maxWidth: 1280, mx: "auto", mt: 1 }}>
-      <Paper sx={{ p: 3 }}>
+      <Paper
+        sx={{
+          p: 3,
+          background: `linear-gradient(145deg, ${alpha(
+            muiTheme.palette.primary.main,
+            0.08
+          )} 0%, ${alpha(muiTheme.palette.background.paper, 0.9)} 70%)`,
+        }}
+      >
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
@@ -86,58 +131,115 @@ export const PlannerBoard = ({
         >
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Planner
+              {t("Planner")}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Daily command center for journal, tasks, goals, and habits.
+              {t("Daily command center for journal, tasks, goals, and habits.")}
             </Typography>
           </Box>
 
           <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
             <Button variant="outlined" onClick={onOpenJournalToday} startIcon={<TodayIcon />}>
-              Journal Today
+              {t("Journal Today")}
             </Button>
             <Button variant="outlined" onClick={onOpenTasks} startIcon={<ChecklistIcon />}>
-              Open Tasks
+              {t("Open Tasks")}
             </Button>
             <Button variant="outlined" onClick={onOpenGoals} startIcon={<FlagIcon />}>
-              Open Goals
+              {t("Open Goals")}
             </Button>
             <Button variant="outlined" onClick={onOpenHabits} startIcon={<RepeatIcon />}>
-              Open Habits
+              {t("Open Habits")}
             </Button>
           </Stack>
         </Stack>
 
         <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
-          <Chip label={todayEntryExists ? "Journal: Done" : "Journal: Missing"} color={todayEntryExists ? "success" : "warning"} variant="outlined" size="small" />
-          <Chip label={`Due today: ${dueTodayTasks.length}`} color="info" variant="outlined" size="small" />
-          <Chip label={`Overdue: ${overdueTasks.length}`} color={overdueTasks.length > 0 ? "error" : "default"} variant="outlined" size="small" />
-          <Chip label={`Goals in 14d: ${nearGoals.length}`} color="secondary" variant="outlined" size="small" />
           <Chip
-            label={`Habits done today: ${habitsWithTodayState.filter((habit) => habit.doneToday).length}/${habitsWithTodayState.length}`}
+            label={`${t("Journal")}: ${todayEntryExists ? t("Done") : t("Missing")}`}
+            color={todayEntryExists ? "success" : "warning"}
+            variant="outlined"
+            size="small"
+          />
+          <Chip label={`${t("Due today")}: ${dueTodayTasks.length}`} color="info" variant="outlined" size="small" />
+          <Chip label={`${t("Overdue")}: ${overdueTasks.length}`} color={overdueTasks.length > 0 ? "error" : "default"} variant="outlined" size="small" />
+          <Chip label={`${t("Goals in 14d")}: ${nearGoals.length}`} color="secondary" variant="outlined" size="small" />
+          <Chip
+            label={`${t("Habits done today")}: ${habitsWithTodayState.filter((habit) => habit.doneToday).length}/${habitsWithTodayState.length}`}
             color="primary"
             variant="outlined"
             size="small"
           />
         </Stack>
+
+        <Paper
+          variant="outlined"
+          sx={{
+            mt: 2,
+            p: 2,
+            borderStyle: "dashed",
+            borderColor: "divider",
+            bgcolor: alpha(muiTheme.palette.background.default, 0.45),
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            {t("Quick Capture")}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+            {t("Capture a task without leaving the planner.")}
+          </Typography>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+            <TextField
+              fullWidth
+              value={quickTaskTitle}
+              onChange={(event) => setQuickTaskTitle(event.target.value)}
+              placeholder={t("Quick task title")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  handleQuickAddTask();
+                }
+              }}
+            />
+            <Button
+              variant={quickDueToday ? "contained" : "outlined"}
+              color={quickDueToday ? "primary" : "inherit"}
+              onClick={() => setQuickDueToday((prev) => !prev)}
+            >
+              {t("Due today")}
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddTaskIcon />}
+              disabled={busy || quickTaskTitle.trim().length === 0}
+              onClick={handleQuickAddTask}
+            >
+              {t("Add Task")}
+            </Button>
+          </Stack>
+          {quickTaskFeedback ? (
+            <Typography variant="caption" color="success.main" sx={{ display: "block", mt: 1 }}>
+              {quickTaskFeedback}
+            </Typography>
+          ) : null}
+        </Paper>
       </Paper>
 
       <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
         <Paper sx={{ p: 2, flex: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Tasks Due Today
+              {t("Tasks Due Today")}
             </Typography>
             <Button size="small" onClick={onOpenTasks} endIcon={<OpenInNewIcon fontSize="small" />}>
-              View All
+              {t("View All")}
             </Button>
           </Stack>
 
           <Stack spacing={1} sx={{ mt: 1.25 }}>
             {dueTodayTasks.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                No tasks due today.
+                {t("No tasks due today.")}
               </Typography>
             ) : (
               dueTodayTasks.map((task) => (
@@ -162,7 +264,7 @@ export const PlannerBoard = ({
                       {task.title}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Priority: {task.priority}
+                      {t("Priority: {priority}", { priority: task.priority })}
                     </Typography>
                   </Box>
                 </Stack>
@@ -174,17 +276,17 @@ export const PlannerBoard = ({
         <Paper sx={{ p: 2, flex: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Overdue Tasks
+              {t("Overdue Tasks")}
             </Typography>
             <Button size="small" onClick={onOpenTasks} endIcon={<OpenInNewIcon fontSize="small" />}>
-              Resolve
+              {t("Resolve")}
             </Button>
           </Stack>
 
           <Stack spacing={1} sx={{ mt: 1.25 }}>
             {overdueTasks.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                No overdue tasks.
+                {t("No overdue tasks.")}
               </Typography>
             ) : (
               overdueTasks.map((task) => (
@@ -192,7 +294,7 @@ export const PlannerBoard = ({
                   <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
                     {task.title}
                   </Typography>
-                  <Chip label={task.due_date ?? "No date"} color="error" variant="outlined" size="small" />
+                  <Chip label={task.due_date ?? t("No date")} color="error" variant="outlined" size="small" />
                 </Stack>
               ))
             )}
@@ -204,17 +306,17 @@ export const PlannerBoard = ({
         <Paper sx={{ p: 2, flex: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Goals Near Deadline
+              {t("Goals Near Deadline")}
             </Typography>
             <Button size="small" onClick={onOpenGoals} endIcon={<OpenInNewIcon fontSize="small" />}>
-              Manage
+              {t("Manage")}
             </Button>
           </Stack>
 
           <Stack spacing={1} sx={{ mt: 1.25 }}>
             {nearGoals.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                No active goals with deadlines in next 14 days.
+                {t("No active goals with deadlines in next 14 days.")}
               </Typography>
             ) : (
               nearGoals.map((goal) => (
@@ -227,7 +329,7 @@ export const PlannerBoard = ({
                       Progress: {goal.progress}%
                     </Typography>
                   </Box>
-                  <Chip label={goal.target_date ?? "No date"} variant="outlined" size="small" />
+                  <Chip label={goal.target_date ?? t("No date")} variant="outlined" size="small" />
                 </Stack>
               ))
             )}
@@ -237,17 +339,17 @@ export const PlannerBoard = ({
         <Paper sx={{ p: 2, flex: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Habits Today
+              {t("Habits Today")}
             </Typography>
             <Button size="small" onClick={onOpenHabits} endIcon={<OpenInNewIcon fontSize="small" />}>
-              Track
+              {t("Track")}
             </Button>
           </Stack>
 
           <Stack spacing={1} sx={{ mt: 1.25 }}>
             {habitsWithTodayState.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                No habits configured yet.
+                {t("No habits configured yet.")}
               </Typography>
             ) : (
               habitsWithTodayState.map((habit) => (
