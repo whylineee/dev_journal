@@ -165,6 +165,7 @@ export const InsightsBoard = () => {
   const [debugHypotheses, setDebugHypotheses] = useState("");
   const [debugChecks, setDebugChecks] = useState("");
   const [debugConclusion, setDebugConclusion] = useState("");
+  const [buildLogStatus, setBuildLogStatus] = useState("");
 
   const sortedRecords = useMemo(() => {
     return [...records].sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -302,6 +303,75 @@ export const InsightsBoard = () => {
     persistDebugSessions(updated);
   };
 
+  const handleExportBuildLog = () => {
+    const lines: string[] = [
+      "# Dev Journal Build Log",
+      "",
+      `Generated: ${new Date().toISOString()}`,
+      "",
+      "## Decisions (Mini ADR)",
+    ];
+
+    if (records.length === 0) {
+      lines.push("- No ADR records yet.");
+    } else {
+      records.forEach((record) => {
+        lines.push(`### ${record.title}`);
+        lines.push(`- Date: ${record.created_at.slice(0, 10)}`);
+        lines.push(`- Problem: ${record.problem}`);
+        lines.push(`- Decision: ${record.decision}`);
+        lines.push(`- Rationale: ${record.rationale}`);
+        if (record.consequences) {
+          lines.push(`- Consequences: ${record.consequences}`);
+        }
+        lines.push("");
+      });
+    }
+
+    lines.push("## Incident Learnings");
+    if (incidents.length === 0) {
+      lines.push("- No incidents logged yet.");
+    } else {
+      incidents.forEach((incident) => {
+        lines.push(`### ${incident.title}`);
+        lines.push(`- Date: ${incident.created_at.slice(0, 10)}`);
+        lines.push(`- Severity: ${incident.severity}`);
+        lines.push(`- Symptoms: ${incident.symptoms}`);
+        lines.push(`- Root cause: ${incident.root_cause}`);
+        lines.push(`- Fix: ${incident.fix}`);
+        if (incident.prevention) {
+          lines.push(`- Prevention: ${incident.prevention}`);
+        }
+        lines.push("");
+      });
+    }
+
+    lines.push("## Debug Sessions");
+    if (debugSessions.length === 0) {
+      lines.push("- No debug sessions yet.");
+    } else {
+      debugSessions.forEach((session) => {
+        lines.push(`### ${session.title}`);
+        lines.push(`- Date: ${session.created_at.slice(0, 10)}`);
+        lines.push(`- Symptoms: ${session.symptoms}`);
+        lines.push(`- Hypotheses: ${session.hypotheses}`);
+        lines.push(`- Checks: ${session.checks}`);
+        lines.push(`- Conclusion: ${session.conclusion}`);
+        lines.push("");
+      });
+    }
+
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `dev-journal-build-log-${new Date().toISOString().slice(0, 10)}.md`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+
+    setBuildLogStatus(t("Portfolio build log exported."));
+  };
+
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 1, display: "grid", gap: 2 }}>
       <Paper sx={{ p: 3 }}>
@@ -314,6 +384,16 @@ export const InsightsBoard = () => {
         <Typography variant="body2" color="text.secondary">
           {t("Track engineering decisions, incidents, retros, and developer intelligence.")}
         </Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
+          <Button variant="outlined" onClick={handleExportBuildLog}>
+            {t("Export Portfolio Build Log")}
+          </Button>
+          {buildLogStatus ? (
+            <Typography variant="body2" color="success.main" sx={{ alignSelf: "center" }}>
+              {buildLogStatus}
+            </Typography>
+          ) : null}
+        </Stack>
       </Paper>
 
       <Paper sx={{ p: 3 }}>

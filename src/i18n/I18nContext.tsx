@@ -175,6 +175,8 @@ const ukTranslations: Record<string, string> = {
   "Insert template": "Вставити шаблон",
   "Save debug session": "Зберегти дебаг-сесію",
   "No debug sessions yet.": "Дебаг-сесій ще немає.",
+  "Export Portfolio Build Log": "Експорт Portfolio Build Log",
+  "Portfolio build log exported.": "Portfolio build log експортовано.",
 };
 
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);
