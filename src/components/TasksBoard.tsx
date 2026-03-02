@@ -74,6 +74,27 @@ const priorityLabel: Record<TaskPriority, string> = {
   urgent: "Urgent",
 };
 
+const TASK_OUTCOMES_STORAGE_KEY = "devJournal_task_outcomes";
+
+type TaskOutcomeMap = Record<string, { before: string; after: string }>;
+
+const readTaskOutcomes = (): TaskOutcomeMap => {
+  try {
+    const raw = localStorage.getItem(TASK_OUTCOMES_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as TaskOutcomeMap;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const persistTaskOutcomes = (value: TaskOutcomeMap) => {
+  localStorage.setItem(TASK_OUTCOMES_STORAGE_KEY, JSON.stringify(value));
+};
+
 export const TasksBoard = () => {
   const { t } = useI18n();
   // `nowMs` is updated every second to render live timer values without round-trips.
@@ -99,6 +120,9 @@ export const TasksBoard = () => {
   const [dueDate, setDueDate] = useState("");
   const [timeEstimateMinutes, setTimeEstimateMinutes] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [beforeOutcome, setBeforeOutcome] = useState("");
+  const [afterOutcome, setAfterOutcome] = useState("");
+  const [taskOutcomes, setTaskOutcomes] = useState<TaskOutcomeMap>(() => readTaskOutcomes());
 
   const busy =
     createTask.isPending ||
@@ -183,6 +207,8 @@ export const TasksBoard = () => {
     setPriority("medium");
     setDueDate("");
     setTimeEstimateMinutes(0);
+    setBeforeOutcome("");
+    setAfterOutcome("");
     setDialogOpen(true);
   };
 
@@ -194,7 +220,26 @@ export const TasksBoard = () => {
     setPriority(task.priority);
     setDueDate(task.due_date ?? "");
     setTimeEstimateMinutes(task.time_estimate_minutes);
+    const outcome = taskOutcomes[String(task.id)];
+    setBeforeOutcome(outcome?.before ?? "");
+    setAfterOutcome(outcome?.after ?? "");
     setDialogOpen(true);
+  };
+
+  const saveTaskOutcome = (taskId: number) => {
+    const key = String(taskId);
+    const nextBefore = beforeOutcome.trim();
+    const nextAfter = afterOutcome.trim();
+    const updated = { ...taskOutcomes };
+
+    if (!nextBefore && !nextAfter) {
+      delete updated[key];
+    } else {
+      updated[key] = { before: nextBefore, after: nextAfter };
+    }
+
+    setTaskOutcomes(updated);
+    persistTaskOutcomes(updated);
   };
 
   const handleSave = () => {
@@ -206,24 +251,34 @@ export const TasksBoard = () => {
     const normalizedTimeEstimate = normalizeEstimateMinutes(timeEstimateMinutes);
 
     if (editingTask) {
-      updateTask.mutate({
-        id: editingTask.id,
-        title: cleanTitle,
-        description: description.trim(),
-        status,
-        priority,
-        due_date: dueDate || null,
-        time_estimate_minutes: normalizedTimeEstimate,
-      });
+      updateTask.mutate(
+        {
+          id: editingTask.id,
+          title: cleanTitle,
+          description: description.trim(),
+          status,
+          priority,
+          due_date: dueDate || null,
+          time_estimate_minutes: normalizedTimeEstimate,
+        },
+        {
+          onSuccess: () => saveTaskOutcome(editingTask.id),
+        }
+      );
     } else {
-      createTask.mutate({
-        title: cleanTitle,
-        description: description.trim(),
-        status,
-        priority,
-        due_date: dueDate || null,
-        time_estimate_minutes: normalizedTimeEstimate,
-      });
+      createTask.mutate(
+        {
+          title: cleanTitle,
+          description: description.trim(),
+          status,
+          priority,
+          due_date: dueDate || null,
+          time_estimate_minutes: normalizedTimeEstimate,
+        },
+        {
+          onSuccess: (createdTask) => saveTaskOutcome(createdTask.id),
+        }
+      );
     }
 
     setDialogOpen(false);
@@ -231,6 +286,12 @@ export const TasksBoard = () => {
 
   const handleDelete = (taskId: number) => {
     deleteTask.mutate(taskId);
+    if (taskOutcomes[String(taskId)]) {
+      const updated = { ...taskOutcomes };
+      delete updated[String(taskId)];
+      setTaskOutcomes(updated);
+      persistTaskOutcomes(updated);
+    }
   };
 
   const moveToStatus = (task: Task, nextStatus: TaskStatus) => {
@@ -357,6 +418,7 @@ export const TasksBoard = () => {
                 const elapsedSeconds = getTaskElapsedSeconds(task, nowMs);
                 const estimatedSeconds = task.time_estimate_minutes * 60;
                 const remainingSeconds = estimatedSeconds - elapsedSeconds;
+                const outcome = taskOutcomes[String(task.id)];
 
                 return (
                   <Paper
@@ -391,6 +453,16 @@ export const TasksBoard = () => {
                         {task.description ? (
                           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                             {task.description}
+                          </Typography>
+                        ) : null}
+                        {outcome?.before ? (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+                            <strong>Before:</strong> {outcome.before}
+                          </Typography>
+                        ) : null}
+                        {outcome?.after ? (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            <strong>After:</strong> {outcome.after}
                           </Typography>
                         ) : null}
 
@@ -579,6 +651,24 @@ export const TasksBoard = () => {
                 fullWidth
               />
             </Stack>
+
+            <TextField
+              label="Before (planned outcome)"
+              value={beforeOutcome}
+              onChange={(event) => setBeforeOutcome(event.target.value)}
+              multiline
+              minRows={2}
+              fullWidth
+            />
+
+            <TextField
+              label="After (actual outcome)"
+              value={afterOutcome}
+              onChange={(event) => setAfterOutcome(event.target.value)}
+              multiline
+              minRows={2}
+              fullWidth
+            />
           </Stack>
         </DialogContent>
 
