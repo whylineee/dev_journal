@@ -1,8 +1,9 @@
 import { Box, Typography, Paper, Tooltip as MuiTooltip, Button } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { useEntries } from "../hooks/useEntries";
+import { useTasks } from "../hooks/useTasks";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { format, subDays, differenceInDays } from "date-fns";
+import { format, subDays } from "date-fns";
 import { motion } from "framer-motion";
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
@@ -26,36 +27,12 @@ const itemVariants = {
 export const Stats = () => {
     const muiTheme = useTheme();
     const { data: entries } = useEntries();
+    const { data: tasks = [] } = useTasks();
 
     if (!entries) return null;
 
-    // Calculate Streak
-    let currentStreak = 0;
-    let maxStreak = 0;
-    let tempStreak = 0;
-
-    const today = format(new Date(), "yyyy-MM-dd");
-    let checkDate = new Date();
-
-    // Check Current Streak
-    while (true) {
-        const dateStr = format(checkDate, "yyyy-MM-dd");
-        const found = entries.find(e => e.date === dateStr);
-        if (found) {
-            currentStreak++;
-            checkDate = subDays(checkDate, 1);
-        } else {
-            if (dateStr === today) {
-                checkDate = subDays(checkDate, 1);
-                continue;
-            }
-            break;
-        }
-    }
-
-    // Calculate Max Streak & Total Words
+    // Calculate Total Words
     let totalWords = 0;
-    let lastDateObj: Date | null = null;
 
     const sortedEntries = [...entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -63,22 +40,6 @@ export const Stats = () => {
         const words = entry.yesterday.split(/\s+/).filter(w => w.length > 0).length +
             entry.today.split(/\s+/).filter(w => w.length > 0).length;
         totalWords += words;
-
-        const currentEntryDate = new Date(entry.date);
-        if (!lastDateObj) {
-            tempStreak = 1;
-        } else {
-            const diff = differenceInDays(currentEntryDate, lastDateObj);
-            if (diff === 1) {
-                tempStreak++;
-            } else if (diff > 1) {
-                tempStreak = 1; // broken
-            }
-        }
-        if (tempStreak > maxStreak) {
-            maxStreak = tempStreak;
-        }
-        lastDateObj = currentEntryDate;
     });
 
     // Activity Map (Last 90 Days)
@@ -114,6 +75,27 @@ export const Stats = () => {
         }
         return { day: format(d, "MMM d"), words };
     });
+
+    const priorityWeight = {
+        low: 1,
+        medium: 2,
+        high: 3,
+        urgent: 4,
+    } as const;
+
+    const completedTasks = tasks.filter((task) => task.status === "done");
+    const openTasks = tasks.filter((task) => task.status !== "done");
+
+    const weightedCompletedTasks = completedTasks.reduce((sum, task) => {
+        return sum + (priorityWeight[task.priority] ?? 1);
+    }, 0);
+
+    const executionPenalty = Math.max(0, openTasks.length - completedTasks.length);
+    const weeklyJournalConsistency = activityData.slice(-7).filter((day) => day.words > 0).length;
+    const impactScore = Math.max(
+        0,
+        weightedCompletedTasks * 8 + weeklyJournalConsistency * 5 - executionPenalty * 3
+    );
 
     return (
         <motion.div variants={containerVariants} initial="hidden" animate="show">
@@ -155,8 +137,8 @@ export const Stats = () => {
                 {/* KPI Cards */}
                 <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
                     {[
-                        { title: "Current Streak", value: currentStreak, icon: <LocalFireDepartmentIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#f59e0b', suffix: 'Days' },
-                        { title: "Longest Streak", value: maxStreak, icon: <MilitaryTechIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#3b82f6', suffix: 'Days' },
+                        { title: "Impact Score", value: impactScore, icon: <LocalFireDepartmentIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#f59e0b', suffix: 'Impact' },
+                        { title: "Execution Weight", value: weightedCompletedTasks, icon: <MilitaryTechIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#3b82f6', suffix: 'Weighted tasks' },
                         { title: "Total Entries", value: entries.length, icon: <EditNoteIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#10b981', suffix: 'Entries' },
                         { title: "Total Words", value: totalWords, icon: <AnalyticsIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#8b5cf6', suffix: 'Words' }
                     ].map((stat, i) => (
