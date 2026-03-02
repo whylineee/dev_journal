@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -24,6 +24,8 @@ import { useCreateTask, useTasks, useUpdateTaskStatus } from "../hooks/useTasks"
 import { isGoalNearDeadline } from "../utils/goalUtils";
 import { isTaskDueToday, isTaskOverdue } from "../utils/taskUtils";
 import { useI18n } from "../i18n/I18nContext";
+import { useAppNotifications } from "../notifications/AppNotifications";
+import { sendNotification } from "@tauri-apps/plugin-notification";
 
 interface PlannerBoardProps {
   onOpenJournalToday: () => void;
@@ -39,6 +41,7 @@ export const PlannerBoard = ({
   onOpenHabits,
 }: PlannerBoardProps) => {
   const { t } = useI18n();
+  const { notify } = useAppNotifications();
   const muiTheme = useTheme();
   const today = format(new Date(), "yyyy-MM-dd");
   const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
@@ -54,6 +57,8 @@ export const PlannerBoard = ({
   const [quickTaskTitle, setQuickTaskTitle] = useState("");
   const [quickDueMode, setQuickDueMode] = useState<"today" | "tomorrow" | "none">("today");
   const [quickTaskFeedback, setQuickTaskFeedback] = useState("");
+  const [focusSecondsLeft, setFocusSecondsLeft] = useState(25 * 60);
+  const [focusRunning, setFocusRunning] = useState(false);
 
   const todayEntryExists = useMemo(
     () => entries.some((entry) => entry.date === today),
@@ -117,6 +122,40 @@ export const PlannerBoard = ({
       }
     );
   };
+
+  const formatFocusTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const sec = Math.floor(seconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${sec}`;
+  };
+
+  useEffect(() => {
+    let timer: number | undefined;
+    if (focusRunning) {
+      timer = window.setInterval(() => {
+        setFocusSecondsLeft((prev) => {
+          if (prev <= 1) {
+            if (timer) {
+              window.clearInterval(timer);
+            }
+            setFocusRunning(false);
+            notify("Focus session completed.", "success");
+            sendNotification({
+              title: "Dev Journal",
+              body: "Focus session completed.",
+            });
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) {
+        window.clearInterval(timer);
+      }
+    };
+  }, [focusRunning, notify]);
 
   return (
     <Box sx={{ maxWidth: 1280, mx: "auto", mt: 1 }}>
@@ -424,6 +463,30 @@ export const PlannerBoard = ({
               </Stack>
             ))
           )}
+        </Stack>
+      </Paper>
+
+      <Paper sx={{ p: 2, mt: 2 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+          {t("Focus Session")}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
+          {t("Run a focused 25-minute sprint directly from planner.")}
+        </Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }}>
+          <Chip size="medium" color={focusRunning ? "warning" : "default"} label={formatFocusTime(focusSecondsLeft)} />
+          <Button variant={focusRunning ? "outlined" : "contained"} onClick={() => setFocusRunning((prev) => !prev)}>
+            {focusRunning ? t("Pause") : t("Start Focus")}
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setFocusRunning(false);
+              setFocusSecondsLeft(25 * 60);
+            }}
+          >
+            {t("Reset")}
+          </Button>
         </Stack>
       </Paper>
     </Box>
