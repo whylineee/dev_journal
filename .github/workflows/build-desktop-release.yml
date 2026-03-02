@@ -120,7 +120,12 @@ jobs:
 
           mkdir -p src-tauri/target/release/bundle/dmg
           DMG_PATH="src-tauri/target/release/bundle/dmg/Dev Journal_${VERSION}_aarch64.dmg"
-          hdiutil create -volname "Dev Journal" -srcfolder "$APP_BUNDLE" -ov -format UDZO "$DMG_PATH"
+          STAGING_DIR="$RUNNER_TEMP/dmg-root"
+          rm -rf "$STAGING_DIR"
+          mkdir -p "$STAGING_DIR"
+          cp -R "$APP_BUNDLE" "$STAGING_DIR/Dev Journal.app"
+          ln -s /Applications "$STAGING_DIR/Applications"
+          hdiutil create -volname "Dev Journal" -srcfolder "$STAGING_DIR" -ov -format UDZO "$DMG_PATH"
 
       - name: Notarize macOS DMG
         if: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && secrets.APPLE_API_KEY != '' && secrets.APPLE_API_KEY_ID != '' && secrets.APPLE_API_ISSUER != '' }}
