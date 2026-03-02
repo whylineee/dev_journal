@@ -6,6 +6,8 @@ mod tray;
 use std::sync::Mutex;
 use tauri::{Manager, WindowEvent};
 
+struct TrayAvailability(bool);
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -25,14 +27,32 @@ pub fn run() {
             });
 
             // Setup Tray
-            tray::setup_tray(app.handle()).expect("Failed to setup tray");
+            let tray_available = match tray::setup_tray(app.handle()) {
+                Ok(()) => true,
+                Err(error) => {
+                    eprintln!("Tray setup failed, continuing without tray support: {error}");
+                    false
+                }
+            };
+            app.manage(TrayAvailability(tray_available));
 
             Ok(())
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                window.hide().unwrap();
-                api.prevent_close();
+                let tray_available = window
+                    .app_handle()
+                    .try_state::<TrayAvailability>()
+                    .map(|state| state.0)
+                    .unwrap_or(false);
+
+                if tray_available {
+                    if let Err(error) = window.hide() {
+                        eprintln!("Failed to hide window on close request: {error}");
+                    } else {
+                        api.prevent_close();
+                    }
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![

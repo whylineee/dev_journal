@@ -1,0 +1,129 @@
+name: Build Desktop Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build Windows bundles
+        run: npm run tauri:build:windows
+
+      - name: Prepare Windows release files
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          $msi = Get-ChildItem -File src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi | Select-Object -First 1
+          $exe = Get-ChildItem -File src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe | Select-Object -First 1
+
+          if (-not $msi -or -not $exe) {
+            throw "Windows bundles were not found."
+          }
+
+          $normalizedMsi = "Dev-Journal-$version-windows-x64.msi"
+          $normalizedExe = "Dev-Journal-$version-windows-x64-setup.exe"
+          Copy-Item $msi.FullName $normalizedMsi
+          Copy-Item $exe.FullName $normalizedExe
+
+          $lines = @()
+          foreach ($asset in @($normalizedMsi, $normalizedExe)) {
+            $hash = (Get-FileHash -Path $asset -Algorithm SHA256).Hash.ToLower()
+            $lines += "$hash  $asset"
+          }
+          $lines | Set-Content checksums-windows.txt
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-journal-windows
+          path: |
+            Dev-Journal-*-windows-x64.msi
+            Dev-Journal-*-windows-x64-setup.exe
+            checksums-windows.txt
+          if-no-files-found: error
+
+      - name: Attach Windows files to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Dev-Journal-*-windows-x64.msi
+            Dev-Journal-*-windows-x64-setup.exe
+            checksums-windows.txt
+
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build macOS DMG
+        run: npm run tauri:build:mac
+
+      - name: Prepare macOS release files
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DMG_PATH=$(ls src-tauri/target/release/bundle/dmg/*.dmg | head -n 1)
+
+          if [ -z "$DMG_PATH" ]; then
+            echo "macOS DMG bundle was not found."
+            exit 1
+          fi
+
+          NORMALIZED_DMG="Dev-Journal-${VERSION}-macos-arm64.dmg"
+          NORMALIZED_SHA="Dev-Journal-${VERSION}-macos-arm64.sha256"
+          cp "$DMG_PATH" "$NORMALIZED_DMG"
+          shasum -a 256 "$NORMALIZED_DMG" > "$NORMALIZED_SHA"
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-journal-macos
+          path: |
+            Dev-Journal-*-macos-arm64.dmg
+            Dev-Journal-*-macos-arm64.sha256
+          if-no-files-found: error
+
+      - name: Attach macOS files to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Dev-Journal-*-macos-arm64.dmg
+            Dev-Journal-*-macos-arm64.sha256

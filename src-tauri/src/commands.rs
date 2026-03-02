@@ -323,11 +323,14 @@ pub fn search_entries(query: String, state: State<'_, AppState>) -> Result<Vec<E
 
 #[tauri::command]
 pub fn get_git_commits() -> Result<Vec<String>, String> {
-    let output = std::process::Command::new("git")
+    let output = match std::process::Command::new("git")
         .args(["log", "--since=midnight", "--oneline"])
         .current_dir(std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")))
         .output()
-        .map_err(|e| e.to_string())?;
+    {
+        Ok(output) => output,
+        Err(_) => return Ok(vec![]),
+    };
 
     if output.status.success() {
         let stdout = String::from_utf8(output.stdout).unwrap_or_default();
