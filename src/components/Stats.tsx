@@ -5,11 +5,15 @@ import { useTasks } from "../hooks/useTasks";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, subDays } from "date-fns";
 import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import DownloadIcon from '@mui/icons-material/Download';
+
+type EnergyTag = "focused" | "deep_work" | "tired" | "distracted";
+const ENERGY_STORAGE_KEY = "devJournal_entry_energy_tags";
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -28,13 +32,38 @@ export const Stats = () => {
     const muiTheme = useTheme();
     const { data: entries } = useEntries();
     const { data: tasks = [] } = useTasks();
+    const entriesData = entries ?? [];
+    const [energyMap, setEnergyMap] = useState<Record<string, EnergyTag>>({});
 
-    if (!entries) return null;
+    useEffect(() => {
+        const loadEnergyMap = () => {
+            try {
+                const raw = localStorage.getItem(ENERGY_STORAGE_KEY);
+                if (!raw) {
+                    setEnergyMap({});
+                    return;
+                }
+
+                const parsed = JSON.parse(raw) as Record<string, EnergyTag>;
+                setEnergyMap(parsed);
+            } catch {
+                setEnergyMap({});
+            }
+        };
+
+        loadEnergyMap();
+        window.addEventListener("devJournal:energyTagUpdated", loadEnergyMap);
+        window.addEventListener("storage", loadEnergyMap);
+        return () => {
+            window.removeEventListener("devJournal:energyTagUpdated", loadEnergyMap);
+            window.removeEventListener("storage", loadEnergyMap);
+        };
+    }, []);
 
     // Calculate Total Words
     let totalWords = 0;
 
-    const sortedEntries = [...entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sortedEntries = [...entriesData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     sortedEntries.forEach((entry) => {
         const words = entry.yesterday.split(/\s+/).filter(w => w.length > 0).length +
@@ -46,7 +75,7 @@ export const Stats = () => {
     const activityData = Array.from({ length: 90 }).map((_, i) => {
         const d = subDays(new Date(), 89 - i);
         const dateStr = format(d, "yyyy-MM-dd");
-        const entry = entries.find(e => e.date === dateStr);
+        const entry = entriesData.find(e => e.date === dateStr);
         let words = 0;
         if (entry) {
             words = entry.yesterday.split(/\s+/).filter(w => w.length > 0).length +
@@ -67,7 +96,7 @@ export const Stats = () => {
     const chartData = Array.from({ length: 14 }).map((_, i) => {
         const d = subDays(new Date(), 13 - i);
         const dateStr = format(d, "yyyy-MM-dd");
-        const entry = entries.find(e => e.date === dateStr);
+        const entry = entriesData.find(e => e.date === dateStr);
         let words = 0;
         if (entry) {
             words = entry.yesterday.split(/\s+/).filter(w => w.length > 0).length +
@@ -97,6 +126,32 @@ export const Stats = () => {
         weightedCompletedTasks * 8 + weeklyJournalConsistency * 5 - executionPenalty * 3
     );
 
+    const energyCorrelation = useMemo(() => {
+        const tagBuckets: Record<EnergyTag, { days: number; words: number }> = {
+            focused: { days: 0, words: 0 },
+            deep_work: { days: 0, words: 0 },
+            tired: { days: 0, words: 0 },
+            distracted: { days: 0, words: 0 },
+        };
+
+        entriesData.forEach((entry) => {
+            const tag = energyMap[entry.date];
+            if (!tag) {
+                return;
+            }
+
+            const words = `${entry.yesterday} ${entry.today}`.split(/\s+/).filter((word) => word.length > 0).length;
+            tagBuckets[tag].days += 1;
+            tagBuckets[tag].words += words;
+        });
+
+        return (Object.keys(tagBuckets) as EnergyTag[]).map((tag) => {
+            const bucket = tagBuckets[tag];
+            const average = bucket.days === 0 ? 0 : Math.round(bucket.words / bucket.days);
+            return { tag, days: bucket.days, average };
+        });
+    }, [energyMap, entriesData]);
+
     return (
         <motion.div variants={containerVariants} initial="hidden" animate="show">
             <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -110,7 +165,7 @@ export const Stats = () => {
                             size="small"
                             startIcon={<DownloadIcon />}
                             onClick={() => {
-                                const mdContent = "# Dev Journal Export\n\n" + [...entries].sort((a, b) => b.date.localeCompare(a.date)).map(e => `## ${e.date}\n### Yesterday\n${e.yesterday}\n\n### Today\n${e.today}\n`).join("\n---\n\n");
+                                const mdContent = "# Dev Journal Export\n\n" + [...entriesData].sort((a, b) => b.date.localeCompare(a.date)).map(e => `## ${e.date}\n### Yesterday\n${e.yesterday}\n\n### Today\n${e.today}\n`).join("\n---\n\n");
                                 const blob = new Blob([mdContent], { type: 'text/markdown' });
                                 const url = URL.createObjectURL(blob);
                                 const a = document.createElement('a');
@@ -139,7 +194,7 @@ export const Stats = () => {
                     {[
                         { title: "Impact Score", value: impactScore, icon: <LocalFireDepartmentIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#f59e0b', suffix: 'Impact' },
                         { title: "Execution Weight", value: weightedCompletedTasks, icon: <MilitaryTechIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#3b82f6', suffix: 'Weighted tasks' },
-                        { title: "Total Entries", value: entries.length, icon: <EditNoteIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#10b981', suffix: 'Entries' },
+                        { title: "Total Entries", value: entriesData.length, icon: <EditNoteIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#10b981', suffix: 'Entries' },
                         { title: "Total Words", value: totalWords, icon: <AnalyticsIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#8b5cf6', suffix: 'Words' }
                     ].map((stat, i) => (
                         <Box key={i} component={motion.div} variants={itemVariants} sx={{ flex: 1 }}>
@@ -237,6 +292,29 @@ export const Stats = () => {
                             </Box>
                         </Paper>
                     </Box>
+                </Box>
+
+                <Box component={motion.div} variants={itemVariants}>
+                    <Paper sx={{ p: 3 }}>
+                        <Typography variant="subtitle2" gutterBottom color="text.secondary">
+                            Energy Tag Correlation
+                        </Typography>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                            {energyCorrelation.map((row) => (
+                                <Paper key={row.tag} variant="outlined" sx={{ p: 1.25, minWidth: 160 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                        {row.tag.replace("_", " ")}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                                        Days tagged: {row.days}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Avg words/day: {row.average}
+                                    </Typography>
+                                </Paper>
+                            ))}
+                        </Box>
+                    </Paper>
                 </Box>
             </Box>
         </motion.div>

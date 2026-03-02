@@ -20,7 +20,10 @@ interface EntryFormProps {
     autosaveEnabled: boolean;
 }
 
+type EnergyTag = 'focused' | 'deep_work' | 'tired' | 'distracted';
+
 const countWords = (value: string) => value.split(/\s+/).filter((word) => word.length > 0).length;
+const ENERGY_STORAGE_KEY = "devJournal_entry_energy_tags";
 const formatDraftTime = (value: string) => {
     try {
         return format(parseISO(value), 'HH:mm');
@@ -40,6 +43,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
     const [draftRestoredAt, setDraftRestoredAt] = useState<string | null>(null);
     const [hydrated, setHydrated] = useState(false);
     const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+    const [energyTag, setEnergyTag] = useState<EnergyTag | null>(null);
 
     // Track which textarea was focused last
     const [lastFocused, setLastFocused] = useState<'yesterday' | 'today'>('yesterday');
@@ -71,6 +75,26 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
         setDraftRestoredAt(restoredAt);
         setHydrated(true);
     }, [entry, date, draftKey]);
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(ENERGY_STORAGE_KEY);
+            if (!raw) {
+                setEnergyTag(null);
+                return;
+            }
+
+            const parsed = JSON.parse(raw) as Record<string, EnergyTag>;
+            const next = parsed[date];
+            if (next === "focused" || next === "deep_work" || next === "tired" || next === "distracted") {
+                setEnergyTag(next);
+            } else {
+                setEnergyTag(null);
+            }
+        } catch {
+            setEnergyTag(null);
+        }
+    }, [date]);
 
     useEffect(() => {
         if (!autosaveEnabled || !hydrated) {
@@ -155,6 +179,25 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
         setDraftRestoredAt(null);
         setYesterday(entry?.yesterday ?? "");
         setToday(entry?.today ?? "");
+    };
+
+    const handleEnergyTagToggle = (next: EnergyTag) => {
+        const resolved = energyTag === next ? null : next;
+        setEnergyTag(resolved);
+
+        try {
+            const raw = localStorage.getItem(ENERGY_STORAGE_KEY);
+            const parsed = raw ? (JSON.parse(raw) as Record<string, EnergyTag>) : {};
+            if (resolved) {
+                parsed[date] = resolved;
+            } else {
+                delete parsed[date];
+            }
+            localStorage.setItem(ENERGY_STORAGE_KEY, JSON.stringify(parsed));
+            window.dispatchEvent(new CustomEvent("devJournal:energyTagUpdated"));
+        } catch {
+            // ignore malformed local storage and continue
+        }
     };
 
     const handleDeleteEntry = () => {
@@ -260,6 +303,37 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                     {draftRestoredAt ? (
                         <Chip label={`Draft restored: ${formatDraftTime(draftRestoredAt)}`} size="small" color="info" variant="outlined" />
                     ) : null}
+                </Box>
+
+                <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+                    <Chip
+                        label="Focused"
+                        clickable
+                        color={energyTag === "focused" ? "success" : "default"}
+                        variant={energyTag === "focused" ? "filled" : "outlined"}
+                        onClick={() => handleEnergyTagToggle("focused")}
+                    />
+                    <Chip
+                        label="Deep Work"
+                        clickable
+                        color={energyTag === "deep_work" ? "primary" : "default"}
+                        variant={energyTag === "deep_work" ? "filled" : "outlined"}
+                        onClick={() => handleEnergyTagToggle("deep_work")}
+                    />
+                    <Chip
+                        label="Tired"
+                        clickable
+                        color={energyTag === "tired" ? "warning" : "default"}
+                        variant={energyTag === "tired" ? "filled" : "outlined"}
+                        onClick={() => handleEnergyTagToggle("tired")}
+                    />
+                    <Chip
+                        label="Distracted"
+                        clickable
+                        color={energyTag === "distracted" ? "error" : "default"}
+                        variant={energyTag === "distracted" ? "filled" : "outlined"}
+                        onClick={() => handleEnergyTagToggle("distracted")}
+                    />
                 </Box>
 
                 <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
