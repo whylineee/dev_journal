@@ -16,7 +16,7 @@ import RepeatIcon from "@mui/icons-material/Repeat";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import AddTaskIcon from "@mui/icons-material/AddTask";
 import { alpha, useTheme } from "@mui/material/styles";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { useEntries } from "../hooks/useEntries";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits, useToggleHabitCompletion } from "../hooks/useHabits";
@@ -41,6 +41,7 @@ export const PlannerBoard = ({
   const { t } = useI18n();
   const muiTheme = useTheme();
   const today = format(new Date(), "yyyy-MM-dd");
+  const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
   const toggleHabitCompletion = useToggleHabitCompletion();
   const updateTaskStatus = useUpdateTaskStatus();
   const createTask = useCreateTask();
@@ -51,7 +52,7 @@ export const PlannerBoard = ({
   const { data: habits = [] } = useHabits();
 
   const [quickTaskTitle, setQuickTaskTitle] = useState("");
-  const [quickDueToday, setQuickDueToday] = useState(true);
+  const [quickDueMode, setQuickDueMode] = useState<"today" | "tomorrow" | "none">("today");
   const [quickTaskFeedback, setQuickTaskFeedback] = useState("");
 
   const todayEntryExists = useMemo(
@@ -67,6 +68,11 @@ export const PlannerBoard = ({
   const dueTodayTasks = useMemo(
     () => tasks.filter((task) => isTaskDueToday(task)).slice(0, 6),
     [tasks]
+  );
+
+  const dueTomorrowTasks = useMemo(
+    () => tasks.filter((task) => task.due_date === tomorrow && task.status !== "done").slice(0, 6),
+    [tasks, tomorrow]
   );
 
   const nearGoals = useMemo(
@@ -100,7 +106,7 @@ export const PlannerBoard = ({
         description: "",
         status: "todo",
         priority: "medium",
-        due_date: quickDueToday ? today : null,
+        due_date: quickDueMode === "today" ? today : quickDueMode === "tomorrow" ? tomorrow : null,
         time_estimate_minutes: 0,
       },
       {
@@ -162,6 +168,7 @@ export const PlannerBoard = ({
             size="small"
           />
           <Chip label={`${t("Due today")}: ${dueTodayTasks.length}`} color="info" variant="outlined" size="small" />
+          <Chip label={`${t("Due tomorrow")}: ${dueTomorrowTasks.length}`} color="secondary" variant="outlined" size="small" />
           <Chip label={`${t("Overdue")}: ${overdueTasks.length}`} color={overdueTasks.length > 0 ? "error" : "default"} variant="outlined" size="small" />
           <Chip label={`${t("Goals in 14d")}: ${nearGoals.length}`} color="secondary" variant="outlined" size="small" />
           <Chip
@@ -202,11 +209,25 @@ export const PlannerBoard = ({
               }}
             />
             <Button
-              variant={quickDueToday ? "contained" : "outlined"}
-              color={quickDueToday ? "primary" : "inherit"}
-              onClick={() => setQuickDueToday((prev) => !prev)}
+              variant={quickDueMode === "today" ? "contained" : "outlined"}
+              color={quickDueMode === "today" ? "primary" : "inherit"}
+              onClick={() => setQuickDueMode("today")}
             >
               {t("Due today")}
+            </Button>
+            <Button
+              variant={quickDueMode === "tomorrow" ? "contained" : "outlined"}
+              color={quickDueMode === "tomorrow" ? "secondary" : "inherit"}
+              onClick={() => setQuickDueMode("tomorrow")}
+            >
+              {t("Due tomorrow")}
+            </Button>
+            <Button
+              variant={quickDueMode === "none" ? "contained" : "outlined"}
+              color={quickDueMode === "none" ? "inherit" : "inherit"}
+              onClick={() => setQuickDueMode("none")}
+            >
+              {t("No due date")}
             </Button>
             <Button
               variant="contained"
@@ -380,6 +401,31 @@ export const PlannerBoard = ({
           </Stack>
         </Paper>
       </Stack>
+
+      <Paper sx={{ p: 2, mt: 2 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            {t("Tomorrow Plan")}
+          </Typography>
+          <Chip size="small" color="secondary" variant="outlined" label={`${dueTomorrowTasks.length} ${t("Tasks")}`} />
+        </Stack>
+        <Stack spacing={1} sx={{ mt: 1.25 }}>
+          {dueTomorrowTasks.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {t("No tasks planned for tomorrow yet.")}
+            </Typography>
+          ) : (
+            dueTomorrowTasks.map((task) => (
+              <Stack key={task.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
+                  {task.title}
+                </Typography>
+                <Chip size="small" variant="outlined" label={task.priority} />
+              </Stack>
+            ))
+          )}
+        </Stack>
+      </Paper>
     </Box>
   );
 };
