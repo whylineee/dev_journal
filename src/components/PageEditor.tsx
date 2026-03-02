@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import Markdown from "react-markdown";
 import { usePage, useCreatePage, useUpdatePage, useDeletePage } from "../hooks/usePages";
 import { motion } from "framer-motion";
+import { alpha, useTheme } from "@mui/material/styles";
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import CodeIcon from '@mui/icons-material/Code';
@@ -22,6 +23,7 @@ interface PageEditorProps {
 const countWords = (value: string) => value.split(/\s+/).filter((word) => word.length > 0).length;
 
 export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSuccess, onDeleteSuccess }: PageEditorProps) => {
+    const muiTheme = useTheme();
     const { data: page, isLoading } = usePage(pageId);
     const createMutation = useCreatePage();
     const updateMutation = useUpdatePage();
@@ -146,6 +148,13 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     };
 
     const words = countWords(content);
+    const toolbarButtonSx = {
+        color: "text.secondary",
+        "&:hover": {
+            color: "text.primary",
+            bgcolor: alpha(muiTheme.palette.primary.main, 0.12),
+        },
+    };
 
     if (isLoading && pageId) return (
         <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
@@ -162,46 +171,67 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
             <Box sx={{ maxWidth: 1000, mx: "auto", width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} gap={2}>
+                <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems={{ xs: "flex-start", md: "center" }}
+                    mb={1}
+                    gap={2}
+                    flexDirection={{ xs: "column", md: "row" }}
+                >
                     <InputBase
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="Page Title"
                         sx={{
-                            typography: 'h3',
+                            typography: { xs: "h4", md: "h3" },
                             fontWeight: 700,
                             letterSpacing: '-0.02em',
                             color: 'text.primary',
                             flex: 1,
-                            mr: 2
+                            minWidth: 0,
+                            width: "100%",
+                            mr: { md: 2 },
                         }}
                     />
 
-                    <Paper elevation={0} sx={{ display: 'flex', gap: 0.5, p: 0.5, borderRadius: 3, bgcolor: 'rgba(15, 23, 42, 0.4)' }}>
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            display: 'flex',
+                            gap: 0.5,
+                            p: 0.5,
+                            borderRadius: 3,
+                            border: "1px solid",
+                            borderColor: "divider",
+                            bgcolor: alpha(muiTheme.palette.background.paper, 0.94),
+                            alignSelf: { xs: "flex-end", md: "auto" },
+                        }}
+                    >
                         <Tooltip title="Bold">
-                            <IconButton size="small" onClick={() => insertFormat('**', '**')}>
+                            <IconButton size="small" onClick={() => insertFormat('**', '**')} sx={toolbarButtonSx}>
                                 <FormatBoldIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Italic">
-                            <IconButton size="small" onClick={() => insertFormat('*', '*')}>
+                            <IconButton size="small" onClick={() => insertFormat('*', '*')} sx={toolbarButtonSx}>
                                 <FormatItalicIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Code">
-                            <IconButton size="small" onClick={() => insertFormat('`', '`')}>
+                            <IconButton size="small" onClick={() => insertFormat('`', '`')} sx={toolbarButtonSx}>
                                 <CodeIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Bullet List">
-                            <IconButton size="small" onClick={() => insertFormat('- ', '')}>
+                            <IconButton size="small" onClick={() => insertFormat('- ', '')} sx={toolbarButtonSx}>
                                 <FormatListBulletedIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
                     </Paper>
                 </Box>
 
-                <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', alignItems: "center" }}>
                     <Chip label={`Words: ${words}`} size="small" variant="outlined" />
                     <Chip label={autosaveEnabled ? 'Autosave on' : 'Autosave off'} size="small" color={autosaveEnabled ? 'success' : 'default'} variant="outlined" />
                     <Chip label="Ctrl/Cmd+S to save" size="small" variant="outlined" />
@@ -209,7 +239,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                     <Button size="small" onClick={insertTemplate}>Insert template</Button>
                 </Box>
 
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4, flex: 1 }}>
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, md: 4 }, flex: 1 }}>
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                         <TextField
                             multiline
@@ -224,7 +254,17 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
 
                     {previewEnabled ? (
                         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            <Paper sx={{ p: 3, flex: 1, bgcolor: 'rgba(30, 41, 59, 0.4)', borderRadius: 2, overflowY: 'auto' }} variant="outlined">
+                            <Paper
+                                sx={{
+                                    p: 3,
+                                    flex: 1,
+                                    borderRadius: 2,
+                                    overflowY: 'auto',
+                                    borderColor: "divider",
+                                    bgcolor: alpha(muiTheme.palette.background.paper, 0.72),
+                                }}
+                                variant="outlined"
+                            >
                                 {content ? (
                                     <Markdown>{content}</Markdown>
                                 ) : (
@@ -235,8 +275,19 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                     ) : null}
                 </Box>
 
-                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', pb: 4, flexWrap: 'wrap', gap: 1 }}>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box
+                    sx={{
+                        mt: 3,
+                        pb: 4,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: { xs: "stretch", md: "center" },
+                        flexDirection: { xs: "column", md: "row" },
+                        flexWrap: "wrap",
+                        gap: 1.25,
+                    }}
+                >
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: "wrap", order: { xs: 2, md: 1 } }}>
                         {pageId ? (
                             <Button
                                 variant="outlined"
@@ -265,7 +316,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                         startIcon={<SaveIcon />}
                         onClick={handleSave}
                         disabled={createMutation.isPending || updateMutation.isPending}
-                        sx={{ px: 4 }}
+                        sx={{ px: 4, minWidth: { xs: "100%", md: 220 }, order: { xs: 1, md: 2 } }}
                     >
                         {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save Page"}
                     </Button>

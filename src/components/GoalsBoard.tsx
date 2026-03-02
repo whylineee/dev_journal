@@ -275,7 +275,7 @@ export const GoalsBoard = () => {
               variant="outlined"
               sx={{
                 p: 2,
-                borderColor: overdue ? "error.main" : "rgba(255,255,255,0.1)",
+                borderColor: overdue ? "error.main" : "divider",
               }}
             >
               <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">

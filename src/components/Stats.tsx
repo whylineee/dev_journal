@@ -1,4 +1,5 @@
 import { Box, Typography, Paper, Tooltip as MuiTooltip, Button } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import { useEntries } from "../hooks/useEntries";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, subDays, differenceInDays } from "date-fns";
@@ -23,6 +24,7 @@ const itemVariants = {
 };
 
 export const Stats = () => {
+    const muiTheme = useTheme();
     const { data: entries } = useEntries();
 
     if (!entries) return null;
@@ -93,11 +95,11 @@ export const Stats = () => {
     });
 
     const getHeatmapColor = (words: number) => {
-        if (words === 0) return 'rgba(255, 255, 255, 0.05)';
-        if (words < 50) return '#0e4429';
-        if (words < 100) return '#006d32';
-        if (words < 200) return '#26a641';
-        return '#39d353';
+        if (words === 0) return alpha(muiTheme.palette.text.primary, 0.08);
+        if (words < 50) return alpha(muiTheme.palette.success.main, 0.32);
+        if (words < 100) return alpha(muiTheme.palette.success.main, 0.48);
+        if (words < 200) return alpha(muiTheme.palette.success.main, 0.68);
+        return muiTheme.palette.success.main;
     };
 
     // Chart Data (Last 14 Days)
@@ -136,12 +138,12 @@ export const Stats = () => {
                                 URL.revokeObjectURL(url);
                             }}
                             sx={{
-                                borderColor: 'rgba(255,255,255,0.1)',
+                                borderColor: 'divider',
                                 color: 'text.secondary',
                                 '&:hover': {
                                     borderColor: 'primary.main',
                                     color: 'primary.main',
-                                    bgcolor: 'rgba(59, 130, 246, 0.05)'
+                                    bgcolor: alpha(muiTheme.palette.primary.main, 0.08),
                                 }
                             }}
                         >
@@ -161,7 +163,9 @@ export const Stats = () => {
                         <Box key={i} component={motion.div} variants={itemVariants} sx={{ flex: 1 }}>
                             <Paper sx={{
                                 p: 3, position: 'relative', overflow: 'hidden', height: '100%',
-                                background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%)',
+                                background: muiTheme.palette.mode === "dark"
+                                    ? 'linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%)'
+                                    : 'linear-gradient(145deg, rgba(255, 255, 255, 0.86) 0%, rgba(241, 245, 249, 0.9) 100%)',
                                 display: 'flex', flexDirection: 'column', justifyContent: 'center'
                             }}>
                                 <Box sx={{ position: 'absolute', top: -10, right: -10, color: stat.color }}>
@@ -185,13 +189,29 @@ export const Stats = () => {
                             <Box sx={{ flexGrow: 1, mt: 2 }}>
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                                        <XAxis dataKey="day" stroke="rgba(255,255,255,0.4)" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 12 }} axisLine={false} tickLine={false} />
-                                        <YAxis stroke="rgba(255,255,255,0.4)" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={alpha(muiTheme.palette.text.primary, 0.1)} />
+                                        <XAxis
+                                            dataKey="day"
+                                            stroke={alpha(muiTheme.palette.text.primary, 0.35)}
+                                            tick={{ fill: muiTheme.palette.text.secondary, fontSize: 12 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <YAxis
+                                            stroke={alpha(muiTheme.palette.text.primary, 0.35)}
+                                            tick={{ fill: muiTheme.palette.text.secondary, fontSize: 12 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
                                         <Tooltip
-                                            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                                            contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
-                                            itemStyle={{ color: '#60a5fa' }}
+                                            cursor={{ fill: alpha(muiTheme.palette.primary.main, 0.08) }}
+                                            contentStyle={{
+                                                backgroundColor: muiTheme.palette.background.paper,
+                                                borderRadius: '8px',
+                                                border: `1px solid ${muiTheme.palette.divider}`,
+                                                color: muiTheme.palette.text.primary,
+                                            }}
+                                            itemStyle={{ color: muiTheme.palette.primary.main }}
                                         />
                                         <Bar dataKey="words" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                                     </BarChart>
@@ -226,11 +246,11 @@ export const Stats = () => {
                             </Box>
                             <Box sx={{ mt: 'auto', pt: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1, color: 'text.secondary', fontSize: '0.75rem' }}>
                                 Less
-                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: 'rgba(255, 255, 255, 0.05)' }} />
-                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: '#0e4429' }} />
-                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: '#006d32' }} />
-                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: '#26a641' }} />
-                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: '#39d353' }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: alpha(muiTheme.palette.text.primary, 0.08) }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: alpha(muiTheme.palette.success.main, 0.32) }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: alpha(muiTheme.palette.success.main, 0.48) }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: alpha(muiTheme.palette.success.main, 0.68) }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: muiTheme.palette.success.main }} />
                                 More
                             </Box>
                         </Paper>

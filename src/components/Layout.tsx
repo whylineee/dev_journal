@@ -250,9 +250,9 @@ export const Layout = ({
                         '&:hover': {
                             backgroundColor: alpha(muiTheme.palette.text.primary, 0.08),
                         },
-                        ml: { xs: 1, sm: 2 },
+                        ml: { xs: 0.5, sm: 2 },
                         width: { xs: "100%", sm: '100%' },
-                        maxWidth: { xs: 180, sm: 320 },
+                        maxWidth: { xs: 140, sm: 320 },
                         border: '1px solid',
                         borderColor: 'divider',
                     }}>
@@ -260,7 +260,7 @@ export const Layout = ({
                             <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
                         </Box>
                         <InputBase
-                            placeholder="Search journal entries..."
+                            placeholder={isMobile ? "Search..." : "Search journal entries..."}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             sx={{

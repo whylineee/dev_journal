@@ -1,4 +1,5 @@
 import { Box, Typography, List, ListItem, ListItemText, Paper, Avatar } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import { useGitCommits } from "../hooks/useEntries";
 import { motion } from "framer-motion";
 import CommitIcon from '@mui/icons-material/Commit';
@@ -17,13 +18,22 @@ const itemVariants = {
 };
 
 export const GitCommits = () => {
+    const muiTheme = useTheme();
     const { data: commits, isLoading } = useGitCommits();
 
     if (isLoading) return <Box p={2}><Typography>Loading commits...</Typography></Box>;
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }}>
-            <Paper sx={{ mt: 4, p: 3, border: 'none', background: 'rgba(30, 41, 59, 0.5)' }}>
+            <Paper
+                sx={{
+                    mt: 4,
+                    p: 3,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: alpha(muiTheme.palette.background.paper, 0.82),
+                }}
+            >
                 <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.primary', fontWeight: 600 }}>
                     <CommitIcon color="primary" /> Today's Commits
                 </Typography>
@@ -36,23 +46,24 @@ export const GitCommits = () => {
                             return (
                                 <ListItem key={idx} component={motion.li} variants={itemVariants} sx={{
                                     mb: 1,
-                                    background: 'rgba(15, 23, 42, 0.4)',
+                                    backgroundColor: alpha(muiTheme.palette.background.default, 0.42),
                                     borderRadius: 2,
-                                    border: '1px solid rgba(255,255,255,0.05)',
+                                    border: "1px solid",
+                                    borderColor: "divider",
                                     transition: 'all 0.2s',
                                     '&:hover': {
-                                        background: 'rgba(15, 23, 42, 0.7)',
-                                        borderColor: 'primary.dark'
+                                        backgroundColor: alpha(muiTheme.palette.primary.main, 0.08),
+                                        borderColor: 'primary.main'
                                     }
                                 }}>
-                                    <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.dark', mr: 2, fontSize: 13, fontWeight: 'bold' }}>
+                                    <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', mr: 2, fontSize: 13, fontWeight: 'bold' }}>
                                         {hash.substring(0, 2)}
                                     </Avatar>
                                     <ListItemText
                                         primary={msg}
                                         secondary={hash}
                                         primaryTypographyProps={{ variant: 'body1', color: 'text.primary' }}
-                                        secondaryTypographyProps={{ variant: 'caption', color: 'primary.light', fontFamily: 'monospace' }}
+                                        secondaryTypographyProps={{ variant: 'caption', color: 'text.secondary', fontFamily: 'monospace' }}
                                     />
                                 </ListItem>
                             );

@@ -362,7 +362,7 @@ export const TasksBoard = () => {
                     variant="outlined"
                     sx={{
                       p: 1.5,
-                      borderColor: overdue ? "error.main" : "rgba(255,255,255,0.1)",
+                      borderColor: overdue ? "error.main" : "divider",
                     }}
                   >
                     <Stack direction="row" justifyContent="space-between" spacing={1}>
