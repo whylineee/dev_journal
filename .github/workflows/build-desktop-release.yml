@@ -93,15 +93,51 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build macOS DMG
-        run: npm run tauri:build:mac
+      - name: Import Apple signing certificate
+        if: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Build and sign macOS app bundle
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          APP_BUNDLE="src-tauri/target/release/bundle/macos/Dev Journal.app"
+          npm run tauri build -- --bundles app
+
+          if [ ! -d "$APP_BUNDLE" ]; then
+            echo "macOS app bundle was not found."
+            exit 1
+          fi
+
+          if [ -n "${{ secrets.APPLE_SIGNING_IDENTITY }}" ]; then
+            codesign --force --deep --options runtime --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" "$APP_BUNDLE"
+          else
+            # Fallback to ad-hoc signing so bundle isn't shipped with invalid linker-only signature.
+            codesign --force --deep --sign - "$APP_BUNDLE"
+          fi
+
+          mkdir -p src-tauri/target/release/bundle/dmg
+          DMG_PATH="src-tauri/target/release/bundle/dmg/Dev Journal_${VERSION}_aarch64.dmg"
+          hdiutil create -volname "Dev Journal" -srcfolder "$APP_BUNDLE" -ov -format UDZO "$DMG_PATH"
+
+      - name: Notarize macOS DMG
+        if: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && secrets.APPLE_API_KEY != '' && secrets.APPLE_API_KEY_ID != '' && secrets.APPLE_API_ISSUER != '' }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DMG_PATH="src-tauri/target/release/bundle/dmg/Dev Journal_${VERSION}_aarch64.dmg"
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8"
+          echo "${{ secrets.APPLE_API_KEY }}" > "$KEY_PATH"
+          xcrun notarytool submit "$DMG_PATH" --key "$KEY_PATH" --key-id "${{ secrets.APPLE_API_KEY_ID }}" --issuer "${{ secrets.APPLE_API_ISSUER }}" --wait
+          xcrun stapler staple "$DMG_PATH"
 
       - name: Prepare macOS release files
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          DMG_PATH=$(ls src-tauri/target/release/bundle/dmg/*.dmg | head -n 1)
+          DMG_PATH="src-tauri/target/release/bundle/dmg/Dev Journal_${VERSION}_aarch64.dmg"
 
-          if [ -z "$DMG_PATH" ]; then
+          if [ ! -f "$DMG_PATH" ]; then
             echo "macOS DMG bundle was not found."
             exit 1
           fi

@@ -4,7 +4,7 @@
 - Platform: macOS
 - Architecture: Apple Silicon (arm64)
 - Artifact: `Dev-Journal-1.0.3-macos-arm64.dmg`
-- SHA-256: `09d364eaf049b0e23d8021d90afdaa6bd7005a858815eac4b94b521fee41bf1d`
+- SHA-256: `18c6de7535882fbf41766da3a047c726870ecaa49ce40d29433fb48a8728e98d`
 
 - Platform: Windows
 - Architecture: x64
