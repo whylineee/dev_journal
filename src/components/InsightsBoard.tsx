@@ -23,7 +23,19 @@ interface AdrRecord {
   review_date: string;
 }
 
+interface IncidentRecord {
+  id: string;
+  title: string;
+  severity: "low" | "medium" | "high" | "critical";
+  symptoms: string;
+  root_cause: string;
+  fix: string;
+  prevention: string;
+  created_at: string;
+}
+
 const ADR_STORAGE_KEY = "devJournal_insights_adr_records";
+const INCIDENTS_STORAGE_KEY = "devJournal_insights_incident_records";
 
 const readAdrRecords = (): AdrRecord[] => {
   try {
@@ -57,6 +69,38 @@ const persistAdrRecords = (records: AdrRecord[]) => {
   localStorage.setItem(ADR_STORAGE_KEY, JSON.stringify(records));
 };
 
+const readIncidents = (): IncidentRecord[] => {
+  try {
+    const raw = localStorage.getItem(INCIDENTS_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as IncidentRecord[];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(
+      (item) =>
+        typeof item.id === "string" &&
+        typeof item.title === "string" &&
+        typeof item.severity === "string" &&
+        typeof item.symptoms === "string" &&
+        typeof item.root_cause === "string" &&
+        typeof item.fix === "string" &&
+        typeof item.prevention === "string" &&
+        typeof item.created_at === "string"
+    );
+  } catch {
+    return [];
+  }
+};
+
+const persistIncidents = (records: IncidentRecord[]) => {
+  localStorage.setItem(INCIDENTS_STORAGE_KEY, JSON.stringify(records));
+};
+
 export const InsightsBoard = () => {
   const { t } = useI18n();
   const [records, setRecords] = useState<AdrRecord[]>(() => readAdrRecords());
@@ -66,6 +110,13 @@ export const InsightsBoard = () => {
   const [rationale, setRationale] = useState("");
   const [consequences, setConsequences] = useState("");
   const [reviewDate, setReviewDate] = useState("");
+  const [incidents, setIncidents] = useState<IncidentRecord[]>(() => readIncidents());
+  const [incidentTitle, setIncidentTitle] = useState("");
+  const [incidentSeverity, setIncidentSeverity] = useState<IncidentRecord["severity"]>("medium");
+  const [incidentSymptoms, setIncidentSymptoms] = useState("");
+  const [incidentRootCause, setIncidentRootCause] = useState("");
+  const [incidentFix, setIncidentFix] = useState("");
+  const [incidentPrevention, setIncidentPrevention] = useState("");
 
   const sortedRecords = useMemo(() => {
     return [...records].sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -76,6 +127,11 @@ export const InsightsBoard = () => {
     problem.trim().length > 0 &&
     decision.trim().length > 0 &&
     rationale.trim().length > 0;
+  const canSaveIncident =
+    incidentTitle.trim().length > 0 &&
+    incidentSymptoms.trim().length > 0 &&
+    incidentRootCause.trim().length > 0 &&
+    incidentFix.trim().length > 0;
 
   const handleSaveAdr = () => {
     if (!canSave) {
@@ -109,6 +165,40 @@ export const InsightsBoard = () => {
     const updated = records.filter((record) => record.id !== id);
     setRecords(updated);
     persistAdrRecords(updated);
+  };
+
+  const handleSaveIncident = () => {
+    if (!canSaveIncident) {
+      return;
+    }
+
+    const next: IncidentRecord = {
+      id: crypto.randomUUID(),
+      title: incidentTitle.trim(),
+      severity: incidentSeverity,
+      symptoms: incidentSymptoms.trim(),
+      root_cause: incidentRootCause.trim(),
+      fix: incidentFix.trim(),
+      prevention: incidentPrevention.trim(),
+      created_at: new Date().toISOString(),
+    };
+
+    const updated = [next, ...incidents];
+    setIncidents(updated);
+    persistIncidents(updated);
+
+    setIncidentTitle("");
+    setIncidentSeverity("medium");
+    setIncidentSymptoms("");
+    setIncidentRootCause("");
+    setIncidentFix("");
+    setIncidentPrevention("");
+  };
+
+  const handleRemoveIncident = (id: string) => {
+    const updated = incidents.filter((record) => record.id !== id);
+    setIncidents(updated);
+    persistIncidents(updated);
   };
 
   return (
@@ -225,6 +315,117 @@ export const InsightsBoard = () => {
                 {record.consequences ? (
                   <Typography variant="body2" sx={{ mt: 0.75 }}>
                     <strong>{t("Consequences")}:</strong> {record.consequences}
+                  </Typography>
+                ) : null}
+              </Paper>
+            ))
+          )}
+        </Stack>
+      </Paper>
+
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          {t("What Broke Log")}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {t("Capture incidents and how you fixed them to build a practical bug knowledge base.")}
+        </Typography>
+
+        <Stack spacing={1.5}>
+          <TextField
+            label={t("Incident title")}
+            value={incidentTitle}
+            onChange={(event) => setIncidentTitle(event.target.value)}
+            fullWidth
+          />
+          <TextField
+            select
+            label={t("Severity")}
+            value={incidentSeverity}
+            onChange={(event) => setIncidentSeverity(event.target.value as IncidentRecord["severity"])}
+            SelectProps={{ native: true }}
+            sx={{ maxWidth: 220 }}
+          >
+            <option value="low">{t("Low")}</option>
+            <option value="medium">{t("Medium")}</option>
+            <option value="high">{t("High")}</option>
+            <option value="critical">{t("Critical")}</option>
+          </TextField>
+          <TextField
+            label={t("Symptoms")}
+            value={incidentSymptoms}
+            onChange={(event) => setIncidentSymptoms(event.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+          />
+          <TextField
+            label={t("Root cause")}
+            value={incidentRootCause}
+            onChange={(event) => setIncidentRootCause(event.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+          />
+          <TextField
+            label={t("Fix")}
+            value={incidentFix}
+            onChange={(event) => setIncidentFix(event.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+          />
+          <TextField
+            label={t("How to prevent next time")}
+            value={incidentPrevention}
+            onChange={(event) => setIncidentPrevention(event.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+          />
+          <Box>
+            <Button variant="contained" onClick={handleSaveIncident} disabled={!canSaveIncident}>
+              {t("Save incident")}
+            </Button>
+          </Box>
+        </Stack>
+
+        <Divider sx={{ my: 2 }} />
+
+        <Stack spacing={1.5}>
+          {incidents.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {t("No incidents logged yet.")}
+            </Typography>
+          ) : (
+            incidents.map((incident) => (
+              <Paper key={incident.id} variant="outlined" sx={{ p: 2 }}>
+                <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      {incident.title}
+                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: "wrap" }}>
+                      <Chip size="small" color="warning" label={`${t("Severity")}: ${incident.severity}`} variant="outlined" />
+                      <Chip size="small" label={`${t("Created")}: ${incident.created_at.slice(0, 10)}`} variant="outlined" />
+                    </Stack>
+                  </Box>
+                  <Button color="error" onClick={() => handleRemoveIncident(incident.id)}>
+                    {t("Delete")}
+                  </Button>
+                </Stack>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  <strong>{t("Symptoms")}:</strong> {incident.symptoms}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.75 }}>
+                  <strong>{t("Root cause")}:</strong> {incident.root_cause}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.75 }}>
+                  <strong>{t("Fix")}:</strong> {incident.fix}
+                </Typography>
+                {incident.prevention ? (
+                  <Typography variant="body2" sx={{ mt: 0.75 }}>
+                    <strong>{t("How to prevent next time")}:</strong> {incident.prevention}
                   </Typography>
                 ) : null}
               </Paper>

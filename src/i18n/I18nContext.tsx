@@ -152,6 +152,20 @@ const ukTranslations: Record<string, string> = {
   "Created": "Створено",
   "Review": "Перегляд",
   "Delete": "Видалити",
+  "What Broke Log": "Що зламалось",
+  "Capture incidents and how you fixed them to build a practical bug knowledge base.": "Фіксуй інциденти та як ти їх полагодив, щоб збирати практичну базу знань по багах.",
+  "Incident title": "Назва інциденту",
+  "Severity": "Критичність",
+  "Low": "Низька",
+  "Medium": "Середня",
+  "High": "Висока",
+  "Critical": "Критична",
+  "Symptoms": "Симптоми",
+  "Root cause": "Причина",
+  "Fix": "Виправлення",
+  "How to prevent next time": "Як запобігти наступного разу",
+  "Save incident": "Зберегти інцидент",
+  "No incidents logged yet.": "Інцидентів ще немає.",
 };
 
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);
