@@ -22,6 +22,8 @@ import { useI18n } from "./i18n/I18nContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { useAppNotifications } from "./notifications/AppNotifications";
 
+const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
+
 function App() {
   const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'insights'>('planner');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -139,6 +141,69 @@ function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const readUsageMap = (): Record<string, number> => {
+      try {
+        const raw = localStorage.getItem(APP_USAGE_STORAGE_KEY);
+        if (!raw) {
+          return {};
+        }
+
+        const parsed = JSON.parse(raw) as Record<string, number>;
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch {
+        return {};
+      }
+    };
+
+    const persistUsage = (map: Record<string, number>) => {
+      localStorage.setItem(APP_USAGE_STORAGE_KEY, JSON.stringify(map));
+      window.dispatchEvent(new CustomEvent("devJournal:usageUpdated"));
+    };
+
+    const addUsageMs = (elapsedMs: number) => {
+      if (elapsedMs <= 0) {
+        return;
+      }
+
+      const elapsedSeconds = Math.max(1, Math.round(elapsedMs / 1000));
+      const usageMap = readUsageMap();
+      const today = format(new Date(), "yyyy-MM-dd");
+      usageMap[today] = (usageMap[today] ?? 0) + elapsedSeconds;
+      persistUsage(usageMap);
+    };
+
+    const isActive = () => document.visibilityState === "visible" && document.hasFocus();
+    let lastTick = Date.now();
+    let wasActive = isActive();
+
+    const handleTick = () => {
+      const now = Date.now();
+      if (wasActive) {
+        addUsageMs(now - lastTick);
+      }
+      lastTick = now;
+      wasActive = isActive();
+    };
+
+    const interval = window.setInterval(handleTick, 15000);
+    const syncActiveState = () => {
+      handleTick();
+    };
+
+    window.addEventListener("focus", syncActiveState);
+    window.addEventListener("blur", syncActiveState);
+    document.addEventListener("visibilitychange", syncActiveState);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", syncActiveState);
+      window.removeEventListener("blur", syncActiveState);
+      document.removeEventListener("visibilitychange", syncActiveState);
+      handleTick();
+    };
   }, []);
 
   const commandActions = useMemo<CommandAction[]>(() => {

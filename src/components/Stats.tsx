@@ -14,6 +14,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 
 type EnergyTag = "focused" | "deep_work" | "tired" | "distracted";
 const ENERGY_STORAGE_KEY = "devJournal_entry_energy_tags";
+const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -34,6 +35,7 @@ export const Stats = () => {
     const { data: tasks = [] } = useTasks();
     const entriesData = entries ?? [];
     const [energyMap, setEnergyMap] = useState<Record<string, EnergyTag>>({});
+    const [usageMap, setUsageMap] = useState<Record<string, number>>({});
 
     useEffect(() => {
         const loadEnergyMap = () => {
@@ -60,6 +62,31 @@ export const Stats = () => {
         };
     }, []);
 
+    useEffect(() => {
+        const loadUsageMap = () => {
+            try {
+                const raw = localStorage.getItem(APP_USAGE_STORAGE_KEY);
+                if (!raw) {
+                    setUsageMap({});
+                    return;
+                }
+
+                const parsed = JSON.parse(raw) as Record<string, number>;
+                setUsageMap(parsed && typeof parsed === "object" ? parsed : {});
+            } catch {
+                setUsageMap({});
+            }
+        };
+
+        loadUsageMap();
+        window.addEventListener("devJournal:usageUpdated", loadUsageMap);
+        window.addEventListener("storage", loadUsageMap);
+        return () => {
+            window.removeEventListener("devJournal:usageUpdated", loadUsageMap);
+            window.removeEventListener("storage", loadUsageMap);
+        };
+    }, []);
+
     // Calculate Total Words
     let totalWords = 0;
 
@@ -81,8 +108,18 @@ export const Stats = () => {
             words = entry.yesterday.split(/\s+/).filter(w => w.length > 0).length +
                 entry.today.split(/\s+/).filter(w => w.length > 0).length;
         }
-        return { date: dateStr, words };
+        const usageSeconds = usageMap[dateStr] ?? 0;
+        return { date: dateStr, words, usageSeconds };
     });
+
+    const formatUsageDuration = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        if (h > 0) {
+            return `${h}h ${m}m`;
+        }
+        return `${m}m`;
+    };
 
     const getHeatmapColor = (words: number) => {
         if (words === 0) return alpha(muiTheme.palette.text.primary, 0.08);
@@ -269,7 +306,13 @@ export const Stats = () => {
                                 pb: 1
                             }}>
                                 {activityData.map((day, i) => (
-                                    <MuiTooltip key={i} title={`${day.words} words on ${day.date}`} arrow>
+                                    <MuiTooltip
+                                        key={i}
+                                        title={day.usageSeconds > 0
+                                            ? `${day.words} words on ${day.date} • In app: ${formatUsageDuration(day.usageSeconds)}`
+                                            : `${day.words} words on ${day.date}`}
+                                        arrow
+                                    >
                                         <Box sx={{
                                             width: 14,
                                             height: 14,
