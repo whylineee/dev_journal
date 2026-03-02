@@ -115,6 +115,13 @@ export const PlannerBoard = ({
     createTask.isPending;
 
   const dailyWins = dailyWinsMap[today] ?? [];
+  const plannerCardSx = {
+    p: { xs: 2, sm: 2.5 },
+    border: "1px solid",
+    borderColor: "divider",
+    bgcolor: alpha(muiTheme.palette.background.paper, 0.88),
+    backdropFilter: "blur(4px)",
+  };
 
   const handleQuickAddTask = () => {
     const title = quickTaskTitle.trim();
@@ -196,23 +203,26 @@ export const PlannerBoard = ({
   }, [focusRunning, notify]);
 
   return (
-    <Box sx={{ maxWidth: 1280, mx: "auto", mt: 1 }}>
+    <Box sx={{ maxWidth: 1360, mx: "auto", mt: { xs: 1.5, md: 2 }, pb: 2 }}>
       <Paper
         sx={{
-          p: 3,
+          p: { xs: 2.25, md: 3.25 },
+          border: "1px solid",
+          borderColor: "divider",
           background: `linear-gradient(145deg, ${alpha(
             muiTheme.palette.primary.main,
             0.08
           )} 0%, ${alpha(muiTheme.palette.background.paper, 0.9)} 70%)`,
+          boxShadow: `0 18px 34px ${alpha(muiTheme.palette.common.black, 0.12)}`,
         }}
       >
         <Stack
           direction={{ xs: "column", md: "row" }}
-          spacing={2}
+          spacing={{ xs: 2, md: 3 }}
           justifyContent="space-between"
           alignItems={{ xs: "stretch", md: "center" }}
         >
-          <Box>
+          <Box sx={{ maxWidth: 600 }}>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
               {t("Planner")}
             </Typography>
@@ -221,23 +231,50 @@ export const PlannerBoard = ({
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
-            <Button variant="outlined" onClick={onOpenJournalToday} startIcon={<TodayIcon />}>
+          <Box
+            sx={{
+              display: "grid",
+              width: { xs: "100%", md: 560 },
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+              gap: 1.25,
+            }}
+          >
+            <Button
+              variant="outlined"
+              onClick={onOpenJournalToday}
+              startIcon={<TodayIcon />}
+              sx={{ justifyContent: "flex-start", py: 1.1 }}
+            >
               {t("Journal Today")}
             </Button>
-            <Button variant="outlined" onClick={onOpenTasks} startIcon={<ChecklistIcon />}>
+            <Button
+              variant="outlined"
+              onClick={onOpenTasks}
+              startIcon={<ChecklistIcon />}
+              sx={{ justifyContent: "flex-start", py: 1.1 }}
+            >
               {t("Open Tasks")}
             </Button>
-            <Button variant="outlined" onClick={onOpenGoals} startIcon={<FlagIcon />}>
+            <Button
+              variant="outlined"
+              onClick={onOpenGoals}
+              startIcon={<FlagIcon />}
+              sx={{ justifyContent: "flex-start", py: 1.1 }}
+            >
               {t("Open Goals")}
             </Button>
-            <Button variant="outlined" onClick={onOpenHabits} startIcon={<RepeatIcon />}>
+            <Button
+              variant="outlined"
+              onClick={onOpenHabits}
+              startIcon={<RepeatIcon />}
+              sx={{ justifyContent: "flex-start", py: 1.1 }}
+            >
               {t("Open Habits")}
             </Button>
-          </Stack>
+          </Box>
         </Stack>
 
-        <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
+        <Stack direction="row" spacing={1} sx={{ mt: 2.5, flexWrap: "wrap", rowGap: 1, columnGap: 1 }}>
           <Chip
             label={`${t("Journal")}: ${todayEntryExists ? t("Done") : t("Missing")}`}
             color={todayEntryExists ? "success" : "warning"}
@@ -259,22 +296,23 @@ export const PlannerBoard = ({
         <Paper
           variant="outlined"
           sx={{
-            mt: 2,
-            p: 2,
+            mt: 2.5,
+            p: { xs: 2, md: 2.5 },
             borderStyle: "dashed",
-            borderColor: "divider",
-            bgcolor: alpha(muiTheme.palette.background.default, 0.45),
+            borderColor: alpha(muiTheme.palette.primary.main, 0.32),
+            bgcolor: alpha(muiTheme.palette.background.default, 0.55),
           }}
         >
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
             {t("Quick Capture")}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.75 }}>
             {t("Capture a task without leaving the planner.")}
           </Typography>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+          <Stack spacing={1.5}>
             <TextField
               fullWidth
+              size="medium"
               value={quickTaskTitle}
               onChange={(event) => setQuickTaskTitle(event.target.value)}
               placeholder={t("Quick task title")}
@@ -285,35 +323,53 @@ export const PlannerBoard = ({
                 }
               }}
             />
-            <Button
-              variant={quickDueMode === "today" ? "contained" : "outlined"}
-              color={quickDueMode === "today" ? "primary" : "inherit"}
-              onClick={() => setQuickDueMode("today")}
-            >
-              {t("Due today")}
-            </Button>
-            <Button
-              variant={quickDueMode === "tomorrow" ? "contained" : "outlined"}
-              color={quickDueMode === "tomorrow" ? "secondary" : "inherit"}
-              onClick={() => setQuickDueMode("tomorrow")}
-            >
-              {t("Due tomorrow")}
-            </Button>
-            <Button
-              variant={quickDueMode === "none" ? "contained" : "outlined"}
-              color={quickDueMode === "none" ? "inherit" : "inherit"}
-              onClick={() => setQuickDueMode("none")}
-            >
-              {t("No due date")}
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddTaskIcon />}
-              disabled={busy || quickTaskTitle.trim().length === 0}
-              onClick={handleQuickAddTask}
-            >
-              {t("Add Task")}
-            </Button>
+            <Stack direction={{ xs: "column", lg: "row" }} spacing={1.25}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+                  gap: 1.25,
+                  flex: 1,
+                }}
+              >
+                <Button
+                  fullWidth
+                  variant={quickDueMode === "today" ? "contained" : "outlined"}
+                  color={quickDueMode === "today" ? "primary" : "inherit"}
+                  onClick={() => setQuickDueMode("today")}
+                  sx={{ py: 1 }}
+                >
+                  {t("Due today")}
+                </Button>
+                <Button
+                  fullWidth
+                  variant={quickDueMode === "tomorrow" ? "contained" : "outlined"}
+                  color={quickDueMode === "tomorrow" ? "secondary" : "inherit"}
+                  onClick={() => setQuickDueMode("tomorrow")}
+                  sx={{ py: 1 }}
+                >
+                  {t("Due tomorrow")}
+                </Button>
+                <Button
+                  fullWidth
+                  variant={quickDueMode === "none" ? "contained" : "outlined"}
+                  color="inherit"
+                  onClick={() => setQuickDueMode("none")}
+                  sx={{ py: 1 }}
+                >
+                  {t("No due date")}
+                </Button>
+              </Box>
+              <Button
+                variant="contained"
+                startIcon={<AddTaskIcon />}
+                disabled={busy || quickTaskTitle.trim().length === 0}
+                onClick={handleQuickAddTask}
+                sx={{ minWidth: { lg: 176 }, py: 1.1 }}
+              >
+                {t("Add Task")}
+              </Button>
+            </Stack>
           </Stack>
           {quickTaskFeedback ? (
             <Typography variant="caption" color="success.main" sx={{ display: "block", mt: 1 }}>
@@ -323,8 +379,8 @@ export const PlannerBoard = ({
         </Paper>
       </Paper>
 
-      <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
-        <Paper sx={{ p: 2, flex: 1 }}>
+      <Stack direction={{ xs: "column", lg: "row" }} spacing={2.5} sx={{ mt: 2.5 }}>
+        <Paper sx={{ ...plannerCardSx, flex: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("Tasks Due Today")}
@@ -334,7 +390,7 @@ export const PlannerBoard = ({
             </Button>
           </Stack>
 
-          <Stack spacing={1} sx={{ mt: 1.25 }}>
+          <Stack spacing={1.25} sx={{ mt: 1.5 }}>
             {dueTodayTasks.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 {t("No tasks due today.")}
@@ -371,7 +427,7 @@ export const PlannerBoard = ({
           </Stack>
         </Paper>
 
-        <Paper sx={{ p: 2, flex: 1 }}>
+        <Paper sx={{ ...plannerCardSx, flex: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("Overdue Tasks")}
@@ -381,7 +437,7 @@ export const PlannerBoard = ({
             </Button>
           </Stack>
 
-          <Stack spacing={1} sx={{ mt: 1.25 }}>
+          <Stack spacing={1.25} sx={{ mt: 1.5 }}>
             {overdueTasks.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 {t("No overdue tasks.")}
@@ -400,8 +456,8 @@ export const PlannerBoard = ({
         </Paper>
       </Stack>
 
-      <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
-        <Paper sx={{ p: 2, flex: 1 }}>
+      <Stack direction={{ xs: "column", lg: "row" }} spacing={2.5} sx={{ mt: 2.5 }}>
+        <Paper sx={{ ...plannerCardSx, flex: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("Goals Near Deadline")}
@@ -411,7 +467,7 @@ export const PlannerBoard = ({
             </Button>
           </Stack>
 
-          <Stack spacing={1} sx={{ mt: 1.25 }}>
+          <Stack spacing={1.25} sx={{ mt: 1.5 }}>
             {nearGoals.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 {t("No active goals with deadlines in next 14 days.")}
@@ -434,7 +490,7 @@ export const PlannerBoard = ({
           </Stack>
         </Paper>
 
-        <Paper sx={{ p: 2, flex: 1 }}>
+        <Paper sx={{ ...plannerCardSx, flex: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("Habits Today")}
@@ -444,7 +500,7 @@ export const PlannerBoard = ({
             </Button>
           </Stack>
 
-          <Stack spacing={1} sx={{ mt: 1.25 }}>
+          <Stack spacing={1.25} sx={{ mt: 1.5 }}>
             {habitsWithTodayState.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 {t("No habits configured yet.")}
@@ -479,14 +535,14 @@ export const PlannerBoard = ({
         </Paper>
       </Stack>
 
-      <Paper sx={{ p: 2, mt: 2 }}>
+      <Paper sx={{ ...plannerCardSx, mt: 2.5 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {t("Tomorrow Plan")}
           </Typography>
           <Chip size="small" color="secondary" variant="outlined" label={`${dueTomorrowTasks.length} ${t("Tasks")}`} />
         </Stack>
-        <Stack spacing={1} sx={{ mt: 1.25 }}>
+        <Stack spacing={1.25} sx={{ mt: 1.5 }}>
           {dueTomorrowTasks.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
               {t("No tasks planned for tomorrow yet.")}
@@ -504,14 +560,14 @@ export const PlannerBoard = ({
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 2, mt: 2 }}>
+      <Paper sx={{ ...plannerCardSx, mt: 2.5 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
           {t("Focus Session")}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
           {t("Run a focused 25-minute sprint directly from planner.")}
         </Typography>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "center" }}>
           <Chip size="medium" color={focusRunning ? "warning" : "default"} label={formatFocusTime(focusSecondsLeft)} />
           <Button variant={focusRunning ? "outlined" : "contained"} onClick={() => setFocusRunning((prev) => !prev)}>
             {focusRunning ? t("Pause") : t("Start Focus")}
@@ -528,14 +584,14 @@ export const PlannerBoard = ({
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 2, mt: 2 }}>
+      <Paper sx={{ ...plannerCardSx, mt: 2.5 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
           {t("Daily Wins")}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
           {t("Log small wins to keep momentum visible and measurable.")}
         </Typography>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
           <TextField
             fullWidth
             size="small"
@@ -553,7 +609,7 @@ export const PlannerBoard = ({
             {t("Add win")}
           </Button>
         </Stack>
-        <Stack spacing={0.75} sx={{ mt: 1.25 }}>
+        <Stack spacing={0.9} sx={{ mt: 1.5 }}>
           {dailyWins.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
               {t("No wins logged yet today.")}

@@ -227,29 +227,56 @@ export const Stats = () => {
                 </motion.div>
 
                 {/* KPI Cards */}
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
+                        gap: 2.5
+                    }}
+                >
                     {[
-                        { title: "Impact Score", value: impactScore, icon: <LocalFireDepartmentIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#f59e0b', suffix: 'Impact' },
-                        { title: "Execution Weight", value: weightedCompletedTasks, icon: <MilitaryTechIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#3b82f6', suffix: 'Weighted tasks' },
-                        { title: "Total Entries", value: entriesData.length, icon: <EditNoteIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#10b981', suffix: 'Entries' },
-                        { title: "Total Words", value: totalWords, icon: <AnalyticsIcon sx={{ fontSize: 40, opacity: 0.2 }} />, color: '#8b5cf6', suffix: 'Words' }
+                        { title: "Impact Score", value: impactScore, icon: LocalFireDepartmentIcon, color: '#f59e0b', suffix: 'Impact' },
+                        { title: "Execution Weight", value: weightedCompletedTasks, icon: MilitaryTechIcon, color: '#3b82f6', suffix: 'Weighted tasks' },
+                        { title: "Total Entries", value: entriesData.length, icon: EditNoteIcon, color: '#10b981', suffix: 'Entries' },
+                        { title: "Total Words", value: totalWords, icon: AnalyticsIcon, color: '#8b5cf6', suffix: 'Words' }
                     ].map((stat, i) => (
-                        <Box key={i} component={motion.div} variants={itemVariants} sx={{ flex: 1 }}>
+                        <Box key={i} component={motion.div} variants={itemVariants}>
                             <Paper sx={{
-                                p: 3, position: 'relative', overflow: 'hidden', height: '100%',
+                                p: 2.75,
+                                height: '100%',
                                 background: muiTheme.palette.mode === "dark"
                                     ? 'linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%)'
                                     : 'linear-gradient(145deg, rgba(255, 255, 255, 0.86) 0%, rgba(241, 245, 249, 0.9) 100%)',
-                                display: 'flex', flexDirection: 'column', justifyContent: 'center'
+                                display: 'flex',
+                                flexDirection: 'column',
+                                border: `1px solid ${alpha(stat.color, 0.35)}`
                             }}>
-                                <Box sx={{ position: 'absolute', top: -10, right: -10, color: stat.color }}>
-                                    {stat.icon}
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.75 }}>
+                                    <Box
+                                        sx={{
+                                            width: 34,
+                                            height: 34,
+                                            borderRadius: 1.5,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: stat.color,
+                                            bgcolor: alpha(stat.color, 0.16),
+                                            border: `1px solid ${alpha(stat.color, 0.4)}`
+                                        }}
+                                    >
+                                        <stat.icon sx={{ fontSize: 20 }} />
+                                    </Box>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {stat.title}
+                                    </Typography>
                                 </Box>
-                                <Typography variant="body2" color="text.secondary" sx={{ zIndex: 1, mb: 1 }}>{stat.title}</Typography>
-                                <Typography variant="h3" sx={{ color: stat.color, fontWeight: 700, zIndex: 1, mb: 0.5 }}>
+                                <Typography variant="h3" sx={{ color: stat.color, fontWeight: 700, mb: 0.5, lineHeight: 1 }}>
                                     {stat.value}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">{stat.suffix}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.02em" }}>
+                                    {stat.suffix}
+                                </Typography>
                             </Paper>
                         </Box>
                     ))}
