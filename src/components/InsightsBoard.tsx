@@ -11,6 +11,9 @@ import {
 } from "@mui/material";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
 import { useI18n } from "../i18n/I18nContext";
+import { useEntries } from "../hooks/useEntries";
+import { useTasks } from "../hooks/useTasks";
+import { format, isAfter, parseISO, subDays } from "date-fns";
 
 interface AdrRecord {
   id: string;
@@ -196,6 +199,8 @@ const persistQuickCaptureRecords = (records: QuickCaptureRecord[]) => {
 
 export const InsightsBoard = () => {
   const { t } = useI18n();
+  const { data: entries = [] } = useEntries();
+  const { data: tasks = [] } = useTasks();
   const [records, setRecords] = useState<AdrRecord[]>(() => readAdrRecords());
   const [title, setTitle] = useState("");
   const [problem, setProblem] = useState("");
@@ -222,6 +227,7 @@ export const InsightsBoard = () => {
   const [quickCaptureStructured, setQuickCaptureStructured] = useState("");
   const [speechSupported, setSpeechSupported] = useState(false);
   const [speechActive, setSpeechActive] = useState(false);
+  const [retroGeneratedAt, setRetroGeneratedAt] = useState("");
 
   useEffect(() => {
     const host = window as Window & {
@@ -542,6 +548,66 @@ export const InsightsBoard = () => {
     setSpeechActive(true);
   };
 
+  const weeklyRetro = useMemo(() => {
+    const startDate = subDays(new Date(), 6);
+    const startDateIso = parseISO(format(startDate, "yyyy-MM-dd"));
+
+    const weeklyEntries = entries.filter((entry) =>
+      isAfter(parseISO(entry.date), subDays(startDateIso, 1))
+    );
+
+    const totalWords = weeklyEntries.reduce((sum, entry) => {
+      const words = `${entry.yesterday} ${entry.today}`
+        .split(/\s+/)
+        .filter((word) => word.trim().length > 0).length;
+      return sum + words;
+    }, 0);
+
+    const blockers = weeklyEntries.flatMap((entry) => {
+      const allLines = `${entry.yesterday}\n${entry.today}`
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      return allLines.filter(
+        (line) =>
+          line.toLowerCase().includes("block") ||
+          line.toLowerCase().includes("risk") ||
+          line.toLowerCase().includes("stuck") ||
+          line.toLowerCase().includes("issue")
+      );
+    });
+
+    const blockerCount = blockers.length;
+    const topBlockers = blockers.slice(0, 4);
+    const doneTasks = tasks.filter((task) => task.status === "done").length;
+    const totalTasks = tasks.length;
+    const completionRate = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
+
+    const consistency = weeklyEntries.length >= 5 ? t("strong") : weeklyEntries.length >= 3 ? t("moderate") : t("weak");
+    const recommendation =
+      blockerCount >= 4
+        ? t("Reduce WIP and define explicit unblocker owner for each stalled task.")
+        : completionRate < 50
+          ? t("Break tasks into smaller chunks and close one every day before adding new work.")
+          : t("Keep current pace and capture one key learning per completed task.");
+
+    return {
+      journalDays: weeklyEntries.length,
+      totalWords,
+      avgWords: weeklyEntries.length === 0 ? 0 : Math.round(totalWords / weeklyEntries.length),
+      blockerCount,
+      topBlockers,
+      completionRate,
+      consistency,
+      recommendation,
+    };
+  }, [entries, tasks, t]);
+
+  const handleGenerateRetro = () => {
+    setRetroGeneratedAt(new Date().toISOString());
+  };
+
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 1, display: "grid", gap: 2 }}>
       <Paper sx={{ p: 3 }}>
@@ -564,6 +630,54 @@ export const InsightsBoard = () => {
             </Typography>
           ) : null}
         </Stack>
+      </Paper>
+
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          {t("Weekly Retro Report")}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {t("Automatic weekly summary of writing patterns, blockers, and execution focus.")}
+        </Typography>
+
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ mb: 1, flexWrap: "wrap" }}>
+          <Chip size="small" variant="outlined" label={`${t("Journal days")}: ${weeklyRetro.journalDays}/7`} />
+          <Chip size="small" variant="outlined" label={`${t("Average words")}: ${weeklyRetro.avgWords}`} />
+          <Chip size="small" variant="outlined" color={weeklyRetro.blockerCount > 0 ? "warning" : "success"} label={`${t("Blockers logged")}: ${weeklyRetro.blockerCount}`} />
+          <Chip size="small" variant="outlined" color={weeklyRetro.completionRate >= 60 ? "success" : "warning"} label={`${t("Task completion")}: ${weeklyRetro.completionRate}%`} />
+          <Chip size="small" variant="outlined" label={`${t("Consistency")}: ${weeklyRetro.consistency}`} />
+        </Stack>
+
+        <Button variant="outlined" onClick={handleGenerateRetro}>
+          {t("Regenerate retro report")}
+        </Button>
+
+        <Typography variant="body2" sx={{ mt: 2 }}>
+          <strong>{t("Top blockers")}:</strong>
+        </Typography>
+        {weeklyRetro.topBlockers.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("No blocker patterns detected this week.")}
+          </Typography>
+        ) : (
+          <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+            {weeklyRetro.topBlockers.map((blocker, index) => (
+              <Typography key={`${blocker}-${index}`} variant="body2" color="text.secondary">
+                - {blocker}
+              </Typography>
+            ))}
+          </Stack>
+        )}
+
+        <Typography variant="body2" sx={{ mt: 2 }}>
+          <strong>{t("Recommendation")}:</strong> {weeklyRetro.recommendation}
+        </Typography>
+
+        {retroGeneratedAt ? (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+            {t("Last generated at")}: {retroGeneratedAt.slice(0, 16).replace("T", " ")}
+          </Typography>
+        ) : null}
       </Paper>
 
       <Paper sx={{ p: 3 }}>
