@@ -177,6 +177,16 @@ const ukTranslations: Record<string, string> = {
   "No debug sessions yet.": "Дебаг-сесій ще немає.",
   "Export Portfolio Build Log": "Експорт Portfolio Build Log",
   "Portfolio build log exported.": "Portfolio build log експортовано.",
+  "Capture thoughts quickly with text or voice and structure them automatically.": "Швидко фіксуй думки текстом або голосом та структуруй автоматично.",
+  "Raw capture": "Сирий запис",
+  "Write fast notes, blockers, ideas, or use voice input.": "Пиши короткі нотатки, блокери, ідеї або використовуй голос.",
+  "Stop voice capture": "Зупинити голосовий запис",
+  "Start voice capture": "Почати голосовий запис",
+  "Structure capture": "Структурувати запис",
+  "Save capture": "Зберегти запис",
+  "Voice capture is available only in browsers with Speech Recognition support.": "Голосовий запис доступний лише у браузерах з підтримкою Speech Recognition.",
+  "Structured output": "Структурований результат",
+  "No quick captures yet.": "Швидких записів ще немає.",
 };
 
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);

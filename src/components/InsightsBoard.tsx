@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -44,9 +44,32 @@ interface DebugSession {
   created_at: string;
 }
 
+interface QuickCaptureRecord {
+  id: string;
+  raw_text: string;
+  structured_text: string;
+  created_at: string;
+}
+
+interface SpeechRecognitionLike extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+}
+
 const ADR_STORAGE_KEY = "devJournal_insights_adr_records";
 const INCIDENTS_STORAGE_KEY = "devJournal_insights_incident_records";
 const DEBUG_STORAGE_KEY = "devJournal_insights_debug_sessions";
+const QUICK_CAPTURE_STORAGE_KEY = "devJournal_insights_quick_capture";
 
 const readAdrRecords = (): AdrRecord[] => {
   try {
@@ -143,6 +166,34 @@ const persistDebugSessions = (sessions: DebugSession[]) => {
   localStorage.setItem(DEBUG_STORAGE_KEY, JSON.stringify(sessions));
 };
 
+const readQuickCaptureRecords = (): QuickCaptureRecord[] => {
+  try {
+    const raw = localStorage.getItem(QUICK_CAPTURE_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as QuickCaptureRecord[];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(
+      (item) =>
+        typeof item.id === "string" &&
+        typeof item.raw_text === "string" &&
+        typeof item.structured_text === "string" &&
+        typeof item.created_at === "string"
+    );
+  } catch {
+    return [];
+  }
+};
+
+const persistQuickCaptureRecords = (records: QuickCaptureRecord[]) => {
+  localStorage.setItem(QUICK_CAPTURE_STORAGE_KEY, JSON.stringify(records));
+};
+
 export const InsightsBoard = () => {
   const { t } = useI18n();
   const [records, setRecords] = useState<AdrRecord[]>(() => readAdrRecords());
@@ -166,6 +217,19 @@ export const InsightsBoard = () => {
   const [debugChecks, setDebugChecks] = useState("");
   const [debugConclusion, setDebugConclusion] = useState("");
   const [buildLogStatus, setBuildLogStatus] = useState("");
+  const [quickCaptureRecords, setQuickCaptureRecords] = useState<QuickCaptureRecord[]>(() => readQuickCaptureRecords());
+  const [quickCaptureInput, setQuickCaptureInput] = useState("");
+  const [quickCaptureStructured, setQuickCaptureStructured] = useState("");
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [speechActive, setSpeechActive] = useState(false);
+
+  useEffect(() => {
+    const host = window as Window & {
+      webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+      SpeechRecognition?: new () => SpeechRecognitionLike;
+    };
+    setSpeechSupported(Boolean(host.SpeechRecognition ?? host.webkitSpeechRecognition));
+  }, []);
 
   const sortedRecords = useMemo(() => {
     return [...records].sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -372,6 +436,112 @@ export const InsightsBoard = () => {
     setBuildLogStatus(t("Portfolio build log exported."));
   };
 
+  const structureQuickCapture = (raw: string) => {
+    const lines = raw
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    const context = lines.filter((line) => line.toLowerCase().includes("because") || line.toLowerCase().includes("context"));
+    const blockers = lines.filter((line) => line.toLowerCase().includes("block") || line.toLowerCase().includes("risk"));
+    const next = lines.filter((line) => line.toLowerCase().includes("next") || line.toLowerCase().includes("tomorrow"));
+    const actions = lines.filter((line) => !context.includes(line) && !blockers.includes(line) && !next.includes(line));
+
+    return [
+      "Context:",
+      context.length > 0 ? context.map((line) => `- ${line}`).join("\n") : "- n/a",
+      "",
+      "Actions:",
+      actions.length > 0 ? actions.map((line) => `- ${line}`).join("\n") : "- n/a",
+      "",
+      "Blockers:",
+      blockers.length > 0 ? blockers.map((line) => `- ${line}`).join("\n") : "- none",
+      "",
+      "Next:",
+      next.length > 0 ? next.map((line) => `- ${line}`).join("\n") : "- review and schedule next step",
+    ].join("\n");
+  };
+
+  const handleGenerateQuickCapture = () => {
+    const raw = quickCaptureInput.trim();
+    if (!raw) {
+      return;
+    }
+    setQuickCaptureStructured(structureQuickCapture(raw));
+  };
+
+  const handleSaveQuickCapture = () => {
+    const raw = quickCaptureInput.trim();
+    const structured = quickCaptureStructured.trim();
+    if (!raw || !structured) {
+      return;
+    }
+
+    const nextRecord: QuickCaptureRecord = {
+      id: crypto.randomUUID(),
+      raw_text: raw,
+      structured_text: structured,
+      created_at: new Date().toISOString(),
+    };
+
+    const updated = [nextRecord, ...quickCaptureRecords];
+    setQuickCaptureRecords(updated);
+    persistQuickCaptureRecords(updated);
+
+    setQuickCaptureInput("");
+    setQuickCaptureStructured("");
+  };
+
+  const handleDeleteQuickCapture = (id: string) => {
+    const updated = quickCaptureRecords.filter((record) => record.id !== id);
+    setQuickCaptureRecords(updated);
+    persistQuickCaptureRecords(updated);
+  };
+
+  const handleToggleSpeech = () => {
+    const host = window as Window & {
+      webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+      SpeechRecognition?: new () => SpeechRecognitionLike;
+    };
+    const RecognitionCtor = host.SpeechRecognition ?? host.webkitSpeechRecognition;
+    if (!RecognitionCtor) {
+      setSpeechSupported(false);
+      return;
+    }
+
+    setSpeechSupported(true);
+    const recognition = new RecognitionCtor();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript ?? "")
+        .join(" ")
+        .trim();
+
+      if (transcript) {
+        setQuickCaptureInput((prev) => (prev.trim().length > 0 ? `${prev}\n${transcript}` : transcript));
+      }
+    };
+    recognition.onerror = () => {
+      setSpeechActive(false);
+    };
+    recognition.onend = () => {
+      setSpeechActive(false);
+    };
+
+    if (speechActive) {
+      recognition.stop();
+      setSpeechActive(false);
+      return;
+    }
+
+    recognition.start();
+    setSpeechActive(true);
+  };
+
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 1, display: "grid", gap: 2 }}>
       <Paper sx={{ p: 3 }}>
@@ -393,6 +563,82 @@ export const InsightsBoard = () => {
               {buildLogStatus}
             </Typography>
           ) : null}
+        </Stack>
+      </Paper>
+
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          {t("Quick Capture")}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {t("Capture thoughts quickly with text or voice and structure them automatically.")}
+        </Typography>
+
+        <Stack spacing={1.5}>
+          <TextField
+            label={t("Raw capture")}
+            value={quickCaptureInput}
+            onChange={(event) => setQuickCaptureInput(event.target.value)}
+            multiline
+            minRows={3}
+            placeholder={t("Write fast notes, blockers, ideas, or use voice input.")}
+            fullWidth
+          />
+          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+            <Button variant="outlined" onClick={handleToggleSpeech}>
+              {speechActive ? t("Stop voice capture") : t("Start voice capture")}
+            </Button>
+            <Button variant="outlined" onClick={handleGenerateQuickCapture} disabled={quickCaptureInput.trim().length === 0}>
+              {t("Structure capture")}
+            </Button>
+            <Button variant="contained" onClick={handleSaveQuickCapture} disabled={quickCaptureInput.trim().length === 0 || quickCaptureStructured.trim().length === 0}>
+              {t("Save capture")}
+            </Button>
+          </Stack>
+          {!speechSupported ? (
+            <Typography variant="caption" color="text.secondary">
+              {t("Voice capture is available only in browsers with Speech Recognition support.")}
+            </Typography>
+          ) : null}
+          {quickCaptureStructured ? (
+            <TextField
+              label={t("Structured output")}
+              value={quickCaptureStructured}
+              onChange={(event) => setQuickCaptureStructured(event.target.value)}
+              multiline
+              minRows={7}
+              fullWidth
+            />
+          ) : null}
+        </Stack>
+
+        <Divider sx={{ my: 2 }} />
+
+        <Stack spacing={1.5}>
+          {quickCaptureRecords.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {t("No quick captures yet.")}
+            </Typography>
+          ) : (
+            quickCaptureRecords.map((record) => (
+              <Paper key={record.id} variant="outlined" sx={{ p: 2 }}>
+                <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
+                  <Chip size="small" label={`${t("Created")}: ${record.created_at.slice(0, 10)}`} variant="outlined" />
+                  <Button color="error" onClick={() => handleDeleteQuickCapture(record.id)}>
+                    {t("Delete")}
+                  </Button>
+                </Stack>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  <strong>{t("Raw capture")}:</strong> {record.raw_text}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
+                  <strong>{t("Structured output")}:</strong>
+                  {"\n"}
+                  {record.structured_text}
+                </Typography>
+              </Paper>
+            ))
+          )}
         </Stack>
       </Paper>
 
