@@ -21,6 +21,7 @@ import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import FlagIcon from '@mui/icons-material/Flag';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import InsightsIcon from '@mui/icons-material/Insights';
 import MenuIcon from '@mui/icons-material/Menu';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
@@ -31,8 +32,8 @@ const drawerWidth = 280;
 
 interface LayoutProps {
     children: ReactNode;
-    activeTab: 'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits';
-    onTabChange: (tab: 'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits') => void;
+    activeTab: 'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'insights';
+    onTabChange: (tab: 'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'insights') => void;
     selectedDate: string;
     onSelectDate: (date: string) => void;
     selectedPageId: number | null;
@@ -116,6 +117,7 @@ export const Layout = ({
         tasks: t("Tasks"),
         goals: t("Goals"),
         habits: t("Habits"),
+        insights: t("Insights"),
         page: t("Pages"),
     };
 
@@ -516,6 +518,24 @@ export const Layout = ({
                                     size="small"
                                     variant="outlined"
                                     sx={{ height: 20, fontSize: "0.7rem" }}
+                                />
+                            </ListItemButton>
+                        </ListItem>
+                        <ListItem disablePadding>
+                            <ListItemButton
+                                selected={activeTab === 'insights'}
+                                onClick={() => {
+                                    onTabChange('insights');
+                                    closeMobileDrawer();
+                                }}
+                                sx={navItemStyle(activeTab === 'insights')}
+                            >
+                                <InsightsIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
+                                <ListItemText
+                                    primary={t("Insights")}
+                                    secondary={t("Decisions, incidents, retros")}
+                                    primaryTypographyProps={{ fontWeight: 600 }}
+                                    secondaryTypographyProps={{ fontSize: "0.75rem" }}
                                 />
                             </ListItemButton>
                         </ListItem>

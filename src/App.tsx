@@ -10,6 +10,7 @@ import { HabitsBoard } from "./components/HabitsBoard";
 import { PlannerBoard } from "./components/PlannerBoard";
 import { WeeklySummary } from "./components/WeeklySummary";
 import { CommandAction, CommandPalette } from "./components/CommandPalette";
+import { InsightsBoard } from "./components/InsightsBoard";
 import { format } from "date-fns";
 import { Box, Container } from "@mui/material";
 import { useEntries } from "./hooks/useEntries";
@@ -21,7 +22,7 @@ import { useI18n } from "./i18n/I18nContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits'>('planner');
+  const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'insights'>('planner');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState<boolean>(() => {
@@ -201,6 +202,16 @@ function App() {
         },
       },
       {
+        id: "open-insights",
+        title: t("Open Insights"),
+        subtitle: t("Decision logs, incidents and retros"),
+        section: t("Quick Actions"),
+        keywords: ["insights", "adr", "retro", "debug"],
+        onSelect: () => {
+          setActiveTab("insights");
+        },
+      },
+      {
         id: "new-page",
         title: t("Create New Page"),
         subtitle: t("Open editor in new page mode"),
@@ -358,6 +369,8 @@ function App() {
             <GoalsBoard />
           ) : activeTab === 'habits' ? (
             <HabitsBoard />
+          ) : activeTab === 'insights' ? (
+            <InsightsBoard />
           ) : (
             <PageEditor
               pageId={selectedPageId}
