@@ -34,8 +34,19 @@ interface IncidentRecord {
   created_at: string;
 }
 
+interface DebugSession {
+  id: string;
+  title: string;
+  symptoms: string;
+  hypotheses: string;
+  checks: string;
+  conclusion: string;
+  created_at: string;
+}
+
 const ADR_STORAGE_KEY = "devJournal_insights_adr_records";
 const INCIDENTS_STORAGE_KEY = "devJournal_insights_incident_records";
+const DEBUG_STORAGE_KEY = "devJournal_insights_debug_sessions";
 
 const readAdrRecords = (): AdrRecord[] => {
   try {
@@ -101,6 +112,37 @@ const persistIncidents = (records: IncidentRecord[]) => {
   localStorage.setItem(INCIDENTS_STORAGE_KEY, JSON.stringify(records));
 };
 
+const readDebugSessions = (): DebugSession[] => {
+  try {
+    const raw = localStorage.getItem(DEBUG_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as DebugSession[];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(
+      (item) =>
+        typeof item.id === "string" &&
+        typeof item.title === "string" &&
+        typeof item.symptoms === "string" &&
+        typeof item.hypotheses === "string" &&
+        typeof item.checks === "string" &&
+        typeof item.conclusion === "string" &&
+        typeof item.created_at === "string"
+    );
+  } catch {
+    return [];
+  }
+};
+
+const persistDebugSessions = (sessions: DebugSession[]) => {
+  localStorage.setItem(DEBUG_STORAGE_KEY, JSON.stringify(sessions));
+};
+
 export const InsightsBoard = () => {
   const { t } = useI18n();
   const [records, setRecords] = useState<AdrRecord[]>(() => readAdrRecords());
@@ -117,6 +159,12 @@ export const InsightsBoard = () => {
   const [incidentRootCause, setIncidentRootCause] = useState("");
   const [incidentFix, setIncidentFix] = useState("");
   const [incidentPrevention, setIncidentPrevention] = useState("");
+  const [debugSessions, setDebugSessions] = useState<DebugSession[]>(() => readDebugSessions());
+  const [debugTitle, setDebugTitle] = useState("");
+  const [debugSymptoms, setDebugSymptoms] = useState("");
+  const [debugHypotheses, setDebugHypotheses] = useState("");
+  const [debugChecks, setDebugChecks] = useState("");
+  const [debugConclusion, setDebugConclusion] = useState("");
 
   const sortedRecords = useMemo(() => {
     return [...records].sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -132,6 +180,12 @@ export const InsightsBoard = () => {
     incidentSymptoms.trim().length > 0 &&
     incidentRootCause.trim().length > 0 &&
     incidentFix.trim().length > 0;
+  const canSaveDebug =
+    debugTitle.trim().length > 0 &&
+    debugSymptoms.trim().length > 0 &&
+    debugHypotheses.trim().length > 0 &&
+    debugChecks.trim().length > 0 &&
+    debugConclusion.trim().length > 0;
 
   const handleSaveAdr = () => {
     if (!canSave) {
@@ -199,6 +253,53 @@ export const InsightsBoard = () => {
     const updated = incidents.filter((record) => record.id !== id);
     setIncidents(updated);
     persistIncidents(updated);
+  };
+
+  const applyDebugTemplate = () => {
+    if (debugSymptoms.trim().length === 0) {
+      setDebugSymptoms("- User-visible behavior:\n- Error text:\n- Repro frequency:");
+    }
+    if (debugHypotheses.trim().length === 0) {
+      setDebugHypotheses("- Hypothesis 1:\n- Hypothesis 2:\n- Most likely:");
+    }
+    if (debugChecks.trim().length === 0) {
+      setDebugChecks("- Check 1:\n- Check 2:\n- Logs/metrics observed:");
+    }
+    if (debugConclusion.trim().length === 0) {
+      setDebugConclusion("- Root cause:\n- Fix applied:\n- Follow-up:");
+    }
+  };
+
+  const handleSaveDebugSession = () => {
+    if (!canSaveDebug) {
+      return;
+    }
+
+    const next: DebugSession = {
+      id: crypto.randomUUID(),
+      title: debugTitle.trim(),
+      symptoms: debugSymptoms.trim(),
+      hypotheses: debugHypotheses.trim(),
+      checks: debugChecks.trim(),
+      conclusion: debugConclusion.trim(),
+      created_at: new Date().toISOString(),
+    };
+
+    const updated = [next, ...debugSessions];
+    setDebugSessions(updated);
+    persistDebugSessions(updated);
+
+    setDebugTitle("");
+    setDebugSymptoms("");
+    setDebugHypotheses("");
+    setDebugChecks("");
+    setDebugConclusion("");
+  };
+
+  const handleRemoveDebugSession = (id: string) => {
+    const updated = debugSessions.filter((session) => session.id !== id);
+    setDebugSessions(updated);
+    persistDebugSessions(updated);
   };
 
   return (
@@ -317,6 +418,102 @@ export const InsightsBoard = () => {
                     <strong>{t("Consequences")}:</strong> {record.consequences}
                   </Typography>
                 ) : null}
+              </Paper>
+            ))
+          )}
+        </Stack>
+      </Paper>
+
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          {t("Debug Mode")}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {t("Use a guided rubber-duck flow to debug with structure and confidence.")}
+        </Typography>
+
+        <Stack spacing={1.5}>
+          <TextField
+            label={t("Debug session title")}
+            value={debugTitle}
+            onChange={(event) => setDebugTitle(event.target.value)}
+            fullWidth
+          />
+          <TextField
+            label={t("Symptoms")}
+            value={debugSymptoms}
+            onChange={(event) => setDebugSymptoms(event.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+          />
+          <TextField
+            label={t("Hypotheses")}
+            value={debugHypotheses}
+            onChange={(event) => setDebugHypotheses(event.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+          />
+          <TextField
+            label={t("Checks")}
+            value={debugChecks}
+            onChange={(event) => setDebugChecks(event.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+          />
+          <TextField
+            label={t("Conclusion")}
+            value={debugConclusion}
+            onChange={(event) => setDebugConclusion(event.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+          />
+          <Stack direction="row" spacing={1}>
+            <Button variant="outlined" onClick={applyDebugTemplate}>
+              {t("Insert template")}
+            </Button>
+            <Button variant="contained" onClick={handleSaveDebugSession} disabled={!canSaveDebug}>
+              {t("Save debug session")}
+            </Button>
+          </Stack>
+        </Stack>
+
+        <Divider sx={{ my: 2 }} />
+
+        <Stack spacing={1.5}>
+          {debugSessions.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {t("No debug sessions yet.")}
+            </Typography>
+          ) : (
+            debugSessions.map((session) => (
+              <Paper key={session.id} variant="outlined" sx={{ p: 2 }}>
+                <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      {session.title}
+                    </Typography>
+                    <Chip size="small" label={`${t("Created")}: ${session.created_at.slice(0, 10)}`} variant="outlined" sx={{ mt: 0.5 }} />
+                  </Box>
+                  <Button color="error" onClick={() => handleRemoveDebugSession(session.id)}>
+                    {t("Delete")}
+                  </Button>
+                </Stack>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  <strong>{t("Symptoms")}:</strong> {session.symptoms}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.75 }}>
+                  <strong>{t("Hypotheses")}:</strong> {session.hypotheses}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.75 }}>
+                  <strong>{t("Checks")}:</strong> {session.checks}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.75 }}>
+                  <strong>{t("Conclusion")}:</strong> {session.conclusion}
+                </Typography>
               </Paper>
             ))
           )}

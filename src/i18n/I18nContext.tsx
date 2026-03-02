@@ -166,6 +166,15 @@ const ukTranslations: Record<string, string> = {
   "How to prevent next time": "Як запобігти наступного разу",
   "Save incident": "Зберегти інцидент",
   "No incidents logged yet.": "Інцидентів ще немає.",
+  "Debug Mode": "Debug режим",
+  "Use a guided rubber-duck flow to debug with structure and confidence.": "Використовуй структурований flow для дебагу у форматі rubber-duck.",
+  "Debug session title": "Назва дебаг-сесії",
+  "Hypotheses": "Гіпотези",
+  "Checks": "Перевірки",
+  "Conclusion": "Висновок",
+  "Insert template": "Вставити шаблон",
+  "Save debug session": "Зберегти дебаг-сесію",
+  "No debug sessions yet.": "Дебаг-сесій ще немає.",
 };
 
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);
