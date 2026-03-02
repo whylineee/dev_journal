@@ -47,6 +47,7 @@ import {
   normalizeEstimateMinutes,
 } from "../utils/taskUtils";
 import { useI18n } from "../i18n/I18nContext";
+import { useAppNotifications } from "../notifications/AppNotifications";
 
 const columns: Array<{ status: TaskStatus; label: string; color: "default" | "warning" | "info" | "success" }> = [
   { status: "todo", label: "To Do", color: "warning" },
@@ -97,6 +98,7 @@ const persistTaskOutcomes = (value: TaskOutcomeMap) => {
 
 export const TasksBoard = () => {
   const { t } = useI18n();
+  const { notify } = useAppNotifications();
   // `nowMs` is updated every second to render live timer values without round-trips.
   const { data: tasks = [], isLoading } = useTasks();
   const createTask = useCreateTask();
@@ -262,7 +264,10 @@ export const TasksBoard = () => {
           time_estimate_minutes: normalizedTimeEstimate,
         },
         {
-          onSuccess: () => saveTaskOutcome(editingTask.id),
+          onSuccess: () => {
+            saveTaskOutcome(editingTask.id);
+            notify("Task updated.", "success");
+          },
         }
       );
     } else {
@@ -276,7 +281,10 @@ export const TasksBoard = () => {
           time_estimate_minutes: normalizedTimeEstimate,
         },
         {
-          onSuccess: (createdTask) => saveTaskOutcome(createdTask.id),
+          onSuccess: (createdTask) => {
+            saveTaskOutcome(createdTask.id);
+            notify("Task created.", "success");
+          },
         }
       );
     }
@@ -286,6 +294,7 @@ export const TasksBoard = () => {
 
   const handleDelete = (taskId: number) => {
     deleteTask.mutate(taskId);
+    notify("Task deleted.", "info");
     if (taskOutcomes[String(taskId)]) {
       const updated = { ...taskOutcomes };
       delete updated[String(taskId)];

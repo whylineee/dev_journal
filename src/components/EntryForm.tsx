@@ -13,6 +13,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { useAppNotifications } from "../notifications/AppNotifications";
 
 interface EntryFormProps {
     date: string;
@@ -37,6 +38,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
     const { data: entry, isLoading } = useEntry(date);
     const saveMutation = useSaveEntry();
     const deleteMutation = useDeleteEntry();
+    const { notify } = useAppNotifications();
 
     const [yesterday, setYesterday] = useState("");
     const [today, setToday] = useState("");
@@ -122,6 +124,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                 onSuccess: () => {
                     localStorage.removeItem(draftKey);
                     setDraftRestoredAt(null);
+                    notify("Journal entry saved.", "success");
                 },
             }
         );
@@ -208,6 +211,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                 setYesterday("");
                 setToday("");
                 setConfirmDeleteOpen(false);
+                notify("Journal entry deleted.", "info");
             },
         });
     };

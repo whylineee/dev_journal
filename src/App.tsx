@@ -20,6 +20,7 @@ import { useHabits } from "./hooks/useHabits";
 import { useThemeContext } from "./theme/ThemeContext";
 import { useI18n } from "./i18n/I18nContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
+import { useAppNotifications } from "./notifications/AppNotifications";
 
 function App() {
   const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'insights'>('planner');
@@ -50,6 +51,7 @@ function App() {
   const { data: habits } = useHabits();
   const { appearanceMode, setAppearanceMode } = useThemeContext();
   const { language, setLanguage, t } = useI18n();
+  const { notify } = useAppNotifications();
   const lastReminderDateRef = useRef<string | null>(localStorage.getItem("devJournal_lastReminderDate"));
 
   useEffect(() => {
@@ -110,6 +112,12 @@ function App() {
             hour: String(reminderHour).padStart(2, "0"),
           }),
         });
+        notify(
+          t("It's past {hour}:00. Time to write your dev journal!", {
+            hour: String(reminderHour).padStart(2, "0"),
+          }),
+          "info"
+        );
         lastReminderDateRef.current = todayStr;
         localStorage.setItem("devJournal_lastReminderDate", todayStr);
       }
@@ -119,7 +127,7 @@ function App() {
     checkTime();
 
     return () => clearInterval(interval);
-  }, [entries, reminderEnabled, reminderHour, t]);
+  }, [entries, notify, reminderEnabled, reminderHour, t]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

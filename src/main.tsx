@@ -5,6 +5,7 @@ import { CssBaseline } from "@mui/material";
 import App from "./App";
 import { CustomThemeProvider } from "./theme/ThemeContext";
 import { I18nProvider } from "./i18n/I18nContext";
+import { AppNotificationsProvider } from "./notifications/AppNotifications";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
@@ -25,8 +26,10 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <QueryClientProvider client={queryClient}>
       <CustomThemeProvider>
         <I18nProvider>
-          <CssBaseline />
-          <App />
+          <AppNotificationsProvider>
+            <CssBaseline />
+            <App />
+          </AppNotificationsProvider>
         </I18nProvider>
       </CustomThemeProvider>
     </QueryClientProvider>
