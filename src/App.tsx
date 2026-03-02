@@ -11,6 +11,7 @@ import { PlannerBoard } from "./components/PlannerBoard";
 import { WeeklySummary } from "./components/WeeklySummary";
 import { CommandAction, CommandPalette } from "./components/CommandPalette";
 import { InsightsBoard } from "./components/InsightsBoard";
+import { SettingsScreen } from "./components/SettingsScreen";
 import { format } from "date-fns";
 import { Box, Container } from "@mui/material";
 import { useEntries } from "./hooks/useEntries";
@@ -25,7 +26,7 @@ import { useAppNotifications } from "./notifications/AppNotifications";
 const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'insights'>('planner');
+  const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'insights' | 'settings'>('planner');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState<boolean>(() => {
@@ -44,7 +45,6 @@ function App() {
   const [autosaveEnabled, setAutosaveEnabled] = useState<boolean>(() => {
     return localStorage.getItem("devJournal_autosaveEnabled") !== "false";
   });
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   const { data: entries } = useEntries();
@@ -302,7 +302,7 @@ function App() {
         section: t("Quick Actions"),
         keywords: ["settings", "theme", "preferences"],
         onSelect: () => {
-          setSettingsOpen(true);
+          setActiveTab("settings");
         },
       },
       {
@@ -395,18 +395,6 @@ function App() {
         onSelectDate={setSelectedDate}
         selectedPageId={selectedPageId}
         onSelectPage={setSelectedPageId}
-        reminderEnabled={reminderEnabled}
-        onReminderEnabledChange={setReminderEnabled}
-        reminderHour={reminderHour}
-        onReminderHourChange={setReminderHour}
-        journalPreviewEnabled={journalPreviewEnabled}
-        onJournalPreviewEnabledChange={setJournalPreviewEnabled}
-        pagePreviewEnabled={pagePreviewEnabled}
-        onPagePreviewEnabledChange={setPagePreviewEnabled}
-        autosaveEnabled={autosaveEnabled}
-        onAutosaveEnabledChange={setAutosaveEnabled}
-        settingsOpen={settingsOpen}
-        onSettingsOpenChange={setSettingsOpen}
       >
         <Container maxWidth="lg" sx={{ height: '100%', pb: 4 }}>
           {activeTab === 'journal' ? (
@@ -444,6 +432,19 @@ function App() {
             <HabitsBoard />
           ) : activeTab === 'insights' ? (
             <InsightsBoard />
+          ) : activeTab === 'settings' ? (
+            <SettingsScreen
+              reminderEnabled={reminderEnabled}
+              onReminderEnabledChange={setReminderEnabled}
+              reminderHour={reminderHour}
+              onReminderHourChange={setReminderHour}
+              journalPreviewEnabled={journalPreviewEnabled}
+              onJournalPreviewEnabledChange={setJournalPreviewEnabled}
+              pagePreviewEnabled={pagePreviewEnabled}
+              onPagePreviewEnabledChange={setPagePreviewEnabled}
+              autosaveEnabled={autosaveEnabled}
+              onAutosaveEnabledChange={setAutosaveEnabled}
+            />
           ) : (
             <PageEditor
               pageId={selectedPageId}
