@@ -27,6 +27,8 @@ import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 import { sendNotification } from "@tauri-apps/plugin-notification";
 
+const DAILY_WINS_STORAGE_KEY = "devJournal_daily_wins";
+
 interface PlannerBoardProps {
   onOpenJournalToday: () => void;
   onOpenTasks: () => void;
@@ -59,6 +61,19 @@ export const PlannerBoard = ({
   const [quickTaskFeedback, setQuickTaskFeedback] = useState("");
   const [focusSecondsLeft, setFocusSecondsLeft] = useState(25 * 60);
   const [focusRunning, setFocusRunning] = useState(false);
+  const [dailyWinsInput, setDailyWinsInput] = useState("");
+  const [dailyWinsMap, setDailyWinsMap] = useState<Record<string, string[]>>(() => {
+    try {
+      const raw = localStorage.getItem(DAILY_WINS_STORAGE_KEY);
+      if (!raw) {
+        return {};
+      }
+      const parsed = JSON.parse(raw) as Record<string, string[]>;
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
 
   const todayEntryExists = useMemo(
     () => entries.some((entry) => entry.date === today),
@@ -99,6 +114,8 @@ export const PlannerBoard = ({
     updateTaskStatus.isPending ||
     createTask.isPending;
 
+  const dailyWins = dailyWinsMap[today] ?? [];
+
   const handleQuickAddTask = () => {
     const title = quickTaskTitle.trim();
     if (!title) {
@@ -127,6 +144,27 @@ export const PlannerBoard = ({
     const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
     const sec = Math.floor(seconds % 60).toString().padStart(2, "0");
     return `${minutes}:${sec}`;
+  };
+
+  const persistDailyWins = (nextMap: Record<string, string[]>) => {
+    setDailyWinsMap(nextMap);
+    localStorage.setItem(DAILY_WINS_STORAGE_KEY, JSON.stringify(nextMap));
+  };
+
+  const handleAddDailyWin = () => {
+    const value = dailyWinsInput.trim();
+    if (!value) {
+      return;
+    }
+    const nextMap = { ...dailyWinsMap, [today]: [value, ...dailyWins].slice(0, 7) };
+    persistDailyWins(nextMap);
+    setDailyWinsInput("");
+  };
+
+  const handleRemoveDailyWin = (index: number) => {
+    const nextWins = dailyWins.filter((_, itemIndex) => itemIndex !== index);
+    const nextMap = { ...dailyWinsMap, [today]: nextWins };
+    persistDailyWins(nextMap);
   };
 
   useEffect(() => {
@@ -487,6 +525,51 @@ export const PlannerBoard = ({
           >
             {t("Reset")}
           </Button>
+        </Stack>
+      </Paper>
+
+      <Paper sx={{ p: 2, mt: 2 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+          {t("Daily Wins")}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
+          {t("Log small wins to keep momentum visible and measurable.")}
+        </Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <TextField
+            fullWidth
+            size="small"
+            value={dailyWinsInput}
+            onChange={(event) => setDailyWinsInput(event.target.value)}
+            placeholder={t("Example: shipped onboarding empty-state fix")}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                handleAddDailyWin();
+              }
+            }}
+          />
+          <Button variant="contained" onClick={handleAddDailyWin} disabled={dailyWinsInput.trim().length === 0}>
+            {t("Add win")}
+          </Button>
+        </Stack>
+        <Stack spacing={0.75} sx={{ mt: 1.25 }}>
+          {dailyWins.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {t("No wins logged yet today.")}
+            </Typography>
+          ) : (
+            dailyWins.map((item, index) => (
+              <Stack key={`${item}-${index}`} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                <Typography variant="body2" sx={{ minWidth: 0 }}>
+                  • {item}
+                </Typography>
+                <Button size="small" color="error" onClick={() => handleRemoveDailyWin(index)}>
+                  {t("Delete")}
+                </Button>
+              </Stack>
+            ))
+          )}
         </Stack>
       </Paper>
     </Box>
