@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import Markdown from "react-markdown";
 import { useDeleteEntry, useEntry, useSaveEntry } from "../hooks/useEntries";
 import { useProjects } from "../hooks/useProjects";
+import { useI18n } from "../i18n/I18nContext";
 import { format, parseISO } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { alpha, useTheme } from "@mui/material/styles";
@@ -36,6 +37,7 @@ const formatDraftTime = (value: string) => {
 
 export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormProps) => {
     const muiTheme = useTheme();
+    const { t } = useI18n();
     const { data: entry, isLoading } = useEntry(date);
     const { data: projects = [] } = useProjects();
     const saveMutation = useSaveEntry();
@@ -306,7 +308,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                     <TextField
                         select
                         size="small"
-                        label="Project"
+                        label={t("Project")}
                         value={projectId === "" ? "" : String(projectId)}
                         onChange={(event) => {
                             const nextValue = event.target.value;
@@ -315,7 +317,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                         fullWidth
                         SelectProps={{ native: true }}
                     >
-                        <option value="">{'No project'}</option>
+                        <option value="">{t("No project")}</option>
                         {projects.map((project) => (
                             <option key={project.id} value={project.id}>
                                 {project.name}

@@ -688,7 +688,7 @@ export const TasksBoard = () => {
 
             <TextField
               select
-              label="Project"
+              label={t("Project")}
               value={projectId === "" ? "" : String(projectId)}
               onChange={(event) => {
                 const nextValue = event.target.value;
@@ -697,7 +697,7 @@ export const TasksBoard = () => {
               SelectProps={{ native: true }}
               fullWidth
             >
-              <option value="">No project</option>
+              <option value="">{t("No project")}</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
