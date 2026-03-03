@@ -35,6 +35,7 @@ import {
   useUpdateTask,
   useUpdateTaskStatus,
 } from "../hooks/useTasks";
+import { useProjects } from "../hooks/useProjects";
 import { Task, TaskPriority, TaskStatus } from "../types";
 import {
   compareTasks,
@@ -101,6 +102,7 @@ export const TasksBoard = () => {
   const { notify } = useAppNotifications();
   // `nowMs` is updated every second to render live timer values without round-trips.
   const { data: tasks = [], isLoading } = useTasks();
+  const { data: projects = [] } = useProjects();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const updateStatus = useUpdateTaskStatus();
@@ -112,6 +114,7 @@ export const TasksBoard = () => {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus>("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | TaskPriority>("all");
+  const [projectFilter, setProjectFilter] = useState<"all" | number>("all");
   const [showOverdueOnly, setShowOverdueOnly] = useState(() => localStorage.getItem("devJournal_tasks_overdue_only") === "true");
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -119,6 +122,7 @@ export const TasksBoard = () => {
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<TaskStatus>("todo");
   const [priority, setPriority] = useState<TaskPriority>("medium");
+  const [projectId, setProjectId] = useState<number | "">("");
   const [dueDate, setDueDate] = useState("");
   const [timeEstimateMinutes, setTimeEstimateMinutes] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -164,6 +168,12 @@ export const TasksBoard = () => {
     return { overdue, dueToday, done, total: tasks.length, activeTimers };
   }, [tasks]);
 
+  const projectNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    projects.forEach((project) => map.set(project.id, project.name));
+    return map;
+  }, [projects]);
+
   const filteredTasks = useMemo(() => {
     const q = query.trim().toLowerCase();
 
@@ -174,6 +184,10 @@ export const TasksBoard = () => {
         }
 
         if (priorityFilter !== "all" && task.priority !== priorityFilter) {
+          return false;
+        }
+
+        if (projectFilter !== "all" && task.project_id !== projectFilter) {
           return false;
         }
 
@@ -191,7 +205,7 @@ export const TasksBoard = () => {
         );
       })
       .sort(compareTasks);
-  }, [tasks, query, statusFilter, priorityFilter, showOverdueOnly]);
+  }, [tasks, query, statusFilter, priorityFilter, projectFilter, showOverdueOnly]);
 
   const grouped = useMemo(() => {
     return {
@@ -207,6 +221,7 @@ export const TasksBoard = () => {
     setDescription("");
     setStatus("todo");
     setPriority("medium");
+    setProjectId("");
     setDueDate("");
     setTimeEstimateMinutes(0);
     setBeforeOutcome("");
@@ -220,6 +235,7 @@ export const TasksBoard = () => {
     setDescription(task.description);
     setStatus(task.status);
     setPriority(task.priority);
+    setProjectId(task.project_id ?? "");
     setDueDate(task.due_date ?? "");
     setTimeEstimateMinutes(task.time_estimate_minutes);
     const outcome = taskOutcomes[String(task.id)];
@@ -260,6 +276,7 @@ export const TasksBoard = () => {
           description: description.trim(),
           status,
           priority,
+          project_id: projectId === "" ? null : projectId,
           due_date: dueDate || null,
           time_estimate_minutes: normalizedTimeEstimate,
         },
@@ -277,6 +294,7 @@ export const TasksBoard = () => {
           description: description.trim(),
           status,
           priority,
+          project_id: projectId === "" ? null : projectId,
           due_date: dueDate || null,
           time_estimate_minutes: normalizedTimeEstimate,
         },
@@ -394,6 +412,25 @@ export const TasksBoard = () => {
             <option value="low">Low</option>
           </TextField>
 
+          <TextField
+            select
+            label={t("Project")}
+            value={projectFilter === "all" ? "all" : String(projectFilter)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setProjectFilter(value === "all" ? "all" : Number(value));
+            }}
+            sx={{ minWidth: 190 }}
+            SelectProps={{ native: true }}
+          >
+            <option value="all">{t("All projects")}</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </TextField>
+
           <Button
             variant={showOverdueOnly ? "contained" : "outlined"}
             color={showOverdueOnly ? "error" : "inherit"}
@@ -482,6 +519,14 @@ export const TasksBoard = () => {
                             color={priorityColor[task.priority]}
                             variant="outlined"
                           />
+                          {task.project_id ? (
+                            <Chip
+                              size="small"
+                              label={projectNameById.get(task.project_id) ?? `#${task.project_id}`}
+                              color="info"
+                              variant="outlined"
+                            />
+                          ) : null}
                           {task.due_date ? (
                             <Chip
                               size="small"
@@ -640,6 +685,25 @@ export const TasksBoard = () => {
                 <option value="low">Low</option>
               </TextField>
             </Stack>
+
+            <TextField
+              select
+              label="Project"
+              value={projectId === "" ? "" : String(projectId)}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setProjectId(nextValue === "" ? "" : Number(nextValue));
+              }}
+              SelectProps={{ native: true }}
+              fullWidth
+            >
+              <option value="">No project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </TextField>
 
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField

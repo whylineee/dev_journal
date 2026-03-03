@@ -1,4 +1,4 @@
-use crate::models::{Entry, Goal, Habit, HabitWithLogs, Page, Task};
+use crate::models::{Entry, Goal, Habit, HabitWithLogs, Page, Project, Task};
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use rusqlite::Connection;
 use rusqlite::{params, OptionalExtension};
@@ -24,6 +24,8 @@ pub struct BackupPayload {
     #[serde(default)]
     pub goals: Vec<BackupGoalInput>,
     #[serde(default)]
+    pub projects: Vec<BackupProjectInput>,
+    #[serde(default)]
     pub habits: Vec<BackupHabitInput>,
     #[serde(default)]
     pub habit_logs: Vec<BackupHabitLogInput>,
@@ -34,6 +36,7 @@ pub struct BackupEntryInput {
     pub date: String,
     pub yesterday: String,
     pub today: String,
+    pub project_id: Option<i64>,
     pub created_at: Option<String>,
 }
 
@@ -53,6 +56,7 @@ pub struct BackupTaskInput {
     pub description: String,
     pub status: String,
     pub priority: Option<String>,
+    pub project_id: Option<i64>,
     pub due_date: Option<String>,
     pub completed_at: Option<String>,
     pub time_estimate_minutes: Option<i64>,
@@ -69,7 +73,19 @@ pub struct BackupGoalInput {
     pub description: Option<String>,
     pub status: Option<String>,
     pub progress: Option<i64>,
+    pub project_id: Option<i64>,
     pub target_date: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BackupProjectInput {
+    pub id: Option<i64>,
+    pub name: String,
+    pub description: Option<String>,
+    pub color: Option<String>,
+    pub status: Option<String>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
 }
@@ -138,6 +154,51 @@ fn normalize_goal_status(status: Option<String>) -> String {
         }
         _ => "active".to_string(),
     }
+}
+
+fn normalize_project_status(status: Option<String>) -> String {
+    match status.as_deref() {
+        Some("active") | Some("paused") | Some("archived") => {
+            status.unwrap_or_else(|| "active".to_string())
+        }
+        _ => "active".to_string(),
+    }
+}
+
+fn normalize_project_color(color: Option<String>) -> String {
+    let fallback = "#60a5fa".to_string();
+    let value = color.unwrap_or_else(|| fallback.clone());
+    if value.trim().is_empty() {
+        fallback
+    } else {
+        value
+    }
+}
+
+fn normalize_project_name(name: String) -> String {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        "Untitled project".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn normalize_project_id(conn: &Connection, project_id: Option<i64>) -> Result<Option<i64>, String> {
+    let Some(project_id) = project_id else {
+        return Ok(None);
+    };
+
+    let exists = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM projects WHERE id = ?1)",
+            params![project_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|e| e.to_string())?
+        == 1;
+
+    if exists { Ok(Some(project_id)) } else { Ok(None) }
 }
 
 fn normalize_progress(progress: Option<i64>) -> i64 {
@@ -212,7 +273,7 @@ fn compute_this_week_count(completed_dates: &[String]) -> i64 {
 pub fn get_entries(state: State<'_, AppState>) -> Result<Vec<Entry>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, date, yesterday, today, created_at FROM entries ORDER BY date DESC")
+        .prepare("SELECT id, date, yesterday, today, project_id, created_at FROM entries ORDER BY date DESC")
         .map_err(|e| e.to_string())?;
 
     let entries_iter = stmt
@@ -222,7 +283,8 @@ pub fn get_entries(state: State<'_, AppState>) -> Result<Vec<Entry>, String> {
                 date: row.get(1)?,
                 yesterday: row.get(2)?,
                 today: row.get(3)?,
-                created_at: row.get(4)?,
+                project_id: row.get(4)?,
+                created_at: row.get(5)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -240,7 +302,7 @@ pub fn get_entries(state: State<'_, AppState>) -> Result<Vec<Entry>, String> {
 pub fn get_entry(date: String, state: State<'_, AppState>) -> Result<Option<Entry>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, date, yesterday, today, created_at FROM entries WHERE date = ?1")
+        .prepare("SELECT id, date, yesterday, today, project_id, created_at FROM entries WHERE date = ?1")
         .map_err(|e| e.to_string())?;
 
     let mut entries_iter = stmt
@@ -250,7 +312,8 @@ pub fn get_entry(date: String, state: State<'_, AppState>) -> Result<Option<Entr
                 date: row.get(1)?,
                 yesterday: row.get(2)?,
                 today: row.get(3)?,
-                created_at: row.get(4)?,
+                project_id: row.get(4)?,
+                created_at: row.get(5)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -267,18 +330,21 @@ pub fn save_entry(
     date: String,
     yesterday: String,
     today: String,
+    project_id: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let created_at = chrono::Utc::now().to_rfc3339();
+    let project_id = normalize_project_id(&conn, project_id)?;
 
     conn.execute(
-        "INSERT INTO entries (date, yesterday, today, created_at)
-         VALUES (?1, ?2, ?3, ?4)
+        "INSERT INTO entries (date, yesterday, today, project_id, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)
          ON CONFLICT(date) DO UPDATE SET
             yesterday = excluded.yesterday,
-            today = excluded.today",
-        params![date, yesterday, today, created_at],
+            today = excluded.today,
+            project_id = excluded.project_id",
+        params![date, yesterday, today, project_id, created_at],
     )
     .map_err(|e| e.to_string())?;
 
@@ -299,7 +365,7 @@ pub fn delete_entry(date: String, state: State<'_, AppState>) -> Result<(), Stri
 pub fn search_entries(query: String, state: State<'_, AppState>) -> Result<Vec<Entry>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let search_term = format!("%{}%", query);
-    let mut stmt = conn.prepare("SELECT id, date, yesterday, today, created_at FROM entries WHERE yesterday LIKE ?1 OR today LIKE ?1 ORDER BY date DESC").map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT id, date, yesterday, today, project_id, created_at FROM entries WHERE yesterday LIKE ?1 OR today LIKE ?1 ORDER BY date DESC").map_err(|e| e.to_string())?;
 
     let entries_iter = stmt
         .query_map(params![search_term], |row| {
@@ -308,7 +374,8 @@ pub fn search_entries(query: String, state: State<'_, AppState>) -> Result<Vec<E
                 date: row.get(1)?,
                 yesterday: row.get(2)?,
                 today: row.get(3)?,
-                created_at: row.get(4)?,
+                project_id: row.get(4)?,
+                created_at: row.get(5)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -454,7 +521,7 @@ pub fn delete_page(id: i64, state: State<'_, AppState>) -> Result<(), String> {
 #[tauri::command]
 pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let mut stmt = conn.prepare("SELECT id, title, description, status, priority, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT id, title, description, status, priority, project_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
 
     let tasks_iter = stmt
         .query_map([], |row| {
@@ -464,13 +531,14 @@ pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
                 description: row.get(2)?,
                 status: row.get(3)?,
                 priority: row.get(4)?,
-                due_date: row.get(5)?,
-                completed_at: row.get(6)?,
-                time_estimate_minutes: row.get(7)?,
-                timer_started_at: row.get(8)?,
-                timer_accumulated_seconds: row.get(9)?,
-                created_at: row.get(10)?,
-                updated_at: row.get(11)?,
+                project_id: row.get(5)?,
+                due_date: row.get(6)?,
+                completed_at: row.get(7)?,
+                time_estimate_minutes: row.get(8)?,
+                timer_started_at: row.get(9)?,
+                timer_accumulated_seconds: row.get(10)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -489,6 +557,7 @@ pub fn create_task(
     description: String,
     status: String,
     priority: Option<String>,
+    project_id: Option<i64>,
     due_date: Option<String>,
     time_estimate_minutes: Option<i64>,
     state: State<'_, AppState>,
@@ -503,16 +572,18 @@ pub fn create_task(
         None
     };
     let time_estimate_minutes = normalize_time_estimate_minutes(time_estimate_minutes);
+    let project_id = normalize_project_id(&conn, project_id)?;
     let timer_started_at: Option<String> = None;
     let timer_accumulated_seconds = 0_i64;
 
     conn.execute(
-        "INSERT INTO tasks (title, description, status, priority, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO tasks (title, description, status, priority, project_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             title,
             description,
             status,
             priority,
+            project_id,
             due_date,
             completed_at,
             time_estimate_minutes,
@@ -531,6 +602,7 @@ pub fn create_task(
         description,
         status,
         priority,
+        project_id,
         due_date,
         completed_at,
         time_estimate_minutes,
@@ -548,6 +620,7 @@ pub fn update_task(
     description: String,
     status: String,
     priority: Option<String>,
+    project_id: Option<i64>,
     due_date: Option<String>,
     time_estimate_minutes: Option<i64>,
     state: State<'_, AppState>,
@@ -556,6 +629,7 @@ pub fn update_task(
     let now = chrono::Utc::now().to_rfc3339();
     let status = normalize_status(status);
     let normalized_priority = normalize_priority(priority);
+    let normalized_project_id = normalize_project_id(&conn, project_id)?;
     let normalized_time_estimate_minutes = normalize_time_estimate_minutes(time_estimate_minutes);
     let mut timer_started_at: Option<String> = conn
         .query_row(
@@ -590,12 +664,13 @@ pub fn update_task(
     };
 
     conn.execute(
-        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, priority = ?4, due_date = ?5, completed_at = ?6, time_estimate_minutes = ?7, timer_started_at = ?8, timer_accumulated_seconds = ?9, updated_at = ?10 WHERE id = ?11",
+        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, priority = ?4, project_id = ?5, due_date = ?6, completed_at = ?7, time_estimate_minutes = ?8, timer_started_at = ?9, timer_accumulated_seconds = ?10, updated_at = ?11 WHERE id = ?12",
         params![
             title,
             description,
             status,
             normalized_priority,
+            normalized_project_id,
             due_date,
             completed_at,
             normalized_time_estimate_minutes,
@@ -759,11 +834,131 @@ pub fn delete_task(id: i64, state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn get_projects(state: State<'_, AppState>) -> Result<Vec<Project>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, name, description, color, status, created_at, updated_at
+             FROM projects
+             ORDER BY
+                CASE status
+                    WHEN 'active' THEN 0
+                    WHEN 'paused' THEN 1
+                    WHEN 'archived' THEN 2
+                    ELSE 3
+                END,
+                updated_at DESC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let projects_iter = stmt
+        .query_map([], |row| {
+            Ok(Project {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                color: row.get(3)?,
+                status: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut projects = Vec::new();
+    for project in projects_iter {
+        projects.push(project.map_err(|e| e.to_string())?);
+    }
+
+    Ok(projects)
+}
+
+#[tauri::command]
+pub fn create_project(
+    name: String,
+    description: String,
+    color: Option<String>,
+    status: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Project, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+    let name = normalize_project_name(name);
+    let color = normalize_project_color(color);
+    let status = normalize_project_status(status);
+    let description = description.trim().to_string();
+
+    conn.execute(
+        "INSERT INTO projects (name, description, color, status, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![name, description, color, status, now, now],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let id = conn.last_insert_rowid();
+
+    Ok(Project {
+        id,
+        name,
+        description,
+        color,
+        status,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub fn update_project(
+    id: i64,
+    name: String,
+    description: String,
+    color: Option<String>,
+    status: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+    let name = normalize_project_name(name);
+    let color = normalize_project_color(color);
+    let status = normalize_project_status(status);
+    let description = description.trim().to_string();
+
+    conn.execute(
+        "UPDATE projects
+         SET name = ?1, description = ?2, color = ?3, status = ?4, updated_at = ?5
+         WHERE id = ?6",
+        params![name, description, color, status, now, id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_project(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let mut conn = state.db.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    tx.execute("UPDATE entries SET project_id = NULL WHERE project_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    tx.execute("UPDATE tasks SET project_id = NULL WHERE project_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    tx.execute("UPDATE goals SET project_id = NULL WHERE project_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM projects WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_goals(state: State<'_, AppState>) -> Result<Vec<Goal>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(
-            "SELECT id, title, description, status, progress, target_date, created_at, updated_at
+            "SELECT id, title, description, status, progress, project_id, target_date, created_at, updated_at
              FROM goals
              ORDER BY
                 CASE status
@@ -787,9 +982,10 @@ pub fn get_goals(state: State<'_, AppState>) -> Result<Vec<Goal>, String> {
                 description: row.get(2)?,
                 status: row.get(3)?,
                 progress: row.get(4)?,
-                target_date: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
+                project_id: row.get(5)?,
+                target_date: row.get(6)?,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -808,6 +1004,7 @@ pub fn create_goal(
     description: String,
     status: Option<String>,
     progress: Option<i64>,
+    project_id: Option<i64>,
     target_date: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Goal, String> {
@@ -818,15 +1015,17 @@ pub fn create_goal(
     if normalized_status == "completed" {
         normalized_progress = 100;
     }
+    let project_id = normalize_project_id(&conn, project_id)?;
 
     conn.execute(
-        "INSERT INTO goals (title, description, status, progress, target_date, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO goals (title, description, status, progress, project_id, target_date, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             title,
             description,
             normalized_status,
             normalized_progress,
+            project_id,
             target_date,
             now,
             now
@@ -842,6 +1041,7 @@ pub fn create_goal(
         description,
         status: normalized_status,
         progress: normalized_progress,
+        project_id,
         target_date,
         created_at: now.clone(),
         updated_at: now,
@@ -855,6 +1055,7 @@ pub fn update_goal(
     description: String,
     status: Option<String>,
     progress: Option<i64>,
+    project_id: Option<i64>,
     target_date: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
@@ -865,16 +1066,18 @@ pub fn update_goal(
     if normalized_status == "completed" {
         normalized_progress = 100;
     }
+    let project_id = normalize_project_id(&conn, project_id)?;
 
     conn.execute(
         "UPDATE goals
-         SET title = ?1, description = ?2, status = ?3, progress = ?4, target_date = ?5, updated_at = ?6
-         WHERE id = ?7",
+         SET title = ?1, description = ?2, status = ?3, progress = ?4, project_id = ?5, target_date = ?6, updated_at = ?7
+         WHERE id = ?8",
         params![
             title,
             description,
             normalized_status,
             normalized_progress,
+            project_id,
             target_date,
             now,
             id
@@ -1083,6 +1286,8 @@ pub fn import_backup(
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM goals", [])
             .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM projects", [])
+            .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM habit_logs", [])
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM habits", [])
@@ -1093,16 +1298,18 @@ pub fn import_backup(
 
     for entry in payload.entries {
         tx.execute(
-            "INSERT INTO entries (date, yesterday, today, created_at)
-             VALUES (?1, ?2, ?3, ?4)
+            "INSERT INTO entries (date, yesterday, today, project_id, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)
              ON CONFLICT(date) DO UPDATE SET
                 yesterday = excluded.yesterday,
                 today = excluded.today,
+                project_id = excluded.project_id,
                 created_at = excluded.created_at",
             params![
                 entry.date,
                 entry.yesterday,
                 entry.today,
+                entry.project_id,
                 entry.created_at.unwrap_or_else(|| now.clone())
             ],
         )
@@ -1135,11 +1342,44 @@ pub fn import_backup(
         }
     }
 
+    for project in payload.projects {
+        let created_at = project.created_at.unwrap_or_else(|| now.clone());
+        let updated_at = project.updated_at.unwrap_or_else(|| created_at.clone());
+        let name = normalize_project_name(project.name);
+        let description = project.description.unwrap_or_default();
+        let color = normalize_project_color(project.color);
+        let status = normalize_project_status(project.status);
+
+        if let Some(id) = project.id {
+            tx.execute(
+                "INSERT INTO projects (id, name, description, color, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                 ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    description = excluded.description,
+                    color = excluded.color,
+                    status = excluded.status,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at",
+                params![id, name, description, color, status, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO projects (name, description, color, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![name, description, color, status, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
     for task in payload.tasks {
         let created_at = task.created_at.unwrap_or_else(|| now.clone());
         let updated_at = task.updated_at.unwrap_or_else(|| created_at.clone());
         let status = normalize_status(task.status);
         let priority = normalize_priority(task.priority);
+        let project_id = task.project_id;
         let due_date = task.due_date;
         let completed_at = task.completed_at;
         let time_estimate_minutes = normalize_time_estimate_minutes(task.time_estimate_minutes);
@@ -1156,13 +1396,14 @@ pub fn import_backup(
 
         if let Some(id) = task.id {
             tx.execute(
-                "INSERT INTO tasks (id, title, description, status, priority, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                "INSERT INTO tasks (id, title, description, status, priority, project_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
                  ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     description = excluded.description,
                     status = excluded.status,
                     priority = excluded.priority,
+                    project_id = excluded.project_id,
                     due_date = excluded.due_date,
                     completed_at = excluded.completed_at,
                     time_estimate_minutes = excluded.time_estimate_minutes,
@@ -1176,6 +1417,7 @@ pub fn import_backup(
                     task.description,
                     status,
                     priority,
+                    project_id,
                     due_date,
                     completed_at,
                     time_estimate_minutes,
@@ -1188,13 +1430,14 @@ pub fn import_backup(
             .map_err(|e| e.to_string())?;
         } else {
             tx.execute(
-                "INSERT INTO tasks (title, description, status, priority, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                "INSERT INTO tasks (title, description, status, priority, project_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 params![
                     task.title,
                     task.description,
                     status,
                     priority,
+                    project_id,
                     due_date,
                     completed_at,
                     time_estimate_minutes,
@@ -1217,27 +1460,29 @@ pub fn import_backup(
             progress = 100;
         }
         let description = goal.description.unwrap_or_default();
+        let project_id = goal.project_id;
 
         if let Some(id) = goal.id {
             tx.execute(
-                "INSERT INTO goals (id, title, description, status, progress, target_date, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                "INSERT INTO goals (id, title, description, status, progress, project_id, target_date, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
                  ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     description = excluded.description,
                     status = excluded.status,
                     progress = excluded.progress,
+                    project_id = excluded.project_id,
                     target_date = excluded.target_date,
                     created_at = excluded.created_at,
                     updated_at = excluded.updated_at",
-                params![id, goal.title, description, status, progress, goal.target_date, created_at, updated_at],
+                params![id, goal.title, description, status, progress, project_id, goal.target_date, created_at, updated_at],
             )
             .map_err(|e| e.to_string())?;
         } else {
             tx.execute(
-                "INSERT INTO goals (title, description, status, progress, target_date, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![goal.title, description, status, progress, goal.target_date, created_at, updated_at],
+                "INSERT INTO goals (title, description, status, progress, project_id, target_date, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![goal.title, description, status, progress, project_id, goal.target_date, created_at, updated_at],
             )
             .map_err(|e| e.to_string())?;
         }

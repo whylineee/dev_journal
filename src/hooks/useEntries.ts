@@ -28,8 +28,8 @@ export const useSaveEntry = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ date, yesterday, today }: { date: string, yesterday: string, today: string }) => {
-            return api.saveEntry(date, yesterday, today);
+        mutationFn: ({ date, yesterday, today, project_id }: { date: string, yesterday: string, today: string, project_id: number | null }) => {
+            return api.saveEntry(date, yesterday, today, project_id);
         },
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ["entries"] });
@@ -72,6 +72,7 @@ export const useImportBackup = () => {
             queryClient.invalidateQueries({ queryKey: ["tasks"] });
             queryClient.invalidateQueries({ queryKey: ["goals"] });
             queryClient.invalidateQueries({ queryKey: ["habits"] });
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
         },
     });
 };

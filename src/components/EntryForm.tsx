@@ -2,6 +2,7 @@ import { Box, TextField, Typography, Button, Paper, IconButton, Tooltip, Chip, D
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Markdown from "react-markdown";
 import { useDeleteEntry, useEntry, useSaveEntry } from "../hooks/useEntries";
+import { useProjects } from "../hooks/useProjects";
 import { format, parseISO } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { alpha, useTheme } from "@mui/material/styles";
@@ -36,6 +37,7 @@ const formatDraftTime = (value: string) => {
 export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormProps) => {
     const muiTheme = useTheme();
     const { data: entry, isLoading } = useEntry(date);
+    const { data: projects = [] } = useProjects();
     const saveMutation = useSaveEntry();
     const deleteMutation = useDeleteEntry();
     const { notify } = useAppNotifications();
@@ -46,6 +48,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
     const [hydrated, setHydrated] = useState(false);
     const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
     const [energyTag, setEnergyTag] = useState<EnergyTag | null>(null);
+    const [projectId, setProjectId] = useState<number | "">("");
 
     // Track which textarea was focused last
     const [lastFocused, setLastFocused] = useState<'yesterday' | 'today'>('yesterday');
@@ -74,6 +77,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
 
         setYesterday(nextYesterday);
         setToday(nextToday);
+        setProjectId(entry?.project_id ?? "");
         setDraftRestoredAt(restoredAt);
         setHydrated(true);
     }, [entry, date, draftKey]);
@@ -119,7 +123,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
 
     const handleSave = useCallback(() => {
         saveMutation.mutate(
-            { date, yesterday, today },
+            { date, yesterday, today, project_id: projectId === "" ? null : projectId },
             {
                 onSuccess: () => {
                     localStorage.removeItem(draftKey);
@@ -128,7 +132,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                 },
             }
         );
-    }, [date, draftKey, saveMutation, today, yesterday]);
+    }, [date, draftKey, projectId, saveMutation, today, yesterday]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -182,6 +186,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
         setDraftRestoredAt(null);
         setYesterday(entry?.yesterday ?? "");
         setToday(entry?.today ?? "");
+        setProjectId(entry?.project_id ?? "");
     };
 
     const handleEnergyTagToggle = (next: EnergyTag) => {
@@ -295,6 +300,28 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                             </IconButton>
                         </Tooltip>
                     </Paper>
+                </Box>
+
+                <Box sx={{ mb: 2, maxWidth: 360 }}>
+                    <TextField
+                        select
+                        size="small"
+                        label="Project"
+                        value={projectId === "" ? "" : String(projectId)}
+                        onChange={(event) => {
+                            const nextValue = event.target.value;
+                            setProjectId(nextValue === "" ? "" : Number(nextValue));
+                        }}
+                        fullWidth
+                        SelectProps={{ native: true }}
+                    >
+                        <option value="">{'No project'}</option>
+                        {projects.map((project) => (
+                            <option key={project.id} value={project.id}>
+                                {project.name}
+                            </option>
+                        ))}
+                    </TextField>
                 </Box>
 
                 <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>

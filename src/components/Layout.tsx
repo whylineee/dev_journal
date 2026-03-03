@@ -23,6 +23,7 @@ import { usePages } from "../hooks/usePages";
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits } from "../hooks/useHabits";
+import { useProjects } from "../hooks/useProjects";
 import { useI18n } from "../i18n/I18nContext";
 import { format, parseISO } from "date-fns";
 import SearchIcon from "@mui/icons-material/Search";
@@ -40,10 +41,11 @@ import InsightsIcon from "@mui/icons-material/Insights";
 import MenuIcon from "@mui/icons-material/Menu";
 import KeyboardCommandKeyIcon from "@mui/icons-material/KeyboardCommandKey";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
 const drawerWidth = 280;
 
-type LayoutTab = "planner" | "journal" | "page" | "tasks" | "goals" | "habits" | "insights" | "settings";
+type LayoutTab = "planner" | "journal" | "page" | "tasks" | "goals" | "habits" | "projects" | "insights" | "settings";
 
 interface LayoutProps {
   children: ReactNode;
@@ -76,6 +78,7 @@ export const Layout = ({
   const { data: tasks } = useTasks();
   const { data: goals } = useGoals();
   const { data: habits } = useHabits();
+  const { data: projects } = useProjects();
 
   const displayEntries = searchQuery ? searchResults : allEntries;
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -84,6 +87,7 @@ export const Layout = ({
   const activeGoalsCount = (goals ?? []).filter((goal) => goal.status === "active" || goal.status === "paused").length;
   const completedHabitsToday = (habits ?? []).filter((habit) => habit.completed_dates.includes(todayStr)).length;
   const totalHabits = habits?.length ?? 0;
+  const activeProjectsCount = (projects ?? []).filter((project) => project.status !== "archived").length;
 
   const activeTabLabel: Record<LayoutTab, string> = {
     planner: t("Planner"),
@@ -91,6 +95,7 @@ export const Layout = ({
     tasks: t("Tasks"),
     goals: t("Goals"),
     habits: t("Habits"),
+    projects: t("Projects"),
     insights: t("Insights"),
     page: t("Pages"),
     settings: t("Settings"),
@@ -283,6 +288,7 @@ export const Layout = ({
             <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
               <Chip size="small" variant="outlined" label={`${t("Tasks")}: ${openTasksCount}`} />
               <Chip size="small" variant="outlined" label={`${t("Goals")}: ${activeGoalsCount}`} />
+              <Chip size="small" variant="outlined" label={`${t("Projects")}: ${activeProjectsCount}`} />
               <Chip size="small" variant="outlined" label={`${t("Habits")}: ${completedHabitsToday}/${totalHabits}`} />
             </Box>
           </Box>
@@ -411,6 +417,21 @@ export const Layout = ({
                   secondaryTypographyProps={{ fontSize: "0.75rem" }}
                 />
                 <Chip label={`${completedHabitsToday}/${totalHabits}`} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton selected={activeTab === "projects"} onClick={() => {
+                onTabChange("projects");
+                closeMobileDrawer();
+              }} sx={navItemStyle(activeTab === "projects")}>
+                <FolderOpenIcon sx={{ mr: 2, fontSize: 20, opacity: 0.8 }} />
+                <ListItemText
+                  primary={t("Projects")}
+                  secondary={t("Cross-functional scope")}
+                  primaryTypographyProps={{ fontWeight: 600 }}
+                  secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                />
+                <Chip label={activeProjectsCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />
               </ListItemButton>
             </ListItem>
             <ListItem disablePadding>

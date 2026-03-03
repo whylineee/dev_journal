@@ -27,6 +27,7 @@ import { usePages } from "../hooks/usePages";
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits } from "../hooks/useHabits";
+import { useProjects } from "../hooks/useProjects";
 import { BackupPayload } from "../types";
 
 interface SettingsScreenProps {
@@ -74,6 +75,7 @@ export const SettingsScreen = ({
   const { data: tasks } = useTasks();
   const { data: goals } = useGoals();
   const { data: habits } = useHabits();
+  const { data: projects } = useProjects();
 
   const importBackupMutation = useImportBackup();
   const [replaceExistingOnImport, setReplaceExistingOnImport] = useState(true);
@@ -87,6 +89,7 @@ export const SettingsScreen = ({
       pages: pages ?? [],
       tasks: tasks ?? [],
       goals: goals ?? [],
+      projects: projects ?? [],
       habits: habits ?? [],
       habit_logs: (habits ?? []).flatMap((habit) =>
         habit.completed_dates.map((date) => ({

@@ -6,6 +6,7 @@ pub struct Entry {
     pub date: String,
     pub yesterday: String,
     pub today: String,
+    pub project_id: Option<i64>,
     pub created_at: String,
 }
 
@@ -25,6 +26,7 @@ pub struct Task {
     pub description: String,
     pub status: String,
     pub priority: String,
+    pub project_id: Option<i64>,
     pub due_date: Option<String>,
     pub completed_at: Option<String>,
     pub time_estimate_minutes: i64,
@@ -41,7 +43,19 @@ pub struct Goal {
     pub description: String,
     pub status: String,
     pub progress: i64,
+    pub project_id: Option<i64>,
     pub target_date: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Project {
+    pub id: i64,
+    pub name: String,
+    pub description: String,
+    pub color: String,
+    pub status: String,
     pub created_at: String,
     pub updated_at: String,
 }

@@ -20,12 +20,14 @@ export const useCreateGoal = () => {
       description,
       status,
       progress,
+      project_id,
       target_date,
     }: {
       title: string;
       description: string;
       status: GoalStatus;
       progress: number;
+      project_id: number | null;
       target_date: string | null;
     }) => {
       return await invoke<Goal>("create_goal", {
@@ -33,6 +35,7 @@ export const useCreateGoal = () => {
         description,
         status,
         progress,
+        projectId: project_id,
         targetDate: target_date,
       });
     },
@@ -52,6 +55,7 @@ export const useUpdateGoal = () => {
       description,
       status,
       progress,
+      project_id,
       target_date,
     }: {
       id: number;
@@ -59,6 +63,7 @@ export const useUpdateGoal = () => {
       description: string;
       status: GoalStatus;
       progress: number;
+      project_id: number | null;
       target_date: string | null;
     }) => {
       await invoke("update_goal", {
@@ -67,6 +72,7 @@ export const useUpdateGoal = () => {
         description,
         status,
         progress,
+        projectId: project_id,
         targetDate: target_date,
       });
     },

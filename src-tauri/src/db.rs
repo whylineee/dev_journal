@@ -167,6 +167,45 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v6: project hub domain + project links for entries/tasks/goals.
+    apply_migration(conn, 6, |conn| {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL DEFAULT '',
+                color TEXT NOT NULL DEFAULT '#60a5fa',
+                status TEXT NOT NULL DEFAULT 'active',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )?;
+
+        ensure_column(conn, "entries", "project_id", "INTEGER")?;
+        ensure_column(conn, "tasks", "project_id", "INTEGER")?;
+        ensure_column(conn, "goals", "project_id", "INTEGER")?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_projects_status_updated_at ON projects(status, updated_at DESC)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_entries_project_id ON entries(project_id)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_goals_project_id ON goals(project_id)",
+            [],
+        )?;
+
+        Ok(())
+    })?;
+
     Ok(())
 }
 

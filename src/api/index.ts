@@ -10,8 +10,8 @@ export const api = {
         return await invoke("get_entry", { date });
     },
 
-    saveEntry: async (date: string, yesterday: string, today: string): Promise<void> => {
-        return await invoke("save_entry", { date, yesterday, today });
+    saveEntry: async (date: string, yesterday: string, today: string, projectId?: number | null): Promise<void> => {
+        return await invoke("save_entry", { date, yesterday, today, projectId });
     },
 
     deleteEntry: async (date: string): Promise<void> => {

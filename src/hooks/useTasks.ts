@@ -33,6 +33,7 @@ export const useCreateTask = () => {
       description,
       status,
       priority,
+      project_id,
       due_date,
       time_estimate_minutes,
     }: {
@@ -40,6 +41,7 @@ export const useCreateTask = () => {
       description: string;
       status: TaskStatus;
       priority: TaskPriority;
+      project_id: number | null;
       due_date: string | null;
       time_estimate_minutes: number;
     }) => {
@@ -48,6 +50,7 @@ export const useCreateTask = () => {
         description,
         status,
         priority,
+        projectId: project_id,
         dueDate: due_date,
         timeEstimateMinutes: time_estimate_minutes,
       });
@@ -69,6 +72,7 @@ export const useUpdateTask = () => {
       description,
       status,
       priority,
+      project_id,
       due_date,
       time_estimate_minutes,
     }: {
@@ -77,6 +81,7 @@ export const useUpdateTask = () => {
       description: string;
       status: TaskStatus;
       priority: TaskPriority;
+      project_id: number | null;
       due_date: string | null;
       time_estimate_minutes: number;
     }) => {
@@ -86,6 +91,7 @@ export const useUpdateTask = () => {
         description,
         status,
         priority,
+        projectId: project_id,
         dueDate: due_date,
         timeEstimateMinutes: time_estimate_minutes,
       });

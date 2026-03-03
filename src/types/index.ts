@@ -3,6 +3,7 @@ export interface Entry {
     date: string;
     yesterday: string;
     today: string;
+    project_id: number | null;
     created_at: string;
 }
 
@@ -24,6 +25,7 @@ export interface Task {
     description: string;
     status: TaskStatus;
     priority: TaskPriority;
+    project_id: number | null;
     due_date: string | null;
     completed_at: string | null;
     time_estimate_minutes: number;
@@ -39,7 +41,20 @@ export interface Goal {
     description: string;
     status: GoalStatus;
     progress: number;
+    project_id: number | null;
     target_date: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export type ProjectStatus = "active" | "paused" | "archived";
+
+export interface Project {
+    id: number;
+    name: string;
+    description: string;
+    color: string;
+    status: ProjectStatus;
     created_at: string;
     updated_at: string;
 }
@@ -65,6 +80,7 @@ export interface BackupPayload {
         date: string;
         yesterday: string;
         today: string;
+        project_id?: number | null;
         created_at?: string;
     }>;
     pages?: Array<{
@@ -80,6 +96,7 @@ export interface BackupPayload {
         description: string;
         status: string;
         priority?: TaskPriority;
+        project_id?: number | null;
         due_date?: string | null;
         completed_at?: string | null;
         time_estimate_minutes?: number;
@@ -94,7 +111,17 @@ export interface BackupPayload {
         description?: string;
         status?: GoalStatus;
         progress?: number;
+        project_id?: number | null;
         target_date?: string | null;
+        created_at?: string;
+        updated_at?: string;
+    }>;
+    projects?: Array<{
+        id?: number;
+        name: string;
+        description?: string;
+        color?: string;
+        status?: ProjectStatus;
         created_at?: string;
         updated_at?: string;
     }>;

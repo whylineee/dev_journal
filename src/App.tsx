@@ -7,6 +7,7 @@ import { Stats } from "./components/Stats";
 import { TasksBoard } from "./components/TasksBoard";
 import { GoalsBoard } from "./components/GoalsBoard";
 import { HabitsBoard } from "./components/HabitsBoard";
+import { ProjectsBoard } from "./components/ProjectsBoard";
 import { PlannerBoard } from "./components/PlannerBoard";
 import { WeeklySummary } from "./components/WeeklySummary";
 import { CommandAction, CommandPalette } from "./components/CommandPalette";
@@ -18,6 +19,7 @@ import { useEntries } from "./hooks/useEntries";
 import { usePages } from "./hooks/usePages";
 import { useGoals } from "./hooks/useGoals";
 import { useHabits } from "./hooks/useHabits";
+import { useProjects } from "./hooks/useProjects";
 import { useThemeContext } from "./theme/ThemeContext";
 import { useI18n } from "./i18n/I18nContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
@@ -26,7 +28,7 @@ import { useAppNotifications } from "./notifications/AppNotifications";
 const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'insights' | 'settings'>('planner');
+  const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'projects' | 'insights' | 'settings'>('planner');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState<boolean>(() => {
@@ -51,6 +53,7 @@ function App() {
   const { data: pages } = usePages();
   const { data: goals } = useGoals();
   const { data: habits } = useHabits();
+  const { data: projects } = useProjects();
   const { appearanceMode, setAppearanceMode } = useThemeContext();
   const { language, setLanguage, t } = useI18n();
   const { notify } = useAppNotifications();
@@ -275,6 +278,16 @@ function App() {
         },
       },
       {
+        id: "open-projects",
+        title: t("Open Projects"),
+        subtitle: t("Manage cross-cutting project scopes"),
+        section: t("Quick Actions"),
+        keywords: ["projects", "hub", "portfolio"],
+        onSelect: () => {
+          setActiveTab("projects");
+        },
+      },
+      {
         id: "open-insights",
         title: t("Open Insights"),
         subtitle: t("Decision logs, incidents and retros"),
@@ -383,8 +396,21 @@ function App() {
       });
     });
 
+    (projects ?? []).slice(0, 10).forEach((project) => {
+      actions.push({
+        id: `project-${project.id}`,
+        title: t("Open Project: {title}", { title: project.name || "Untitled" }),
+        subtitle: t("Project hub detail and linked work"),
+        section: t("Projects"),
+        keywords: ["project", "hub", project.name ?? ""],
+        onSelect: () => {
+          setActiveTab("projects");
+        },
+      });
+    });
+
     return actions;
-  }, [appearanceMode, entries, goals, habits, language, pages, setAppearanceMode, setLanguage, t]);
+  }, [appearanceMode, entries, goals, habits, language, pages, projects, setAppearanceMode, setLanguage, t]);
 
   return (
     <>
@@ -423,6 +449,7 @@ function App() {
               onOpenTasks={() => setActiveTab("tasks")}
               onOpenGoals={() => setActiveTab("goals")}
               onOpenHabits={() => setActiveTab("habits")}
+              onOpenProjects={() => setActiveTab("projects")}
             />
           ) : activeTab === 'tasks' ? (
             <TasksBoard />
@@ -430,6 +457,8 @@ function App() {
             <GoalsBoard />
           ) : activeTab === 'habits' ? (
             <HabitsBoard />
+          ) : activeTab === 'projects' ? (
+            <ProjectsBoard />
           ) : activeTab === 'insights' ? (
             <InsightsBoard />
           ) : activeTab === 'settings' ? (

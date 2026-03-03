@@ -22,6 +22,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { format, isBefore, parseISO, startOfDay } from "date-fns";
 import { Goal, GoalStatus } from "../types";
 import { useCreateGoal, useDeleteGoal, useGoals, useUpdateGoal } from "../hooks/useGoals";
+import { useProjects } from "../hooks/useProjects";
 import { useI18n } from "../i18n/I18nContext";
 
 const statusLabel: Record<GoalStatus, string> = {
@@ -90,18 +91,21 @@ const normalizeProgress = (value: number) => Math.max(0, Math.min(100, Math.roun
 export const GoalsBoard = () => {
   const { t } = useI18n();
   const { data: goals = [], isLoading } = useGoals();
+  const { data: projects = [] } = useProjects();
   const createGoal = useCreateGoal();
   const updateGoal = useUpdateGoal();
   const deleteGoal = useDeleteGoal();
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | GoalStatus>("all");
+  const [projectFilter, setProjectFilter] = useState<"all" | number>("all");
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<GoalStatus>("active");
   const [progress, setProgress] = useState(0);
+  const [projectId, setProjectId] = useState<number | "">("");
   const [targetDate, setTargetDate] = useState("");
 
   const busy = createGoal.isPending || updateGoal.isPending || deleteGoal.isPending;
@@ -113,12 +117,22 @@ export const GoalsBoard = () => {
     return { total: goals.length, completed, active, overdue };
   }, [goals]);
 
+  const projectNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    projects.forEach((project) => map.set(project.id, project.name));
+    return map;
+  }, [projects]);
+
   const filteredGoals = useMemo(() => {
     const q = query.trim().toLowerCase();
 
     return goals
       .filter((goal) => {
         if (statusFilter !== "all" && goal.status !== statusFilter) {
+          return false;
+        }
+
+        if (projectFilter !== "all" && goal.project_id !== projectFilter) {
           return false;
         }
 
@@ -132,7 +146,7 @@ export const GoalsBoard = () => {
         );
       })
       .sort(compareGoals);
-  }, [goals, query, statusFilter]);
+  }, [goals, query, statusFilter, projectFilter]);
 
   const openCreateDialog = () => {
     setEditingGoal(null);
@@ -140,6 +154,7 @@ export const GoalsBoard = () => {
     setDescription("");
     setStatus("active");
     setProgress(0);
+    setProjectId("");
     setTargetDate("");
     setDialogOpen(true);
   };
@@ -150,6 +165,7 @@ export const GoalsBoard = () => {
     setDescription(goal.description);
     setStatus(goal.status);
     setProgress(goal.progress);
+    setProjectId(goal.project_id ?? "");
     setTargetDate(goal.target_date ?? "");
     setDialogOpen(true);
   };
@@ -170,6 +186,7 @@ export const GoalsBoard = () => {
         description: description.trim(),
         status: normalizedStatus,
         progress: normalizedProgress,
+        project_id: projectId === "" ? null : projectId,
         target_date: targetDate || null,
       });
     } else {
@@ -178,6 +195,7 @@ export const GoalsBoard = () => {
         description: description.trim(),
         status: normalizedStatus,
         progress: normalizedProgress,
+        project_id: projectId === "" ? null : projectId,
         target_date: targetDate || null,
       });
     }
@@ -196,6 +214,7 @@ export const GoalsBoard = () => {
       description: goal.description,
       status: nextStatus,
       progress: normalizeProgress(nextProgress),
+      project_id: goal.project_id,
       target_date: goal.target_date,
     });
   };
@@ -264,6 +283,25 @@ export const GoalsBoard = () => {
             <option value="completed">Completed</option>
             <option value="archived">Archived</option>
           </TextField>
+
+          <TextField
+            select
+            label={t("Project")}
+            value={projectFilter === "all" ? "all" : String(projectFilter)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setProjectFilter(value === "all" ? "all" : Number(value));
+            }}
+            sx={{ minWidth: 180 }}
+            SelectProps={{ native: true }}
+          >
+            <option value="all">{t("All projects")}</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </TextField>
         </Stack>
       </Paper>
 
@@ -287,6 +325,14 @@ export const GoalsBoard = () => {
                       {goal.title}
                     </Typography>
                     <Chip size="small" label={statusLabel[goal.status]} color={statusColor[goal.status]} variant="outlined" />
+                    {goal.project_id ? (
+                      <Chip
+                        size="small"
+                        label={projectNameById.get(goal.project_id) ?? `#${goal.project_id}`}
+                        color="info"
+                        variant="outlined"
+                      />
+                    ) : null}
                     {goal.target_date ? (
                       <Chip
                         size="small"
@@ -446,6 +492,25 @@ export const GoalsBoard = () => {
                 fullWidth
               />
             </Stack>
+
+            <TextField
+              select
+              label="Project"
+              value={projectId === "" ? "" : String(projectId)}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setProjectId(nextValue === "" ? "" : Number(nextValue));
+              }}
+              SelectProps={{ native: true }}
+              fullWidth
+            >
+              <option value="">No project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </TextField>
 
             <TextField
               type="date"
