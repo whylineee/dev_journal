@@ -39,8 +39,7 @@ import RepeatIcon from "@mui/icons-material/Repeat";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import InsightsIcon from "@mui/icons-material/Insights";
 import MenuIcon from "@mui/icons-material/Menu";
-import KeyboardCommandKeyIcon from "@mui/icons-material/KeyboardCommandKey";
-import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
 const drawerWidth = 280;
@@ -112,11 +111,11 @@ export const Layout = ({
     },
     ...(isSelected
       ? {
-          backgroundColor: alpha(muiTheme.palette.primary.main, 0.16),
-          "&:hover": {
-            backgroundColor: alpha(muiTheme.palette.primary.main, 0.22),
-          },
-        }
+        backgroundColor: alpha(muiTheme.palette.primary.main, 0.16),
+        "&:hover": {
+          backgroundColor: alpha(muiTheme.palette.primary.main, 0.22),
+        },
+      }
       : {}),
   });
 
@@ -142,7 +141,7 @@ export const Layout = ({
               <MenuIcon />
             </IconButton>
           ) : null}
-          <EditNoteIcon sx={{ mr: 2, color: "primary.main", fontSize: 28 }} />
+          <EditNoteIcon sx={{ mr: 1.5, color: "primary.main", fontSize: 26 }} />
           <Typography
             variant="h6"
             noWrap
@@ -152,34 +151,11 @@ export const Layout = ({
               fontWeight: 700,
               letterSpacing: "-0.02em",
               color: "text.primary",
-              fontSize: { xs: "1rem", sm: "1.1rem" },
+              fontSize: { xs: "1rem", sm: "1.05rem" },
             }}
           >
             {t("Dev Journal")}
           </Typography>
-
-          <Chip
-            size="small"
-            label={t("View: {tab}", { tab: activeTabLabel[activeTab] })}
-            variant="outlined"
-            sx={{ mr: { xs: 0.5, sm: 1.5 }, display: { xs: "none", sm: "inline-flex" } }}
-          />
-
-          <Chip
-            size="small"
-            icon={<CalendarTodayIcon sx={{ fontSize: 12 }} />}
-            label={format(new Date(), "MMM d")}
-            variant="outlined"
-            sx={{ mr: 1, display: { xs: "none", lg: "inline-flex" } }}
-          />
-
-          <Chip
-            size="small"
-            icon={<KeyboardCommandKeyIcon sx={{ fontSize: 14 }} />}
-            label={t("Ctrl/Cmd + K")}
-            variant="outlined"
-            sx={{ mr: 1.5, display: { xs: "none", md: "inline-flex" } }}
-          />
 
           <TextField
             select
@@ -188,7 +164,7 @@ export const Layout = ({
             onChange={(event) => setLanguage(event.target.value === "uk" ? "uk" : "en")}
             sx={{
               mr: 1,
-              minWidth: 86,
+              minWidth: 76,
               display: { xs: "none", sm: "inline-flex" },
               "& .MuiOutlinedInput-root": { bgcolor: "transparent" },
             }}
@@ -206,9 +182,9 @@ export const Layout = ({
               "&:hover": {
                 backgroundColor: alpha(muiTheme.palette.text.primary, 0.08),
               },
-              ml: { xs: 0.5, sm: 2 },
+              ml: { xs: 0.5, sm: 1 },
               width: { xs: "100%", sm: "100%" },
-              maxWidth: { xs: 140, sm: 320 },
+              maxWidth: { xs: 140, sm: 280 },
               border: "1px solid",
               borderColor: "divider",
             }}
@@ -217,7 +193,7 @@ export const Layout = ({
               <SearchIcon sx={{ color: "text.secondary", fontSize: 20 }} />
             </Box>
             <InputBase
-              placeholder={isMobile ? t("Search...") : t("Search journal entries...")}
+              placeholder={isMobile ? t("Search...") : t("Search entries...")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               sx={{
@@ -228,7 +204,7 @@ export const Layout = ({
                   paddingLeft: "36px",
                   transition: "width 0.2s",
                   width: "100%",
-                  fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                  fontSize: { xs: "0.85rem", sm: "0.9rem" },
                   "&::placeholder": {
                     color: muiTheme.palette.text.secondary,
                     opacity: 1,
@@ -267,33 +243,8 @@ export const Layout = ({
         }}
       >
         <Toolbar />
-        <Box sx={{ overflow: "auto", py: 2 }}>
-          <Box
-            sx={{
-              mx: 2,
-              mb: 2,
-              p: 1.5,
-              borderRadius: 2.5,
-              border: "1px solid",
-              borderColor: "divider",
-              bgcolor: alpha(muiTheme.palette.primary.main, 0.06),
-            }}
-          >
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.25 }}>
-              {format(new Date(), "EEEE, MMM d")}
-            </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              {t("View: {tab}", { tab: activeTabLabel[activeTab] })}
-            </Typography>
-            <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-              <Chip size="small" variant="outlined" label={`${t("Tasks")}: ${openTasksCount}`} />
-              <Chip size="small" variant="outlined" label={`${t("Goals")}: ${activeGoalsCount}`} />
-              <Chip size="small" variant="outlined" label={`${t("Projects")}: ${activeProjectsCount}`} />
-              <Chip size="small" variant="outlined" label={`${t("Habits")}: ${completedHabitsToday}/${totalHabits}`} />
-            </Box>
-          </Box>
-
-          <Typography variant="overline" sx={{ px: 3, mb: 1, display: "block", color: "text.secondary", letterSpacing: "0.1em" }}>
+        <Box sx={{ overflow: "auto", py: 1.5 }}>
+          <Typography variant="overline" sx={{ px: 3, mb: 0.5, display: "block", color: "text.secondary", letterSpacing: "0.1em", fontSize: "0.65rem" }}>
             {t("Overview")}
           </Typography>
           <List disablePadding>

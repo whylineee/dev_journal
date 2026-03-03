@@ -442,10 +442,6 @@ function App() {
             </>
           ) : activeTab === 'planner' ? (
             <PlannerBoard
-              onOpenJournalToday={() => {
-                setActiveTab("journal");
-                setSelectedDate(format(new Date(), "yyyy-MM-dd"));
-              }}
               onOpenTasks={() => setActiveTab("tasks")}
               onOpenGoals={() => setActiveTab("goals")}
               onOpenHabits={() => setActiveTab("habits")}

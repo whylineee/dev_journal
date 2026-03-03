@@ -6,16 +6,11 @@ import {
   Chip,
   Collapse,
   IconButton,
-  Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import TodayIcon from "@mui/icons-material/Today";
-import ChecklistIcon from "@mui/icons-material/Checklist";
-import FlagIcon from "@mui/icons-material/Flag";
-import RepeatIcon from "@mui/icons-material/Repeat";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import AddTaskIcon from "@mui/icons-material/AddTask";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -46,7 +41,6 @@ type PlannerSectionKey =
   | "dailyWins";
 
 interface PlannerBoardProps {
-  onOpenJournalToday: () => void;
   onOpenTasks: () => void;
   onOpenGoals: () => void;
   onOpenHabits: () => void;
@@ -54,7 +48,6 @@ interface PlannerBoardProps {
 }
 
 export const PlannerBoard = ({
-  onOpenJournalToday,
   onOpenTasks,
   onOpenGoals,
   onOpenHabits,
@@ -107,10 +100,7 @@ export const PlannerBoard = ({
     }
   });
 
-  const todayEntryExists = useMemo(
-    () => entries.some((entry) => entry.date === today),
-    [entries, today]
-  );
+
 
   const overdueTasks = useMemo(
     () => tasks.filter((task) => isTaskOverdue(task)).slice(0, 6),
@@ -171,11 +161,11 @@ export const PlannerBoard = ({
 
   const dailyWins = dailyWinsMap[today] ?? [];
   const plannerCardSx = {
-    p: { xs: 2, sm: 2.5 },
+    p: { xs: 2.5, sm: 3 },
+    borderRadius: 3,
     border: "1px solid",
     borderColor: "divider",
-    bgcolor: alpha(muiTheme.palette.background.paper, 0.88),
-    backdropFilter: "blur(4px)",
+    bgcolor: alpha(muiTheme.palette.background.paper, 0.7),
   };
 
   const handleQuickAddTask = () => {
@@ -246,10 +236,7 @@ export const PlannerBoard = ({
       onClick={() => toggleSection(section)}
       aria-label={isSectionCollapsed(section) ? t("Expand section") : t("Collapse section")}
       title={isSectionCollapsed(section) ? t("Expand section") : t("Collapse section")}
-      sx={{
-        border: "1px solid",
-        borderColor: "divider",
-      }}
+      sx={{ opacity: 0.5, "&:hover": { opacity: 1 } }}
     >
       {isSectionCollapsed(section) ? <ExpandMoreIcon fontSize="small" /> : <ExpandLessIcon fontSize="small" />}
     </IconButton>
@@ -284,277 +271,168 @@ export const PlannerBoard = ({
   }, [focusRunning, notify]);
 
   return (
-    <Box sx={{ maxWidth: 1360, mx: "auto", mt: { xs: 1.5, md: 2 }, pb: 2 }}>
-      <Paper
+    <Box sx={{ maxWidth: 1200, mx: "auto", mt: { xs: 1, md: 1.5 }, pb: 4 }}>
+      {/* ── Header ── */}
+      <Box sx={{ mb: { xs: 3, md: 4 } }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+          {t("Planner")}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {t("Daily command center for journal, tasks, goals, and habits.")}
+        </Typography>
+      </Box>
+
+      {/* ── Quick Capture (compact, inline) ── */}
+      <Box
         sx={{
-          p: { xs: 2.25, md: 3.25 },
+          mb: { xs: 3, md: 4 },
+          p: { xs: 2, md: 2.5 },
+          borderRadius: 3,
           border: "1px solid",
-          borderColor: "divider",
-          background: `linear-gradient(145deg, ${alpha(
-            muiTheme.palette.primary.main,
-            0.08
-          )} 0%, ${alpha(muiTheme.palette.background.paper, 0.9)} 70%)`,
-          boxShadow: `0 18px 34px ${alpha(muiTheme.palette.common.black, 0.12)}`,
+          borderColor: alpha(muiTheme.palette.primary.main, 0.18),
+          bgcolor: alpha(muiTheme.palette.background.paper, 0.7),
         }}
       >
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={{ xs: 2, md: 3 }}
-          justifyContent="space-between"
-          alignItems={{ xs: "stretch", md: "center" }}
-        >
-          <Box sx={{ maxWidth: 600 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {t("Planner")}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t("Daily command center for journal, tasks, goals, and habits.")}
-            </Typography>
-          </Box>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+          {t("Quick Capture")}
+        </Typography>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "flex-start" }}>
+          <TextField
+            fullWidth
+            size="small"
+            value={quickTaskTitle}
+            onChange={(event) => setQuickTaskTitle(event.target.value)}
+            placeholder={t("Quick task title")}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                handleQuickAddTask();
+              }
+            }}
+            sx={{ flex: 2 }}
+          />
+          <TextField
+            select
+            size="small"
+            value={quickProjectId === "" ? "" : String(quickProjectId)}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setQuickProjectId(nextValue === "" ? "" : Number(nextValue));
+            }}
+            SelectProps={{ native: true }}
+            sx={{ minWidth: 160, flex: 0.8 }}
+          >
+            <option value="">{t("No project")}</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </TextField>
+          <Stack direction="row" spacing={0.5}>
+            {(["today", "tomorrow", "none"] as const).map((mode) => (
+              <Chip
+                key={mode}
+                label={mode === "today" ? t("Today") : mode === "tomorrow" ? t("Tomorrow") : t("No date")}
+                size="small"
+                color={quickDueMode === mode ? "primary" : "default"}
+                variant={quickDueMode === mode ? "filled" : "outlined"}
+                onClick={() => setQuickDueMode(mode)}
+                sx={{ cursor: "pointer" }}
+              />
+            ))}
+          </Stack>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddTaskIcon />}
+            disabled={busy || quickTaskTitle.trim().length === 0}
+            onClick={handleQuickAddTask}
+            sx={{ minWidth: 120, whiteSpace: "nowrap" }}
+          >
+            {t("Add Task")}
+          </Button>
+        </Stack>
+        {quickTaskFeedback ? (
+          <Typography variant="caption" color="success.main" sx={{ display: "block", mt: 1 }}>
+            {quickTaskFeedback}
+          </Typography>
+        ) : null}
+      </Box>
 
+      {/* ── Project Hub (only if projects exist) ── */}
+      {projectHubItems.length > 0 && (
+        <Box sx={{ mb: { xs: 3, md: 4 } }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {t("Project Hub")}
+            </Typography>
+            <Button size="small" onClick={onOpenProjects} sx={{ textTransform: "none" }}>
+              {t("View All")} ({projects.length})
+            </Button>
+          </Stack>
           <Box
             sx={{
               display: "grid",
-              width: { xs: "100%", md: 720 },
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" },
-              gap: 1.25,
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" },
+              gap: 2,
             }}
           >
-            <Button
-              variant="outlined"
-              onClick={onOpenJournalToday}
-              startIcon={<TodayIcon />}
-              sx={{ justifyContent: "flex-start", py: 1.1 }}
-            >
-              {t("Journal Today")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={onOpenTasks}
-              startIcon={<ChecklistIcon />}
-              sx={{ justifyContent: "flex-start", py: 1.1 }}
-            >
-              {t("Open Tasks")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={onOpenGoals}
-              startIcon={<FlagIcon />}
-              sx={{ justifyContent: "flex-start", py: 1.1 }}
-            >
-              {t("Open Goals")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={onOpenHabits}
-              startIcon={<RepeatIcon />}
-              sx={{ justifyContent: "flex-start", py: 1.1 }}
-            >
-              {t("Open Habits")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={onOpenProjects}
-              startIcon={<FolderOpenIcon />}
-              sx={{ justifyContent: "flex-start", py: 1.1 }}
-            >
-              {t("Open Projects")}
-            </Button>
-          </Box>
-        </Stack>
-
-        <Stack direction="row" spacing={1} sx={{ mt: 2.5, flexWrap: "wrap", rowGap: 1, columnGap: 1 }}>
-          <Chip
-            label={`${t("Journal")}: ${todayEntryExists ? t("Done") : t("Missing")}`}
-            color={todayEntryExists ? "success" : "warning"}
-            variant="outlined"
-            size="small"
-          />
-          <Chip label={`${t("Due today")}: ${dueTodayTasks.length}`} color="info" variant="outlined" size="small" />
-          <Chip label={`${t("Due tomorrow")}: ${dueTomorrowTasks.length}`} color="secondary" variant="outlined" size="small" />
-          <Chip label={`${t("Overdue")}: ${overdueTasks.length}`} color={overdueTasks.length > 0 ? "error" : "default"} variant="outlined" size="small" />
-          <Chip label={`${t("Goals in 14d")}: ${nearGoals.length}`} color="secondary" variant="outlined" size="small" />
-          <Chip
-            label={`${t("Habits done today")}: ${habitsWithTodayState.filter((habit) => habit.doneToday).length}/${habitsWithTodayState.length}`}
-            color="primary"
-            variant="outlined"
-            size="small"
-          />
-        </Stack>
-
-        <Paper
-          variant="outlined"
-          sx={{
-            mt: 2.5,
-            p: { xs: 1.5, md: 2 },
-            borderColor: alpha(muiTheme.palette.primary.main, 0.24),
-            bgcolor: alpha(muiTheme.palette.background.default, 0.32),
-          }}
-        >
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              {t("Project Hub")}
-            </Typography>
-            <Chip size="small" variant="outlined" label={`${t("Projects")}: ${projects.length}`} />
-          </Stack>
-
-          {projectHubItems.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              {t("No projects yet. Create one from Projects to structure your work.")}
-            </Typography>
-          ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))" },
-                gap: 1,
-              }}
-            >
-              {projectHubItems.map((project) => (
-                <Paper
-                  key={project.id}
-                  variant="outlined"
-                  sx={{
-                    p: 1.25,
-                    borderColor: alpha(project.color || muiTheme.palette.primary.main, 0.48),
-                  }}
-                >
-                  <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.75 }}>
-                    {project.name}
-                  </Typography>
-                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", gap: 0.75 }}>
-                    <Chip size="small" label={`${t("Open Tasks")}: ${project.openTasks}`} color={project.openTasks > 0 ? "warning" : "default"} variant="outlined" />
-                    <Chip size="small" label={`${t("Done")}: ${project.doneTasks}`} color="success" variant="outlined" />
-                    <Chip size="small" label={`${t("Goals")}: ${project.projectGoals}`} variant="outlined" />
-                    <Chip size="small" label={`${t("Journal")}: ${project.projectEntries}`} variant="outlined" />
-                  </Stack>
-                </Paper>
-              ))}
-            </Box>
-          )}
-        </Paper>
-
-        <Paper
-          variant="outlined"
-          sx={{
-            mt: 2.5,
-            p: { xs: 2, md: 2.5 },
-            borderStyle: "dashed",
-            borderColor: alpha(muiTheme.palette.primary.main, 0.32),
-            bgcolor: alpha(muiTheme.palette.background.default, 0.55),
-          }}
-        >
-          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-            {t("Quick Capture")}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.75 }}>
-            {t("Capture a task without leaving the planner.")}
-          </Typography>
-          <Stack spacing={1.5}>
-            <TextField
-              fullWidth
-              size="medium"
-              value={quickTaskTitle}
-              onChange={(event) => setQuickTaskTitle(event.target.value)}
-              placeholder={t("Quick task title")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  handleQuickAddTask();
-                }
-              }}
-            />
-            <TextField
-              select
-              size="small"
-              label={t("Project")}
-              value={quickProjectId === "" ? "" : String(quickProjectId)}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setQuickProjectId(nextValue === "" ? "" : Number(nextValue));
-              }}
-              SelectProps={{ native: true }}
-              sx={{ maxWidth: { xs: "100%", md: 360 } }}
-            >
-              <option value="">{t("No project")}</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </TextField>
-            <Stack direction={{ xs: "column", lg: "row" }} spacing={1.25}>
+            {projectHubItems.map((project) => (
               <Box
+                key={project.id}
                 sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
-                  gap: 1.25,
-                  flex: 1,
+                  p: 2,
+                  borderRadius: 2.5,
+                  border: "1px solid",
+                  borderColor: alpha(project.color || muiTheme.palette.divider, 0.4),
+                  borderLeft: `3px solid ${project.color || muiTheme.palette.primary.main}`,
+                  bgcolor: alpha(muiTheme.palette.background.paper, 0.6),
                 }}
               >
-                <Button
-                  fullWidth
-                  variant={quickDueMode === "today" ? "contained" : "outlined"}
-                  color={quickDueMode === "today" ? "primary" : "inherit"}
-                  onClick={() => setQuickDueMode("today")}
-                  sx={{ py: 1 }}
-                >
-                  {t("Due today")}
-                </Button>
-                <Button
-                  fullWidth
-                  variant={quickDueMode === "tomorrow" ? "contained" : "outlined"}
-                  color={quickDueMode === "tomorrow" ? "secondary" : "inherit"}
-                  onClick={() => setQuickDueMode("tomorrow")}
-                  sx={{ py: 1 }}
-                >
-                  {t("Due tomorrow")}
-                </Button>
-                <Button
-                  fullWidth
-                  variant={quickDueMode === "none" ? "contained" : "outlined"}
-                  color="inherit"
-                  onClick={() => setQuickDueMode("none")}
-                  sx={{ py: 1 }}
-                >
-                  {t("No due date")}
-                </Button>
+                <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+                  {project.name}
+                </Typography>
+                <Stack direction="row" spacing={1.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    {t("Open Tasks")}: {project.openTasks}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {t("Done")}: {project.doneTasks}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {t("Goals")}: {project.projectGoals}
+                  </Typography>
+                </Stack>
               </Box>
-              <Button
-                variant="contained"
-                startIcon={<AddTaskIcon />}
-                disabled={busy || quickTaskTitle.trim().length === 0}
-                onClick={handleQuickAddTask}
-                sx={{ minWidth: { lg: 176 }, py: 1.1 }}
-              >
-                {t("Add Task")}
-              </Button>
-            </Stack>
-          </Stack>
-          {quickTaskFeedback ? (
-            <Typography variant="caption" color="success.main" sx={{ display: "block", mt: 1 }}>
-              {quickTaskFeedback}
-            </Typography>
-          ) : null}
-        </Paper>
-      </Paper>
+            ))}
+          </Box>
+        </Box>
+      )}
 
-      <Stack direction={{ xs: "column", lg: "row" }} spacing={2.5} sx={{ mt: 2.5 }}>
-        <Paper sx={{ ...plannerCardSx, flex: 1 }}>
+      {/* ── Dashboard Grid ── */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
+          gap: { xs: 2.5, md: 3 },
+        }}
+      >
+        {/* Tasks Due Today */}
+        <Box sx={{ ...plannerCardSx }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("Tasks Due Today")}
             </Typography>
-            <Stack direction="row" spacing={0.75} alignItems="center">
-              <Button size="small" onClick={onOpenTasks} endIcon={<OpenInNewIcon fontSize="small" />}>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Button size="small" onClick={onOpenTasks} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
                 {t("View All")}
               </Button>
               {renderSectionToggle("tasksToday")}
             </Stack>
           </Stack>
-
           <Collapse in={!isSectionCollapsed("tasksToday")} timeout="auto" unmountOnExit>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+            <Stack spacing={1} sx={{ mt: 2 }}>
               {dueTodayTasks.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                   {t("No tasks due today.")}
@@ -582,7 +460,7 @@ export const PlannerBoard = ({
                         {task.title}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {t("Priority: {priority}", { priority: task.priority })}
+                        {task.priority}
                       </Typography>
                     </Box>
                   </Stack>
@@ -590,23 +468,23 @@ export const PlannerBoard = ({
               )}
             </Stack>
           </Collapse>
-        </Paper>
+        </Box>
 
-        <Paper sx={{ ...plannerCardSx, flex: 1 }}>
+        {/* Overdue Tasks */}
+        <Box sx={{ ...plannerCardSx }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("Overdue Tasks")}
             </Typography>
-            <Stack direction="row" spacing={0.75} alignItems="center">
-              <Button size="small" onClick={onOpenTasks} endIcon={<OpenInNewIcon fontSize="small" />}>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Button size="small" onClick={onOpenTasks} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
                 {t("Resolve")}
               </Button>
               {renderSectionToggle("overdueTasks")}
             </Stack>
           </Stack>
-
           <Collapse in={!isSectionCollapsed("overdueTasks")} timeout="auto" unmountOnExit>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+            <Stack spacing={1} sx={{ mt: 2 }}>
               {overdueTasks.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                   {t("No overdue tasks.")}
@@ -623,25 +501,23 @@ export const PlannerBoard = ({
               )}
             </Stack>
           </Collapse>
-        </Paper>
-      </Stack>
+        </Box>
 
-      <Stack direction={{ xs: "column", lg: "row" }} spacing={2.5} sx={{ mt: 2.5 }}>
-        <Paper sx={{ ...plannerCardSx, flex: 1 }}>
+        {/* Goals Near Deadline */}
+        <Box sx={{ ...plannerCardSx }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("Goals Near Deadline")}
             </Typography>
-            <Stack direction="row" spacing={0.75} alignItems="center">
-              <Button size="small" onClick={onOpenGoals} endIcon={<OpenInNewIcon fontSize="small" />}>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Button size="small" onClick={onOpenGoals} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
                 {t("Manage")}
               </Button>
               {renderSectionToggle("goalsNearDeadline")}
             </Stack>
           </Stack>
-
           <Collapse in={!isSectionCollapsed("goalsNearDeadline")} timeout="auto" unmountOnExit>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+            <Stack spacing={1} sx={{ mt: 2 }}>
               {nearGoals.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                   {t("No active goals with deadlines in next 14 days.")}
@@ -654,7 +530,7 @@ export const PlannerBoard = ({
                         {goal.title}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Progress: {goal.progress}%
+                        {goal.progress}%
                       </Typography>
                     </Box>
                     <Chip label={goal.target_date ?? t("No date")} variant="outlined" size="small" />
@@ -663,23 +539,23 @@ export const PlannerBoard = ({
               )}
             </Stack>
           </Collapse>
-        </Paper>
+        </Box>
 
-        <Paper sx={{ ...plannerCardSx, flex: 1 }}>
+        {/* Habits Today */}
+        <Box sx={{ ...plannerCardSx }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("Habits Today")}
             </Typography>
-            <Stack direction="row" spacing={0.75} alignItems="center">
-              <Button size="small" onClick={onOpenHabits} endIcon={<OpenInNewIcon fontSize="small" />}>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Button size="small" onClick={onOpenHabits} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
                 {t("Track")}
               </Button>
               {renderSectionToggle("habitsToday")}
             </Stack>
           </Stack>
-
           <Collapse in={!isSectionCollapsed("habitsToday")} timeout="auto" unmountOnExit>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+            <Stack spacing={1} sx={{ mt: 2 }}>
               {habitsWithTodayState.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                   {t("No habits configured yet.")}
@@ -704,7 +580,7 @@ export const PlannerBoard = ({
                         {habit.title}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Weekly: {habit.this_week_count}/{habit.target_per_week} | Streak: {habit.current_streak}d
+                        {habit.this_week_count}/{habit.target_per_week} weekly · {habit.current_streak}d streak
                       </Typography>
                     </Box>
                   </Stack>
@@ -712,21 +588,24 @@ export const PlannerBoard = ({
               )}
             </Stack>
           </Collapse>
-        </Paper>
-      </Stack>
+        </Box>
+      </Box>
 
-      <Paper sx={{ ...plannerCardSx, mt: 2.5 }}>
+      {/* ── Tomorrow Plan ── */}
+      <Box sx={{ ...plannerCardSx, mt: { xs: 2.5, md: 3 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {t("Tomorrow Plan")}
           </Typography>
-          <Stack direction="row" spacing={0.75} alignItems="center">
-            <Chip size="small" color="secondary" variant="outlined" label={`${dueTomorrowTasks.length} ${t("Tasks")}`} />
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Typography variant="caption" color="text.secondary">
+              {dueTomorrowTasks.length} {t("Tasks")}
+            </Typography>
             {renderSectionToggle("tomorrowPlan")}
           </Stack>
         </Stack>
         <Collapse in={!isSectionCollapsed("tomorrowPlan")} timeout="auto" unmountOnExit>
-          <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+          <Stack spacing={1} sx={{ mt: 2 }}>
             {dueTomorrowTasks.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 {t("No tasks planned for tomorrow yet.")}
@@ -743,86 +622,93 @@ export const PlannerBoard = ({
             )}
           </Stack>
         </Collapse>
-      </Paper>
+      </Box>
 
-      <Paper sx={{ ...plannerCardSx, mt: 2.5 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {t("Focus Session")}
-          </Typography>
-          {renderSectionToggle("focusSession")}
-        </Stack>
-        <Collapse in={!isSectionCollapsed("focusSession")} timeout="auto" unmountOnExit>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, mt: 1.5 }}>
-            {t("Run a focused 25-minute sprint directly from planner.")}
-          </Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "center" }}>
-            <Chip size="medium" color={focusRunning ? "warning" : "default"} label={formatFocusTime(focusSecondsLeft)} />
-            <Button variant={focusRunning ? "outlined" : "contained"} onClick={() => setFocusRunning((prev) => !prev)}>
-              {focusRunning ? t("Pause") : t("Start Focus")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                setFocusRunning(false);
-                setFocusSecondsLeft(25 * 60);
-              }}
-            >
-              {t("Reset")}
-            </Button>
+      {/* ── Focus & Wins side-by-side ── */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
+          gap: { xs: 2.5, md: 3 },
+          mt: { xs: 2.5, md: 3 },
+        }}
+      >
+        {/* Focus Session */}
+        <Box sx={{ ...plannerCardSx }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {t("Focus Session")}
+            </Typography>
+            {renderSectionToggle("focusSession")}
           </Stack>
-        </Collapse>
-      </Paper>
+          <Collapse in={!isSectionCollapsed("focusSession")} timeout="auto" unmountOnExit>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 2 }}>
+              <Chip size="medium" color={focusRunning ? "warning" : "default"} label={formatFocusTime(focusSecondsLeft)} />
+              <Button size="small" variant={focusRunning ? "outlined" : "contained"} onClick={() => setFocusRunning((prev) => !prev)}>
+                {focusRunning ? t("Pause") : t("Start Focus")}
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => {
+                  setFocusRunning(false);
+                  setFocusSecondsLeft(25 * 60);
+                }}
+              >
+                {t("Reset")}
+              </Button>
+            </Stack>
+          </Collapse>
+        </Box>
 
-      <Paper sx={{ ...plannerCardSx, mt: 2.5 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {t("Daily Wins")}
-          </Typography>
-          {renderSectionToggle("dailyWins")}
-        </Stack>
-        <Collapse in={!isSectionCollapsed("dailyWins")} timeout="auto" unmountOnExit>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, mt: 1.5 }}>
-            {t("Log small wins to keep momentum visible and measurable.")}
-          </Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
-            <TextField
-              fullWidth
-              size="small"
-              value={dailyWinsInput}
-              onChange={(event) => setDailyWinsInput(event.target.value)}
-              placeholder={t("Example: shipped onboarding empty-state fix")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  handleAddDailyWin();
-                }
-              }}
-            />
-            <Button variant="contained" onClick={handleAddDailyWin} disabled={dailyWinsInput.trim().length === 0}>
-              {t("Add win")}
-            </Button>
+        {/* Daily Wins */}
+        <Box sx={{ ...plannerCardSx }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {t("Daily Wins")}
+            </Typography>
+            {renderSectionToggle("dailyWins")}
           </Stack>
-          <Stack spacing={0.9} sx={{ mt: 1.5 }}>
-            {dailyWins.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                {t("No wins logged yet today.")}
-              </Typography>
-            ) : (
-              dailyWins.map((item, index) => (
-                <Stack key={`${item}-${index}`} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                  <Typography variant="body2" sx={{ minWidth: 0 }}>
-                    • {item}
-                  </Typography>
-                  <Button size="small" color="error" onClick={() => handleRemoveDailyWin(index)}>
-                    {t("Delete")}
-                  </Button>
-                </Stack>
-              ))
-            )}
-          </Stack>
-        </Collapse>
-      </Paper>
+          <Collapse in={!isSectionCollapsed("dailyWins")} timeout="auto" unmountOnExit>
+            <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+              <TextField
+                fullWidth
+                size="small"
+                value={dailyWinsInput}
+                onChange={(event) => setDailyWinsInput(event.target.value)}
+                placeholder={t("Example: shipped onboarding empty-state fix")}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleAddDailyWin();
+                  }
+                }}
+              />
+              <Button variant="contained" size="small" onClick={handleAddDailyWin} disabled={dailyWinsInput.trim().length === 0}>
+                {t("Add win")}
+              </Button>
+            </Stack>
+            <Stack spacing={0.75} sx={{ mt: 1.5 }}>
+              {dailyWins.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  {t("No wins logged yet today.")}
+                </Typography>
+              ) : (
+                dailyWins.map((item, index) => (
+                  <Stack key={`${item}-${index}`} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                    <Typography variant="body2" sx={{ minWidth: 0 }}>
+                      • {item}
+                    </Typography>
+                    <Button size="small" color="error" onClick={() => handleRemoveDailyWin(index)}>
+                      {t("Delete")}
+                    </Button>
+                  </Stack>
+                ))
+              )}
+            </Stack>
+          </Collapse>
+        </Box>
+      </Box>
     </Box>
   );
 };
