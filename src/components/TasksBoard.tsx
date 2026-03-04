@@ -606,7 +606,7 @@ export const TasksBoard = () => {
                       borderColor: overdue ? "error.main" : "divider",
                     }}
                   >
-                    <Stack direction="row" justifyContent="space-between" spacing={1}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Stack direction="row" spacing={0.5} alignItems="center">
                           <Checkbox
