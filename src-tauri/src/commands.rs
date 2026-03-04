@@ -1,4 +1,6 @@
-use crate::models::{Entry, Goal, Habit, HabitWithLogs, Page, Project, Task};
+use crate::models::{
+    Entry, Goal, Habit, HabitWithLogs, Page, Project, ProjectBranch, Task, TaskSubtask,
+};
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use rusqlite::Connection;
 use rusqlite::{params, OptionalExtension};
@@ -22,9 +24,13 @@ pub struct BackupPayload {
     #[serde(default)]
     pub tasks: Vec<BackupTaskInput>,
     #[serde(default)]
+    pub task_subtasks: Vec<BackupTaskSubtaskInput>,
+    #[serde(default)]
     pub goals: Vec<BackupGoalInput>,
     #[serde(default)]
     pub projects: Vec<BackupProjectInput>,
+    #[serde(default)]
+    pub project_branches: Vec<BackupProjectBranchInput>,
     #[serde(default)]
     pub habits: Vec<BackupHabitInput>,
     #[serde(default)]
@@ -67,6 +73,17 @@ pub struct BackupTaskInput {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct BackupTaskSubtaskInput {
+    pub id: Option<i64>,
+    pub task_id: i64,
+    pub title: String,
+    pub completed: Option<bool>,
+    pub position: Option<i64>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct BackupGoalInput {
     pub id: Option<i64>,
     pub title: String,
@@ -85,6 +102,17 @@ pub struct BackupProjectInput {
     pub name: String,
     pub description: Option<String>,
     pub color: Option<String>,
+    pub status: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BackupProjectBranchInput {
+    pub id: Option<i64>,
+    pub project_id: i64,
+    pub name: String,
+    pub description: Option<String>,
     pub status: Option<String>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
@@ -158,10 +186,26 @@ fn normalize_goal_status(status: Option<String>) -> String {
 
 fn normalize_project_status(status: Option<String>) -> String {
     match status.as_deref() {
-        Some("active") | Some("paused") | Some("archived") => {
+        Some("active") | Some("paused") | Some("completed") | Some("archived") => {
             status.unwrap_or_else(|| "active".to_string())
         }
         _ => "active".to_string(),
+    }
+}
+
+fn normalize_project_branch_status(status: Option<String>) -> String {
+    match status.as_deref() {
+        Some("open") | Some("merged") => status.unwrap_or_else(|| "open".to_string()),
+        _ => "open".to_string(),
+    }
+}
+
+fn normalize_project_branch_name(name: String) -> String {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        "main".to_string()
+    } else {
+        trimmed.to_string()
     }
 }
 
@@ -201,6 +245,13 @@ fn normalize_project_id(conn: &Connection, project_id: Option<i64>) -> Result<Op
     if exists { Ok(Some(project_id)) } else { Ok(None) }
 }
 
+fn normalize_required_project_id(conn: &Connection, project_id: i64) -> Result<i64, String> {
+    match normalize_project_id(conn, Some(project_id))? {
+        Some(id) => Ok(id),
+        None => Err("Project not found".to_string()),
+    }
+}
+
 fn normalize_progress(progress: Option<i64>) -> i64 {
     progress.unwrap_or(0).clamp(0, 100)
 }
@@ -225,6 +276,35 @@ fn normalize_habit_date(date: String) -> String {
     }
 
     Utc::now().format("%Y-%m-%d").to_string()
+}
+
+fn normalize_subtask_title(title: String) -> String {
+    let trimmed = title.trim();
+    if trimmed.is_empty() {
+        "Untitled subtask".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn task_exists(conn: &Connection, task_id: i64) -> Result<bool, String> {
+    conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM tasks WHERE id = ?1)",
+        params![task_id],
+        |row| row.get::<_, i64>(0),
+    )
+    .map(|value| value == 1)
+    .map_err(|e| e.to_string())
+}
+
+fn touch_task_updated_at(conn: &Connection, task_id: i64, now: &str) -> Result<(), String> {
+    conn.execute(
+        "UPDATE tasks SET updated_at = ?1 WHERE id = ?2",
+        params![now, task_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 fn compute_current_streak(completed_dates: &[String]) -> i64 {
@@ -834,6 +914,182 @@ pub fn delete_task(id: i64, state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn get_task_subtasks(
+    task_id: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<Vec<TaskSubtask>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+
+    let mut subtasks = Vec::new();
+    if let Some(task_id) = task_id {
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, task_id, title, completed, position, created_at, updated_at
+                 FROM task_subtasks
+                 WHERE task_id = ?1
+                 ORDER BY position ASC, id ASC",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let subtasks_iter = stmt
+            .query_map(params![task_id], |row| {
+                let completed: i64 = row.get(3)?;
+                Ok(TaskSubtask {
+                    id: row.get(0)?,
+                    task_id: row.get(1)?,
+                    title: row.get(2)?,
+                    completed: completed == 1,
+                    position: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+
+        for subtask in subtasks_iter {
+            subtasks.push(subtask.map_err(|e| e.to_string())?);
+        }
+    } else {
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, task_id, title, completed, position, created_at, updated_at
+                 FROM task_subtasks
+                 ORDER BY task_id ASC, position ASC, id ASC",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let subtasks_iter = stmt
+            .query_map([], |row| {
+                let completed: i64 = row.get(3)?;
+                Ok(TaskSubtask {
+                    id: row.get(0)?,
+                    task_id: row.get(1)?,
+                    title: row.get(2)?,
+                    completed: completed == 1,
+                    position: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+
+        for subtask in subtasks_iter {
+            subtasks.push(subtask.map_err(|e| e.to_string())?);
+        }
+    }
+
+    Ok(subtasks)
+}
+
+#[tauri::command]
+pub fn create_task_subtask(
+    task_id: i64,
+    title: String,
+    state: State<'_, AppState>,
+) -> Result<TaskSubtask, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    if !task_exists(&conn, task_id)? {
+        return Err("Task not found".to_string());
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let normalized_title = normalize_subtask_title(title);
+    let position: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(position), -1) + 1 FROM task_subtasks WHERE task_id = ?1",
+            params![task_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT INTO task_subtasks (task_id, title, completed, position, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![task_id, &normalized_title, 0_i64, position, &now, &now],
+    )
+    .map_err(|e| e.to_string())?;
+    let id = conn.last_insert_rowid();
+
+    touch_task_updated_at(&conn, task_id, &now)?;
+
+    Ok(TaskSubtask {
+        id,
+        task_id,
+        title: normalized_title,
+        completed: false,
+        position,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub fn update_task_subtask(
+    id: i64,
+    title: Option<String>,
+    completed: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let existing_subtask: Option<(i64, String, i64)> = conn
+        .query_row(
+            "SELECT task_id, title, completed FROM task_subtasks WHERE id = ?1",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let Some((task_id, current_title, current_completed)) = existing_subtask else {
+        return Ok(());
+    };
+
+    let next_title = title
+        .map(normalize_subtask_title)
+        .unwrap_or_else(|| normalize_subtask_title(current_title));
+    let next_completed = completed.unwrap_or(current_completed == 1);
+    let now = chrono::Utc::now().to_rfc3339();
+
+    conn.execute(
+        "UPDATE task_subtasks SET title = ?1, completed = ?2, updated_at = ?3 WHERE id = ?4",
+        params![
+            next_title,
+            if next_completed { 1_i64 } else { 0_i64 },
+            &now,
+            id
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    touch_task_updated_at(&conn, task_id, &now)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_task_subtask(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let task_id: Option<i64> = conn
+        .query_row(
+            "SELECT task_id FROM task_subtasks WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    conn.execute("DELETE FROM task_subtasks WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+
+    if let Some(task_id) = task_id {
+        let now = chrono::Utc::now().to_rfc3339();
+        touch_task_updated_at(&conn, task_id, &now)?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_projects(state: State<'_, AppState>) -> Result<Vec<Project>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
@@ -844,8 +1100,9 @@ pub fn get_projects(state: State<'_, AppState>) -> Result<Vec<Project>, String> 
                 CASE status
                     WHEN 'active' THEN 0
                     WHEN 'paused' THEN 1
-                    WHEN 'archived' THEN 2
-                    ELSE 3
+                    WHEN 'completed' THEN 2
+                    WHEN 'archived' THEN 3
+                    ELSE 4
                 END,
                 updated_at DESC",
         )
@@ -946,10 +1203,197 @@ pub fn delete_project(id: i64, state: State<'_, AppState>) -> Result<(), String>
         .map_err(|e| e.to_string())?;
     tx.execute("UPDATE goals SET project_id = NULL WHERE project_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM project_branches WHERE project_id = ?1",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
     tx.execute("DELETE FROM projects WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
 
     tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_project_branches(
+    project_id: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<Vec<ProjectBranch>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut branches = Vec::new();
+
+    if let Some(project_id) = project_id {
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, name, description, status, created_at, updated_at
+                 FROM project_branches
+                 WHERE project_id = ?1
+                 ORDER BY
+                    CASE status
+                        WHEN 'open' THEN 0
+                        WHEN 'merged' THEN 1
+                        ELSE 2
+                    END,
+                    updated_at DESC",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let iter = stmt
+            .query_map(params![project_id], |row| {
+                Ok(ProjectBranch {
+                    id: row.get(0)?,
+                    project_id: row.get(1)?,
+                    name: row.get(2)?,
+                    description: row.get(3)?,
+                    status: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+
+        for branch in iter {
+            branches.push(branch.map_err(|e| e.to_string())?);
+        }
+    } else {
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, name, description, status, created_at, updated_at
+                 FROM project_branches
+                 ORDER BY project_id ASC, updated_at DESC",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let iter = stmt
+            .query_map([], |row| {
+                Ok(ProjectBranch {
+                    id: row.get(0)?,
+                    project_id: row.get(1)?,
+                    name: row.get(2)?,
+                    description: row.get(3)?,
+                    status: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+
+        for branch in iter {
+            branches.push(branch.map_err(|e| e.to_string())?);
+        }
+    }
+
+    Ok(branches)
+}
+
+#[tauri::command]
+pub fn create_project_branch(
+    project_id: i64,
+    name: String,
+    description: String,
+    status: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<ProjectBranch, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = Utc::now().to_rfc3339();
+    let project_id = normalize_required_project_id(&conn, project_id)?;
+    let name = normalize_project_branch_name(name);
+    let description = description.trim().to_string();
+    let status = normalize_project_branch_status(status);
+
+    conn.execute(
+        "INSERT INTO project_branches (project_id, name, description, status, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![project_id, name, description, status, now, now],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let id = conn.last_insert_rowid();
+
+    conn.execute(
+        "UPDATE projects SET updated_at = ?1 WHERE id = ?2",
+        params![now, project_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(ProjectBranch {
+        id,
+        project_id,
+        name,
+        description,
+        status,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub fn update_project_branch(
+    id: i64,
+    name: String,
+    description: String,
+    status: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = Utc::now().to_rfc3339();
+    let name = normalize_project_branch_name(name);
+    let description = description.trim().to_string();
+    let status = normalize_project_branch_status(status);
+
+    conn.execute(
+        "UPDATE project_branches
+         SET name = ?1, description = ?2, status = ?3, updated_at = ?4
+         WHERE id = ?5",
+        params![name, description, status, now, id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let project_id: Option<i64> = conn
+        .query_row(
+            "SELECT project_id FROM project_branches WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    if let Some(project_id) = project_id {
+        conn.execute(
+            "UPDATE projects SET updated_at = ?1 WHERE id = ?2",
+            params![now, project_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_project_branch(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = Utc::now().to_rfc3339();
+    let project_id: Option<i64> = conn
+        .query_row(
+            "SELECT project_id FROM project_branches WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    conn.execute("DELETE FROM project_branches WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+
+    if let Some(project_id) = project_id {
+        conn.execute(
+            "UPDATE projects SET updated_at = ?1 WHERE id = ?2",
+            params![now, project_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
     Ok(())
 }
 
@@ -1282,9 +1726,13 @@ pub fn import_backup(
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM pages", [])
             .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM task_subtasks", [])
+            .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM tasks", [])
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM goals", [])
+            .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM project_branches", [])
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM projects", [])
             .map_err(|e| e.to_string())?;
@@ -1374,6 +1822,40 @@ pub fn import_backup(
         }
     }
 
+    for branch in payload.project_branches {
+        let created_at = branch.created_at.unwrap_or_else(|| now.clone());
+        let updated_at = branch.updated_at.unwrap_or_else(|| created_at.clone());
+        let Some(project_id) = normalize_project_id(&tx, Some(branch.project_id))? else {
+            continue;
+        };
+        let name = normalize_project_branch_name(branch.name);
+        let description = branch.description.unwrap_or_default();
+        let status = normalize_project_branch_status(branch.status);
+
+        if let Some(id) = branch.id {
+            tx.execute(
+                "INSERT INTO project_branches (id, project_id, name, description, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                 ON CONFLICT(id) DO UPDATE SET
+                    project_id = excluded.project_id,
+                    name = excluded.name,
+                    description = excluded.description,
+                    status = excluded.status,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at",
+                params![id, project_id, name, description, status, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO project_branches (project_id, name, description, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![project_id, name, description, status, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
     for task in payload.tasks {
         let created_at = task.created_at.unwrap_or_else(|| now.clone());
         let updated_at = task.updated_at.unwrap_or_else(|| created_at.clone());
@@ -1443,6 +1925,68 @@ pub fn import_backup(
                     time_estimate_minutes,
                     timer_started_at,
                     timer_accumulated_seconds,
+                    created_at,
+                    updated_at
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    for subtask in payload.task_subtasks {
+        let task_exists = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM tasks WHERE id = ?1)",
+                params![subtask.task_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|e| e.to_string())?
+            == 1;
+        if !task_exists {
+            continue;
+        }
+
+        let created_at = subtask.created_at.unwrap_or_else(|| now.clone());
+        let updated_at = subtask.updated_at.unwrap_or_else(|| created_at.clone());
+        let title = normalize_subtask_title(subtask.title);
+        let completed = if subtask.completed.unwrap_or(false) {
+            1_i64
+        } else {
+            0_i64
+        };
+        let position = subtask.position.unwrap_or(0).max(0);
+
+        if let Some(id) = subtask.id {
+            tx.execute(
+                "INSERT INTO task_subtasks (id, task_id, title, completed, position, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                 ON CONFLICT(id) DO UPDATE SET
+                    task_id = excluded.task_id,
+                    title = excluded.title,
+                    completed = excluded.completed,
+                    position = excluded.position,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at",
+                params![
+                    id,
+                    subtask.task_id,
+                    title,
+                    completed,
+                    position,
+                    created_at,
+                    updated_at
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO task_subtasks (task_id, title, completed, position, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    subtask.task_id,
+                    title,
+                    completed,
+                    position,
                     created_at,
                     updated_at
                 ],

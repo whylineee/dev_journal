@@ -24,10 +24,11 @@ import {
 import { useI18n } from "../i18n/I18nContext";
 import { useEntries, useImportBackup } from "../hooks/useEntries";
 import { usePages } from "../hooks/usePages";
-import { useTasks } from "../hooks/useTasks";
+import { useTaskSubtasks, useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits } from "../hooks/useHabits";
 import { useProjects } from "../hooks/useProjects";
+import { useProjectBranches } from "../hooks/useProjectBranches";
 import { BackupPayload } from "../types";
 
 interface SettingsScreenProps {
@@ -73,9 +74,11 @@ export const SettingsScreen = ({
   const { data: allEntries } = useEntries();
   const { data: pages } = usePages();
   const { data: tasks } = useTasks();
+  const { data: taskSubtasks } = useTaskSubtasks(null);
   const { data: goals } = useGoals();
   const { data: habits } = useHabits();
   const { data: projects } = useProjects();
+  const { data: projectBranches } = useProjectBranches(null);
 
   const importBackupMutation = useImportBackup();
   const [replaceExistingOnImport, setReplaceExistingOnImport] = useState(true);
@@ -88,8 +91,10 @@ export const SettingsScreen = ({
       entries: allEntries ?? [],
       pages: pages ?? [],
       tasks: tasks ?? [],
+      task_subtasks: taskSubtasks ?? [],
       goals: goals ?? [],
       projects: projects ?? [],
+      project_branches: projectBranches ?? [],
       habits: habits ?? [],
       habit_logs: (habits ?? []).flatMap((habit) =>
         habit.completed_dates.map((date) => ({

@@ -1,12 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
-import { Task, TaskPriority, TaskStatus } from "../types";
+import { Task, TaskPriority, TaskStatus, TaskSubtask } from "../types";
 
 const TASKS_QUERY_KEY = ["tasks"] as const;
+const TASK_SUBTASKS_QUERY_KEY = ["task-subtasks"] as const;
 
 const useInvalidateTasks = () => {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY });
+  return () => {
+    queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: TASK_SUBTASKS_QUERY_KEY });
+  };
 };
 
 /**
@@ -165,6 +169,76 @@ export const useDeleteTask = () => {
   return useMutation({
     mutationFn: async (id: number) => {
       await invoke("delete_task", { id });
+    },
+    onSuccess: invalidateTasks,
+  });
+};
+
+/**
+ * Loads subtasks for one task (or all tasks when `taskId` is null).
+ */
+export const useTaskSubtasks = (taskId: number | null, enabled = true) => {
+  return useQuery({
+    queryKey: [...TASK_SUBTASKS_QUERY_KEY, taskId ?? "all"],
+    queryFn: async () => {
+      return await invoke<TaskSubtask[]>("get_task_subtasks", { taskId });
+    },
+    enabled,
+  });
+};
+
+/**
+ * Creates a new subtask for the specified task.
+ */
+export const useCreateTaskSubtask = () => {
+  const invalidateTasks = useInvalidateTasks();
+
+  return useMutation({
+    mutationFn: async ({ task_id, title }: { task_id: number; title: string }) => {
+      return await invoke<TaskSubtask>("create_task_subtask", {
+        taskId: task_id,
+        title,
+      });
+    },
+    onSuccess: invalidateTasks,
+  });
+};
+
+/**
+ * Updates title/completion state for a subtask.
+ */
+export const useUpdateTaskSubtask = () => {
+  const invalidateTasks = useInvalidateTasks();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      title,
+      completed,
+    }: {
+      id: number;
+      title?: string;
+      completed?: boolean;
+    }) => {
+      await invoke("update_task_subtask", {
+        id,
+        title: title ?? null,
+        completed: completed ?? null,
+      });
+    },
+    onSuccess: invalidateTasks,
+  });
+};
+
+/**
+ * Deletes a subtask by id.
+ */
+export const useDeleteTaskSubtask = () => {
+  const invalidateTasks = useInvalidateTasks();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await invoke("delete_task_subtask", { id });
     },
     onSuccess: invalidateTasks,
   });

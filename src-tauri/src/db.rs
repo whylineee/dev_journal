@@ -206,6 +206,55 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v7: branches per project workspace.
+    apply_migration(conn, 7, |conn| {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS project_branches (
+                id INTEGER PRIMARY KEY,
+                project_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_project_branches_project_status_updated_at
+             ON project_branches(project_id, status, updated_at DESC)",
+            [],
+        )?;
+
+        Ok(())
+    })?;
+
+    // v8: subtasks for task cards.
+    apply_migration(conn, 8, |conn| {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS task_subtasks (
+                id INTEGER PRIMARY KEY,
+                task_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                position INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_task_subtasks_task_position ON task_subtasks(task_id, position, id)",
+            [],
+        )?;
+
+        Ok(())
+    })?;
+
     Ok(())
 }
 

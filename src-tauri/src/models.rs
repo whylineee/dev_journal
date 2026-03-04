@@ -37,6 +37,17 @@ pub struct Task {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct TaskSubtask {
+    pub id: i64,
+    pub task_id: i64,
+    pub title: String,
+    pub completed: bool,
+    pub position: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Goal {
     pub id: i64,
     pub title: String,
@@ -55,6 +66,17 @@ pub struct Project {
     pub name: String,
     pub description: String,
     pub color: String,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectBranch {
+    pub id: i64,
+    pub project_id: i64,
+    pub name: String,
+    pub description: String,
     pub status: String,
     pub created_at: String,
     pub updated_at: String,

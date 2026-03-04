@@ -35,6 +35,16 @@ export interface Task {
     updated_at: string;
 }
 
+export interface TaskSubtask {
+    id: number;
+    task_id: number;
+    title: string;
+    completed: boolean;
+    position: number;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Goal {
     id: number;
     title: string;
@@ -47,7 +57,8 @@ export interface Goal {
     updated_at: string;
 }
 
-export type ProjectStatus = "active" | "paused" | "archived";
+export type ProjectStatus = "active" | "paused" | "completed" | "archived";
+export type ProjectBranchStatus = "open" | "merged";
 
 export interface Project {
     id: number;
@@ -55,6 +66,16 @@ export interface Project {
     description: string;
     color: string;
     status: ProjectStatus;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ProjectBranch {
+    id: number;
+    project_id: number;
+    name: string;
+    description: string;
+    status: ProjectBranchStatus;
     created_at: string;
     updated_at: string;
 }
@@ -105,6 +126,15 @@ export interface BackupPayload {
         created_at?: string;
         updated_at?: string;
     }>;
+    task_subtasks?: Array<{
+        id?: number;
+        task_id: number;
+        title: string;
+        completed?: boolean;
+        position?: number;
+        created_at?: string;
+        updated_at?: string;
+    }>;
     goals?: Array<{
         id?: number;
         title: string;
@@ -122,6 +152,15 @@ export interface BackupPayload {
         description?: string;
         color?: string;
         status?: ProjectStatus;
+        created_at?: string;
+        updated_at?: string;
+    }>;
+    project_branches?: Array<{
+        id?: number;
+        project_id: number;
+        name: string;
+        description?: string;
+        status?: ProjectBranchStatus;
         created_at?: string;
         updated_at?: string;
     }>;
