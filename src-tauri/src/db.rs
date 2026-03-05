@@ -255,6 +255,16 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v9: link tasks to goals.
+    apply_migration(conn, 9, |conn| {
+        ensure_column(conn, "tasks", "goal_id", "INTEGER")?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_goal_id ON tasks(goal_id)",
+            [],
+        )?;
+        Ok(())
+    })?;
+
     Ok(())
 }
 

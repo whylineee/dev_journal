@@ -7,6 +7,7 @@ import { alpha, useTheme } from "@mui/material/styles";
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import CodeIcon from '@mui/icons-material/Code';
+import DataObjectIcon from '@mui/icons-material/DataObject';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -140,6 +141,11 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         setContent((prev) => (prev.trim().length === 0 ? template : `${prev}\n\n${template}`));
     };
 
+    const insertCodeBlock = () => {
+        const snippet = "```ts\n// code\n```";
+        setContent((prev) => (prev.trim().length === 0 ? snippet : `${prev}${prev.endsWith("\n") ? "" : "\n"}\n${snippet}`));
+    };
+
     const clearDraft = () => {
         localStorage.removeItem(draftKey);
         setDraftRestored(false);
@@ -221,6 +227,11 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                         <Tooltip title="Code">
                             <IconButton size="small" onClick={() => insertFormat('`', '`')} sx={toolbarButtonSx}>
                                 <CodeIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Code Block">
+                            <IconButton size="small" onClick={insertCodeBlock} sx={toolbarButtonSx}>
+                                <DataObjectIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Bullet List">

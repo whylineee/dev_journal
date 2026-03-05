@@ -14,6 +14,7 @@
     "tauri:build:windows": "tauri build --target x86_64-pc-windows-msvc"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fontsource/inter": "^5.2.8",

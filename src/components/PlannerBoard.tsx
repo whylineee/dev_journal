@@ -124,7 +124,7 @@ export const PlannerBoard = ({
 
   const projectHubItems = useMemo(() => {
     return projects
-      .filter((project) => project.status !== "archived")
+      .filter((project) => project.status === "active" || project.status === "paused")
       .map((project) => {
         const projectTasks = tasks.filter((task) => task.project_id === project.id);
         const openTasks = projectTasks.filter((task) => task.status !== "done").length;
@@ -181,6 +181,7 @@ export const PlannerBoard = ({
         status: "todo",
         priority: "medium",
         project_id: quickProjectId === "" ? null : quickProjectId,
+        goal_id: null,
         due_date: quickDueMode === "today" ? today : quickDueMode === "tomorrow" ? tomorrow : null,
         time_estimate_minutes: 0,
       },

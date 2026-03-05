@@ -20,9 +20,10 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import { format, isBefore, parseISO, startOfDay } from "date-fns";
-import { Goal, GoalStatus } from "../types";
+import { Goal, GoalStatus, Task } from "../types";
 import { useCreateGoal, useDeleteGoal, useGoals, useUpdateGoal } from "../hooks/useGoals";
 import { useProjects } from "../hooks/useProjects";
+import { useTasks } from "../hooks/useTasks";
 import { useI18n } from "../i18n/I18nContext";
 
 const statusLabel: Record<GoalStatus, string> = {
@@ -92,6 +93,7 @@ export const GoalsBoard = () => {
   const { t } = useI18n();
   const { data: goals = [], isLoading } = useGoals();
   const { data: projects = [] } = useProjects();
+  const { data: tasks = [] } = useTasks();
   const createGoal = useCreateGoal();
   const updateGoal = useUpdateGoal();
   const deleteGoal = useDeleteGoal();
@@ -122,6 +124,22 @@ export const GoalsBoard = () => {
     projects.forEach((project) => map.set(project.id, project.name));
     return map;
   }, [projects]);
+
+  const tasksByGoal = useMemo(() => {
+    const map = new Map<number, Task[]>();
+    tasks.forEach((task) => {
+      if (!task.goal_id) {
+        return;
+      }
+      const current = map.get(task.goal_id) ?? [];
+      current.push(task);
+      map.set(task.goal_id, current);
+    });
+    map.forEach((goalTasks, goalId) => {
+      map.set(goalId, goalTasks.sort((a, b) => b.updated_at.localeCompare(a.updated_at)));
+    });
+    return map;
+  }, [tasks]);
 
   const filteredGoals = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -308,6 +326,8 @@ export const GoalsBoard = () => {
       <Stack spacing={1.5} sx={{ mt: 2 }}>
         {filteredGoals.map((goal) => {
           const overdue = isOverdue(goal);
+          const linkedTasks = tasksByGoal.get(goal.id) ?? [];
+          const completedLinkedTasks = linkedTasks.filter((task) => task.status === "done").length;
 
           return (
             <Paper
@@ -341,6 +361,12 @@ export const GoalsBoard = () => {
                         variant="outlined"
                       />
                     ) : null}
+                    <Chip
+                      size="small"
+                      label={`Tasks: ${completedLinkedTasks}/${linkedTasks.length}`}
+                      color={linkedTasks.length > 0 ? "success" : "default"}
+                      variant="outlined"
+                    />
                   </Stack>
 
                   {goal.description ? (
@@ -348,6 +374,27 @@ export const GoalsBoard = () => {
                       {goal.description}
                     </Typography>
                   ) : null}
+
+                  {linkedTasks.length > 0 ? (
+                    <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap", gap: 0.75 }}>
+                      {linkedTasks.slice(0, 4).map((task) => (
+                        <Chip
+                          key={task.id}
+                          size="small"
+                          label={task.title}
+                          color={task.status === "done" ? "success" : "default"}
+                          variant={task.status === "done" ? "filled" : "outlined"}
+                        />
+                      ))}
+                      {linkedTasks.length > 4 ? (
+                        <Chip size="small" variant="outlined" label={`+${linkedTasks.length - 4}`} />
+                      ) : null}
+                    </Stack>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: "block" }}>
+                      Link tasks to this goal from Tasks Board.
+                    </Typography>
+                  )}
 
                   <Box sx={{ mt: 1.5 }}>
                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>

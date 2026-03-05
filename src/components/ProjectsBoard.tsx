@@ -2,11 +2,13 @@ import { useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Checkbox,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   IconButton,
   InputAdornment,
   Paper,
@@ -19,14 +21,23 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import { Project, ProjectStatus } from "../types";
+import CallSplitIcon from "@mui/icons-material/CallSplit";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
+import ReplayIcon from "@mui/icons-material/Replay";
+import { Project, ProjectBranchStatus, ProjectStatus, Task, TaskPriority } from "../types";
 import {
   useCreateProject,
   useDeleteProject,
   useProjects,
   useUpdateProject,
 } from "../hooks/useProjects";
-import { useTasks } from "../hooks/useTasks";
+import {
+  useCreateProjectBranch,
+  useDeleteProjectBranch,
+  useProjectBranches,
+  useUpdateProjectBranch,
+} from "../hooks/useProjectBranches";
+import { useTasks, useCreateTask, useUpdateTaskStatus } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useEntries } from "../hooks/useEntries";
 import { useI18n } from "../i18n/I18nContext";
@@ -34,16 +45,52 @@ import { useI18n } from "../i18n/I18nContext";
 const statusLabel: Record<ProjectStatus, string> = {
   active: "Active",
   paused: "Paused",
+  completed: "Completed",
   archived: "Archived",
 };
 
-const statusColor: Record<ProjectStatus, "info" | "warning" | "default"> = {
+const statusColor: Record<ProjectStatus, "info" | "warning" | "success" | "default"> = {
   active: "info",
   paused: "warning",
+  completed: "success",
   archived: "default",
 };
 
+const branchStatusLabel: Record<ProjectBranchStatus, string> = {
+  open: "Open",
+  merged: "Merged",
+};
+
+const branchStatusColor: Record<ProjectBranchStatus, "info" | "success"> = {
+  open: "info",
+  merged: "success",
+};
+
+const priorityOptions: TaskPriority[] = ["low", "medium", "high", "urgent"];
+
 const defaultColor = "#60a5fa";
+
+const compareWorkspaceTasks = (a: Task, b: Task) => {
+  if (a.status === "done" && b.status !== "done") {
+    return 1;
+  }
+  if (a.status !== "done" && b.status === "done") {
+    return -1;
+  }
+
+  if (a.due_date && b.due_date) {
+    const diff = a.due_date.localeCompare(b.due_date);
+    if (diff !== 0) {
+      return diff;
+    }
+  } else if (a.due_date && !b.due_date) {
+    return -1;
+  } else if (!a.due_date && b.due_date) {
+    return 1;
+  }
+
+  return b.updated_at.localeCompare(a.updated_at);
+};
 
 export const ProjectsBoard = () => {
   const { t } = useI18n();
@@ -51,12 +98,17 @@ export const ProjectsBoard = () => {
   const { data: tasks = [] } = useTasks();
   const { data: goals = [] } = useGoals();
   const { data: entries = [] } = useEntries();
+
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const createTask = useCreateTask();
+  const updateTaskStatus = useUpdateTaskStatus();
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | ProjectStatus>("all");
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [name, setName] = useState("");
@@ -64,10 +116,47 @@ export const ProjectsBoard = () => {
   const [color, setColor] = useState(defaultColor);
   const [status, setStatus] = useState<ProjectStatus>("active");
 
+  const [workspaceTaskTitle, setWorkspaceTaskTitle] = useState("");
+  const [workspaceTaskDescription, setWorkspaceTaskDescription] = useState("");
+  const [workspaceTaskPriority, setWorkspaceTaskPriority] = useState<TaskPriority>("medium");
+  const [workspaceTaskDueDate, setWorkspaceTaskDueDate] = useState("");
+
+  const [branchName, setBranchName] = useState("");
+  const [branchDescription, setBranchDescription] = useState("");
+
+  const { data: branches = [] } = useProjectBranches(selectedProjectId, selectedProjectId !== null);
+  const createBranch = useCreateProjectBranch();
+  const updateBranch = useUpdateProjectBranch();
+  const deleteBranch = useDeleteProjectBranch();
+
   const busy =
     createProject.isPending ||
     updateProject.isPending ||
-    deleteProject.isPending;
+    deleteProject.isPending ||
+    createTask.isPending ||
+    updateTaskStatus.isPending ||
+    createBranch.isPending ||
+    updateBranch.isPending ||
+    deleteBranch.isPending;
+
+  const projectTasksMap = useMemo(() => {
+    const map = new Map<number, Task[]>();
+    projects.forEach((project) => {
+      map.set(project.id, []);
+    });
+
+    tasks.forEach((task) => {
+      if (task.project_id && map.has(task.project_id)) {
+        map.get(task.project_id)?.push(task);
+      }
+    });
+
+    map.forEach((projectTasks, projectId) => {
+      map.set(projectId, [...projectTasks].sort(compareWorkspaceTasks));
+    });
+
+    return map;
+  }, [projects, tasks]);
 
   const projectStats = useMemo(() => {
     const map = new Map<number, { entries: number; tasks: number; openTasks: number; goals: number }>();
@@ -101,8 +190,9 @@ export const ProjectsBoard = () => {
     const total = projects.length;
     const active = projects.filter((project) => project.status === "active").length;
     const paused = projects.filter((project) => project.status === "paused").length;
+    const completed = projects.filter((project) => project.status === "completed").length;
     const archived = projects.filter((project) => project.status === "archived").length;
-    return { total, active, paused, archived };
+    return { total, active, paused, completed, archived };
   }, [projects]);
 
   const filteredProjects = useMemo(() => {
@@ -168,6 +258,86 @@ export const ProjectsBoard = () => {
     setDialogOpen(false);
   };
 
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.id === selectedProjectId) ?? null,
+    [projects, selectedProjectId]
+  );
+
+  const setProjectStatus = (project: Project, nextStatus: ProjectStatus) => {
+    updateProject.mutate({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      color: project.color,
+      status: nextStatus,
+    });
+  };
+
+  const handleCreateWorkspaceTask = () => {
+    if (!selectedProject) {
+      return;
+    }
+
+    const title = workspaceTaskTitle.trim();
+    if (!title) {
+      return;
+    }
+
+    createTask.mutate(
+      {
+        title,
+        description: workspaceTaskDescription.trim(),
+        status: "todo",
+        priority: workspaceTaskPriority,
+        project_id: selectedProject.id,
+        goal_id: null,
+        due_date: workspaceTaskDueDate || null,
+        time_estimate_minutes: 0,
+      },
+      {
+        onSuccess: () => {
+          setWorkspaceTaskTitle("");
+          setWorkspaceTaskDescription("");
+          setWorkspaceTaskDueDate("");
+          setWorkspaceTaskPriority("medium");
+        },
+      }
+    );
+  };
+
+  const handleTaskCheckbox = (task: Task, checked: boolean) => {
+    updateTaskStatus.mutate({
+      id: task.id,
+      status: checked ? "done" : "todo",
+    });
+  };
+
+  const handleCreateBranch = () => {
+    if (!selectedProject) {
+      return;
+    }
+
+    const cleanName = branchName.trim();
+    if (!cleanName) {
+      return;
+    }
+
+    createBranch.mutate(
+      {
+        project_id: selectedProject.id,
+        name: cleanName,
+        description: branchDescription.trim(),
+        status: "open",
+      },
+      {
+        onSuccess: () => {
+          setBranchName("");
+          setBranchDescription("");
+        },
+      }
+    );
+  };
+
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 1 }}>
       <Paper sx={{ p: 3 }}>
@@ -200,6 +370,7 @@ export const ProjectsBoard = () => {
           <Chip label={`Total: ${dashboardStats.total}`} variant="outlined" size="small" />
           <Chip label={`Active: ${dashboardStats.active}`} color="info" variant="outlined" size="small" />
           <Chip label={`Paused: ${dashboardStats.paused}`} color="warning" variant="outlined" size="small" />
+          <Chip label={`Completed: ${dashboardStats.completed}`} color="success" variant="outlined" size="small" />
           <Chip label={`Archived: ${dashboardStats.archived}`} variant="outlined" size="small" />
         </Stack>
 
@@ -229,6 +400,7 @@ export const ProjectsBoard = () => {
             <option value="all">{t("All statuses")}</option>
             <option value="active">{t("Active")}</option>
             <option value="paused">{t("Paused")}</option>
+            <option value="completed">{t("Completed")}</option>
             <option value="archived">{t("Archived")}</option>
           </TextField>
         </Stack>
@@ -242,6 +414,8 @@ export const ProjectsBoard = () => {
             openTasks: 0,
             goals: 0,
           };
+          const workspaceOpen = selectedProjectId === project.id;
+          const workspaceTasks = projectTasksMap.get(project.id) ?? [];
 
           return (
             <Paper key={project.id} variant="outlined" sx={{ p: 2 }}>
@@ -279,20 +453,243 @@ export const ProjectsBoard = () => {
                   </Stack>
                 </Box>
 
-                <Stack direction="row" spacing={0.5}>
+                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexWrap: "wrap" }}>
+                  <Button
+                    size="small"
+                    variant={workspaceOpen ? "contained" : "outlined"}
+                    onClick={() => setSelectedProjectId(workspaceOpen ? null : project.id)}
+                    disabled={busy}
+                  >
+                    {workspaceOpen ? t("Close Workspace") : t("Workspace")}
+                  </Button>
+
+                  {project.status !== "completed" ? (
+                    <IconButton size="small" color="success" onClick={() => setProjectStatus(project, "completed")} disabled={busy}>
+                      <DoneAllIcon fontSize="small" />
+                    </IconButton>
+                  ) : (
+                    <IconButton size="small" color="info" onClick={() => setProjectStatus(project, "active")} disabled={busy}>
+                      <ReplayIcon fontSize="small" />
+                    </IconButton>
+                  )}
+
                   <IconButton size="small" onClick={() => openEditDialog(project)} disabled={busy}>
                     <EditOutlinedIcon fontSize="small" />
                   </IconButton>
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => deleteProject.mutate(project.id)}
+                    onClick={() => {
+                      if (workspaceOpen) {
+                        setSelectedProjectId(null);
+                      }
+                      deleteProject.mutate(project.id);
+                    }}
                     disabled={busy}
                   >
                     <DeleteOutlineIcon fontSize="small" />
                   </IconButton>
                 </Stack>
               </Stack>
+
+              {workspaceOpen ? (
+                <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    {t("Workspace")}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {t("Plan project tasks and branches in one place.")}
+                  </Typography>
+
+                  <Stack spacing={1.5} sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2">{t("Add Task")}</Typography>
+                    <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+                      <TextField
+                        label={t("Name")}
+                        placeholder={t("Task title")}
+                        value={workspaceTaskTitle}
+                        onChange={(event) => setWorkspaceTaskTitle(event.target.value)}
+                        fullWidth
+                      />
+                      <TextField
+                        label={t("Priority")}
+                        value={workspaceTaskPriority}
+                        onChange={(event) => setWorkspaceTaskPriority(event.target.value as TaskPriority)}
+                        select
+                        SelectProps={{ native: true }}
+                        sx={{ minWidth: 160 }}
+                      >
+                        {priorityOptions.map((priority) => (
+                          <option key={priority} value={priority}>
+                            {t(priority.charAt(0).toUpperCase() + priority.slice(1))}
+                          </option>
+                        ))}
+                      </TextField>
+                      <TextField
+                        label={t("Due date")}
+                        type="date"
+                        value={workspaceTaskDueDate}
+                        onChange={(event) => setWorkspaceTaskDueDate(event.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        sx={{ minWidth: 170 }}
+                      />
+                    </Stack>
+
+                    <TextField
+                      label={t("Description")}
+                      value={workspaceTaskDescription}
+                      onChange={(event) => setWorkspaceTaskDescription(event.target.value)}
+                      fullWidth
+                      multiline
+                      minRows={2}
+                    />
+
+                    <Box>
+                      <Button variant="outlined" onClick={handleCreateWorkspaceTask} disabled={busy || !workspaceTaskTitle.trim()}>
+                        {t("Add Task")}
+                      </Button>
+                    </Box>
+
+                    <Stack spacing={1}>
+                      {workspaceTasks.map((task) => (
+                        <Paper key={task.id} variant="outlined" sx={{ p: 1.25 }}>
+                          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                              <Checkbox
+                                size="small"
+                                checked={task.status === "done"}
+                                onChange={(_, checked) => handleTaskCheckbox(task, checked)}
+                                disabled={busy}
+                              />
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontWeight: 600,
+                                    textDecoration: task.status === "done" ? "line-through" : "none",
+                                    opacity: task.status === "done" ? 0.7 : 1,
+                                  }}
+                                >
+                                  {task.title}
+                                </Typography>
+                                {task.description ? (
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                    {task.description}
+                                  </Typography>
+                                ) : null}
+                              </Box>
+                            </Stack>
+
+                            <Stack direction="row" spacing={0.75} alignItems="center">
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                label={t(task.priority.charAt(0).toUpperCase() + task.priority.slice(1))}
+                              />
+                              {task.due_date ? (
+                                <Chip size="small" variant="outlined" label={`${t("Due date")}: ${task.due_date}`} />
+                              ) : null}
+                            </Stack>
+                          </Stack>
+                        </Paper>
+                      ))}
+
+                      {workspaceTasks.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                          {t("No project tasks yet.")}
+                        </Typography>
+                      ) : null}
+                    </Stack>
+                  </Stack>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Stack spacing={1.5}>
+                    <Typography variant="subtitle2">{t("Branches")}</Typography>
+                    <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+                      <TextField
+                        label={t("Branch name")}
+                        value={branchName}
+                        onChange={(event) => setBranchName(event.target.value)}
+                        fullWidth
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <CallSplitIcon fontSize="small" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                      <TextField
+                        label={t("Description")}
+                        value={branchDescription}
+                        onChange={(event) => setBranchDescription(event.target.value)}
+                        fullWidth
+                      />
+                      <Button variant="outlined" onClick={handleCreateBranch} disabled={busy || !branchName.trim()}>
+                        {t("Create branch")}
+                      </Button>
+                    </Stack>
+
+                    <Stack spacing={1}>
+                      {branches.map((branch) => (
+                        <Paper key={branch.id} variant="outlined" sx={{ p: 1.25 }}>
+                          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {branch.name}
+                              </Typography>
+                              {branch.description ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                  {branch.description}
+                                </Typography>
+                              ) : null}
+                            </Box>
+
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Chip
+                                size="small"
+                                color={branchStatusColor[branch.status]}
+                                variant="outlined"
+                                label={t(branchStatusLabel[branch.status])}
+                              />
+                              <Button
+                                size="small"
+                                onClick={() =>
+                                  updateBranch.mutate({
+                                    id: branch.id,
+                                    project_id: branch.project_id,
+                                    name: branch.name,
+                                    description: branch.description,
+                                    status: branch.status === "open" ? "merged" : "open",
+                                  })
+                                }
+                                disabled={busy}
+                              >
+                                {branch.status === "open" ? t("Mark as merged") : t("Reopen")}
+                              </Button>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => deleteBranch.mutate({ id: branch.id, project_id: branch.project_id })}
+                                disabled={busy}
+                              >
+                                <DeleteOutlineIcon fontSize="small" />
+                              </IconButton>
+                            </Stack>
+                          </Stack>
+                        </Paper>
+                      ))}
+
+                      {branches.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                          {t("No branches yet.")}
+                        </Typography>
+                      ) : null}
+                    </Stack>
+                  </Stack>
+                </Box>
+              ) : null}
             </Paper>
           );
         })}
@@ -345,6 +742,7 @@ export const ProjectsBoard = () => {
               >
                 <option value="active">{t("Active")}</option>
                 <option value="paused">{t("Paused")}</option>
+                <option value="completed">{t("Completed")}</option>
                 <option value="archived">{t("Archived")}</option>
               </TextField>
             </Stack>

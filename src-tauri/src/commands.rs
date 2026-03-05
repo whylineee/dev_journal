@@ -63,6 +63,7 @@ pub struct BackupTaskInput {
     pub status: String,
     pub priority: Option<String>,
     pub project_id: Option<i64>,
+    pub goal_id: Option<i64>,
     pub due_date: Option<String>,
     pub completed_at: Option<String>,
     pub time_estimate_minutes: Option<i64>,
@@ -243,6 +244,23 @@ fn normalize_project_id(conn: &Connection, project_id: Option<i64>) -> Result<Op
         == 1;
 
     if exists { Ok(Some(project_id)) } else { Ok(None) }
+}
+
+fn normalize_goal_id(conn: &Connection, goal_id: Option<i64>) -> Result<Option<i64>, String> {
+    let Some(goal_id) = goal_id else {
+        return Ok(None);
+    };
+
+    let exists = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM goals WHERE id = ?1)",
+            params![goal_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|e| e.to_string())?
+        == 1;
+
+    if exists { Ok(Some(goal_id)) } else { Ok(None) }
 }
 
 fn normalize_required_project_id(conn: &Connection, project_id: i64) -> Result<i64, String> {
@@ -601,7 +619,7 @@ pub fn delete_page(id: i64, state: State<'_, AppState>) -> Result<(), String> {
 #[tauri::command]
 pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let mut stmt = conn.prepare("SELECT id, title, description, status, priority, project_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT id, title, description, status, priority, project_id, goal_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
 
     let tasks_iter = stmt
         .query_map([], |row| {
@@ -612,13 +630,14 @@ pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
                 status: row.get(3)?,
                 priority: row.get(4)?,
                 project_id: row.get(5)?,
-                due_date: row.get(6)?,
-                completed_at: row.get(7)?,
-                time_estimate_minutes: row.get(8)?,
-                timer_started_at: row.get(9)?,
-                timer_accumulated_seconds: row.get(10)?,
-                created_at: row.get(11)?,
-                updated_at: row.get(12)?,
+                goal_id: row.get(6)?,
+                due_date: row.get(7)?,
+                completed_at: row.get(8)?,
+                time_estimate_minutes: row.get(9)?,
+                timer_started_at: row.get(10)?,
+                timer_accumulated_seconds: row.get(11)?,
+                created_at: row.get(12)?,
+                updated_at: row.get(13)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -638,6 +657,7 @@ pub fn create_task(
     status: String,
     priority: Option<String>,
     project_id: Option<i64>,
+    goal_id: Option<i64>,
     due_date: Option<String>,
     time_estimate_minutes: Option<i64>,
     state: State<'_, AppState>,
@@ -653,17 +673,19 @@ pub fn create_task(
     };
     let time_estimate_minutes = normalize_time_estimate_minutes(time_estimate_minutes);
     let project_id = normalize_project_id(&conn, project_id)?;
+    let goal_id = normalize_goal_id(&conn, goal_id)?;
     let timer_started_at: Option<String> = None;
     let timer_accumulated_seconds = 0_i64;
 
     conn.execute(
-        "INSERT INTO tasks (title, description, status, priority, project_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "INSERT INTO tasks (title, description, status, priority, project_id, goal_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
             title,
             description,
             status,
             priority,
             project_id,
+            goal_id,
             due_date,
             completed_at,
             time_estimate_minutes,
@@ -683,6 +705,7 @@ pub fn create_task(
         status,
         priority,
         project_id,
+        goal_id,
         due_date,
         completed_at,
         time_estimate_minutes,
@@ -701,6 +724,7 @@ pub fn update_task(
     status: String,
     priority: Option<String>,
     project_id: Option<i64>,
+    goal_id: Option<i64>,
     due_date: Option<String>,
     time_estimate_minutes: Option<i64>,
     state: State<'_, AppState>,
@@ -710,6 +734,7 @@ pub fn update_task(
     let status = normalize_status(status);
     let normalized_priority = normalize_priority(priority);
     let normalized_project_id = normalize_project_id(&conn, project_id)?;
+    let normalized_goal_id = normalize_goal_id(&conn, goal_id)?;
     let normalized_time_estimate_minutes = normalize_time_estimate_minutes(time_estimate_minutes);
     let mut timer_started_at: Option<String> = conn
         .query_row(
@@ -744,13 +769,14 @@ pub fn update_task(
     };
 
     conn.execute(
-        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, priority = ?4, project_id = ?5, due_date = ?6, completed_at = ?7, time_estimate_minutes = ?8, timer_started_at = ?9, timer_accumulated_seconds = ?10, updated_at = ?11 WHERE id = ?12",
+        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, priority = ?4, project_id = ?5, goal_id = ?6, due_date = ?7, completed_at = ?8, time_estimate_minutes = ?9, timer_started_at = ?10, timer_accumulated_seconds = ?11, updated_at = ?12 WHERE id = ?13",
         params![
             title,
             description,
             status,
             normalized_priority,
             normalized_project_id,
+            normalized_goal_id,
             due_date,
             completed_at,
             normalized_time_estimate_minutes,
@@ -1534,11 +1560,13 @@ pub fn update_goal(
 
 #[tauri::command]
 pub fn delete_goal(id: i64, state: State<'_, AppState>) -> Result<(), String> {
-    let conn = state.db.lock().map_err(|e| e.to_string())?;
-
-    conn.execute("DELETE FROM goals WHERE id = ?1", params![id])
+    let mut conn = state.db.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    tx.execute("UPDATE tasks SET goal_id = NULL WHERE goal_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
-
+    tx.execute("DELETE FROM goals WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -1862,6 +1890,7 @@ pub fn import_backup(
         let status = normalize_status(task.status);
         let priority = normalize_priority(task.priority);
         let project_id = task.project_id;
+        let goal_id = task.goal_id;
         let due_date = task.due_date;
         let completed_at = task.completed_at;
         let time_estimate_minutes = normalize_time_estimate_minutes(task.time_estimate_minutes);
@@ -1878,14 +1907,15 @@ pub fn import_backup(
 
         if let Some(id) = task.id {
             tx.execute(
-                "INSERT INTO tasks (id, title, description, status, priority, project_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                "INSERT INTO tasks (id, title, description, status, priority, project_id, goal_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
                  ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     description = excluded.description,
                     status = excluded.status,
                     priority = excluded.priority,
                     project_id = excluded.project_id,
+                    goal_id = excluded.goal_id,
                     due_date = excluded.due_date,
                     completed_at = excluded.completed_at,
                     time_estimate_minutes = excluded.time_estimate_minutes,
@@ -1900,6 +1930,7 @@ pub fn import_backup(
                     status,
                     priority,
                     project_id,
+                    goal_id,
                     due_date,
                     completed_at,
                     time_estimate_minutes,
@@ -1912,14 +1943,15 @@ pub fn import_backup(
             .map_err(|e| e.to_string())?;
         } else {
             tx.execute(
-                "INSERT INTO tasks (title, description, status, priority, project_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                "INSERT INTO tasks (title, description, status, priority, project_id, goal_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
                 params![
                     task.title,
                     task.description,
                     status,
                     priority,
                     project_id,
+                    goal_id,
                     due_date,
                     completed_at,
                     time_estimate_minutes,

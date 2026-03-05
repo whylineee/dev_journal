@@ -91,6 +91,7 @@ export const useDeleteGoal = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["goals"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
   });
 };

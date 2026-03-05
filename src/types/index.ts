@@ -26,6 +26,7 @@ export interface Task {
     status: TaskStatus;
     priority: TaskPriority;
     project_id: number | null;
+    goal_id: number | null;
     due_date: string | null;
     completed_at: string | null;
     time_estimate_minutes: number;
@@ -118,6 +119,7 @@ export interface BackupPayload {
         status: string;
         priority?: TaskPriority;
         project_id?: number | null;
+        goal_id?: number | null;
         due_date?: string | null;
         completed_at?: string | null;
         time_estimate_minutes?: number;

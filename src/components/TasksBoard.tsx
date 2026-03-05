@@ -1,4 +1,4 @@
-import { DragEvent, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -27,6 +27,19 @@ import PauseIcon from "@mui/icons-material/Pause";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import TimerIcon from "@mui/icons-material/Timer";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import {
+  closestCorners,
+  DndContext,
+  DragCancelEvent,
+  DragEndEvent,
+  DragStartEvent,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import {
   useCreateTaskSubtask,
   useCreateTask,
@@ -42,6 +55,7 @@ import {
   useUpdateTaskStatus,
 } from "../hooks/useTasks";
 import { useProjects } from "../hooks/useProjects";
+import { useGoals } from "../hooks/useGoals";
 import { Task, TaskPriority, TaskStatus, TaskSubtask } from "../types";
 import {
   compareTasks,
@@ -112,6 +126,77 @@ const formatDayKey = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const parseDraggedTaskId = (id: string | number): number | null => {
+  if (typeof id === "number") {
+    return Number.isFinite(id) ? id : null;
+  }
+  if (id.startsWith("task-")) {
+    const parsed = Number(id.slice(5));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+interface DroppableColumnProps {
+  status: TaskStatus;
+  children: ReactNode;
+}
+
+const DroppableColumn = ({ status, children }: DroppableColumnProps) => {
+  const { isOver, setNodeRef } = useDroppable({ id: status });
+
+  return (
+    <Paper
+      ref={setNodeRef}
+      sx={{
+        p: 2,
+        flex: 1,
+        minHeight: 340,
+        borderStyle: isOver ? "dashed" : "solid",
+        borderColor: isOver ? "primary.main" : "divider",
+        transition: "border-color 0.16s ease, background-color 0.16s ease",
+        backgroundColor: isOver ? "action.hover" : "background.paper",
+      }}
+    >
+      {children}
+    </Paper>
+  );
+};
+
+interface DraggableTaskCardProps {
+  taskId: number;
+  disabled: boolean;
+  children: ReactNode;
+}
+
+const DraggableTaskCard = ({ taskId, disabled, children }: DraggableTaskCardProps) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `task-${taskId}`,
+    disabled,
+  });
+
+  const styleTransform = transform
+    ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)`
+    : undefined;
+
+  return (
+    <Box
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      sx={{
+        transform: styleTransform,
+        zIndex: isDragging ? 2 : "auto",
+        position: "relative",
+        touchAction: "none",
+        cursor: disabled ? "default" : "grab",
+      }}
+    >
+      {children}
+    </Box>
+  );
+};
+
 const readTaskOutcomes = (): TaskOutcomeMap => {
   try {
     const raw = localStorage.getItem(TASK_OUTCOMES_STORAGE_KEY);
@@ -135,6 +220,7 @@ export const TasksBoard = () => {
   // `nowMs` is updated every second to render live timer values without round-trips.
   const { data: tasks = [], isLoading } = useTasks();
   const { data: projects = [] } = useProjects();
+  const { data: goals = [] } = useGoals();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const updateStatus = useUpdateTaskStatus();
@@ -163,6 +249,7 @@ export const TasksBoard = () => {
   const [status, setStatus] = useState<TaskStatus>("todo");
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [projectId, setProjectId] = useState<number | "">("");
+  const [goalId, setGoalId] = useState<number | "">("");
   const [dueDate, setDueDate] = useState("");
   const [timeEstimateMinutes, setTimeEstimateMinutes] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -170,7 +257,6 @@ export const TasksBoard = () => {
   const [afterOutcome, setAfterOutcome] = useState("");
   const [taskOutcomes, setTaskOutcomes] = useState<TaskOutcomeMap>(() => readTaskOutcomes());
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
-  const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
   const activeTask = useMemo(() => tasks.find((task) => task.id === activeTaskId) ?? null, [tasks, activeTaskId]);
   const { data: activeTaskSubtasks = [] } = useTaskSubtasks(
     activeTaskId,
@@ -188,6 +274,12 @@ export const TasksBoard = () => {
     createTaskSubtask.isPending ||
     updateTaskSubtask.isPending ||
     deleteTaskSubtask.isPending;
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    })
+  );
 
   useEffect(() => {
     const interval = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -237,6 +329,12 @@ export const TasksBoard = () => {
     projects.forEach((project) => map.set(project.id, project.name));
     return map;
   }, [projects]);
+
+  const goalNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    goals.forEach((goal) => map.set(goal.id, goal.title));
+    return map;
+  }, [goals]);
 
   const filteredTasks = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -326,6 +424,7 @@ export const TasksBoard = () => {
     setStatus(initialStatus);
     setPriority("medium");
     setProjectId("");
+    setGoalId("");
     setDueDate("");
     setTimeEstimateMinutes(0);
     setBeforeOutcome("");
@@ -340,6 +439,7 @@ export const TasksBoard = () => {
     setStatus(task.status);
     setPriority(task.priority);
     setProjectId(task.project_id ?? "");
+    setGoalId(task.goal_id ?? "");
     setDueDate(task.due_date ?? "");
     setTimeEstimateMinutes(task.time_estimate_minutes);
     const outcome = taskOutcomes[String(task.id)];
@@ -396,6 +496,7 @@ export const TasksBoard = () => {
           status,
           priority,
           project_id: projectId === "" ? null : projectId,
+          goal_id: goalId === "" ? null : goalId,
           due_date: dueDate || null,
           time_estimate_minutes: normalizedTimeEstimate,
         },
@@ -414,6 +515,7 @@ export const TasksBoard = () => {
           status,
           priority,
           project_id: projectId === "" ? null : projectId,
+          goal_id: goalId === "" ? null : goalId,
           due_date: dueDate || null,
           time_estimate_minutes: normalizedTimeEstimate,
         },
@@ -451,42 +553,35 @@ export const TasksBoard = () => {
     updateStatus.mutate({ id: task.id, status: checked ? "done" : "todo" });
   };
 
-  const handleCardDragStart = (event: DragEvent<HTMLDivElement>, taskId: number) => {
+  const handleDragStart = (event: DragStartEvent) => {
+    const taskId = parseDraggedTaskId(event.active.id);
     setDraggedTaskId(taskId);
-    event.dataTransfer.effectAllowed = "move";
   };
 
-  const handleCardDragEnd = () => {
+  const handleDragCancel = (_event: DragCancelEvent) => {
     setDraggedTaskId(null);
-    setDragOverStatus(null);
   };
 
-  const handleColumnDragOver = (event: DragEvent<HTMLDivElement>, status: TaskStatus) => {
-    if (busy || draggedTaskId === null) {
-      return;
-    }
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    if (dragOverStatus !== status) {
-      setDragOverStatus(status);
-    }
-  };
-
-  const handleColumnDrop = (event: DragEvent<HTMLDivElement>, status: TaskStatus) => {
-    event.preventDefault();
-    setDragOverStatus(null);
-    if (busy || draggedTaskId === null) {
-      return;
-    }
-
-    const draggedTask = tasks.find((task) => task.id === draggedTaskId);
+  const handleDragEnd = (event: DragEndEvent) => {
+    const taskId = parseDraggedTaskId(event.active.id);
+    const overId = event.over?.id;
     setDraggedTaskId(null);
-    if (!draggedTask || draggedTask.status === status) {
+
+    if (busy || taskId === null || !overId || typeof overId !== "string") {
+      return;
+    }
+    if (!columns.some((column) => column.status === overId)) {
+      return;
+    }
+    const nextStatus = overId as TaskStatus;
+
+    const draggedTask = tasks.find((task) => task.id === taskId);
+    if (!draggedTask || draggedTask.status === nextStatus) {
       return;
     }
 
-    moveToStatus(draggedTask, status);
-    notify(`Task moved to ${statusLabel[status]}.`, "info");
+    moveToStatus(draggedTask, nextStatus);
+    notify(`Task moved to ${statusLabel[nextStatus]}.`, "info");
   };
 
   const openEditFromTaskDetails = () => {
@@ -668,27 +763,16 @@ export const TasksBoard = () => {
         </Stack>
       </Paper>
 
-      <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
-        {columns.map((column) => (
-          <Paper
-            key={column.status}
-            onDragOver={(event) => handleColumnDragOver(event, column.status)}
-            onDrop={(event) => handleColumnDrop(event, column.status)}
-            onDragLeave={() => {
-              if (dragOverStatus === column.status) {
-                setDragOverStatus(null);
-              }
-            }}
-            sx={{
-              p: 2,
-              flex: 1,
-              minHeight: 340,
-              borderStyle: dragOverStatus === column.status ? "dashed" : "solid",
-              borderColor: dragOverStatus === column.status ? "primary.main" : "divider",
-              transition: "border-color 0.16s ease, background-color 0.16s ease",
-              backgroundColor: dragOverStatus === column.status ? "action.hover" : "background.paper",
-            }}
-          >
+      <DndContext
+        sensors={dndSensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragCancel={handleDragCancel}
+        onDragEnd={handleDragEnd}
+      >
+        <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
+          {columns.map((column) => (
+            <DroppableColumn key={column.status} status={column.status}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -722,19 +806,15 @@ export const TasksBoard = () => {
                 const outcome = taskOutcomes[String(task.id)];
 
                 return (
-                  <Paper
-                    key={task.id}
-                    variant="outlined"
-                    draggable={!busy}
-                    onDragStart={(event) => handleCardDragStart(event, task.id)}
-                    onDragEnd={handleCardDragEnd}
-                    sx={{
-                      p: 1.5,
-                      borderColor: overdue ? "error.main" : "divider",
-                      opacity: draggedTaskId === task.id ? 0.5 : 1,
-                      cursor: busy ? "default" : "grab",
-                    }}
-                  >
+                  <Box key={task.id} sx={{ opacity: draggedTaskId === task.id ? 0.55 : 1 }}>
+                    <DraggableTaskCard taskId={task.id} disabled={busy}>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 1.5,
+                        borderColor: overdue ? "error.main" : "divider",
+                      }}
+                    >
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Stack direction="row" spacing={0.5} alignItems="center">
@@ -786,6 +866,14 @@ export const TasksBoard = () => {
                               size="small"
                               label={projectNameById.get(task.project_id) ?? `#${task.project_id}`}
                               color="info"
+                              variant="outlined"
+                            />
+                          ) : null}
+                          {task.goal_id ? (
+                            <Chip
+                              size="small"
+                              label={goalNameById.get(task.goal_id) ?? `Goal #${task.goal_id}`}
+                              color="success"
                               variant="outlined"
                             />
                           ) : null}
@@ -857,6 +945,13 @@ export const TasksBoard = () => {
                       </Box>
 
                       <Stack direction="row" spacing={0.5}>
+                        <Tooltip title="Drag">
+                          <span>
+                            <IconButton size="small" disabled={busy} sx={{ cursor: busy ? "default" : "grab" }}>
+                              <DragIndicatorIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                         <Tooltip title="Open card">
                           <span>
                             <IconButton size="small" onClick={() => openTaskDetails(task)} disabled={busy}>
@@ -891,7 +986,9 @@ export const TasksBoard = () => {
                         />
                       ))}
                     </Stack>
-                  </Paper>
+                    </Paper>
+                    </DraggableTaskCard>
+                  </Box>
                 );
               })}
 
@@ -901,9 +998,10 @@ export const TasksBoard = () => {
                 </Typography>
               ) : null}
             </Stack>
-          </Paper>
-        ))}
-      </Stack>
+            </DroppableColumn>
+          ))}
+        </Stack>
+      </DndContext>
 
       <Paper sx={{ p: 2, mt: 2 }}>
         <Stack
@@ -1012,6 +1110,14 @@ export const TasksBoard = () => {
                       color={priorityColor[activeTask.priority]}
                       variant="outlined"
                     />
+                    {activeTask.goal_id ? (
+                      <Chip
+                        size="small"
+                        label={goalNameById.get(activeTask.goal_id) ?? `Goal #${activeTask.goal_id}`}
+                        color="success"
+                        variant="outlined"
+                      />
+                    ) : null}
                     {activeTask.due_date ? (
                       <Chip size="small" label={`Due: ${formatTaskDateOnly(activeTask.due_date)}`} variant="outlined" />
                     ) : null}
@@ -1228,6 +1334,25 @@ export const TasksBoard = () => {
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
+                </option>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              label={t("Goal")}
+              value={goalId === "" ? "" : String(goalId)}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setGoalId(nextValue === "" ? "" : Number(nextValue));
+              }}
+              SelectProps={{ native: true }}
+              fullWidth
+            >
+              <option value="">{t("No goal")}</option>
+              {goals.map((goal) => (
+                <option key={goal.id} value={goal.id}>
+                  {goal.title}
                 </option>
               ))}
             </TextField>

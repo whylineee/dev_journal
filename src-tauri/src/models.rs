@@ -27,6 +27,7 @@ pub struct Task {
     pub status: String,
     pub priority: String,
     pub project_id: Option<i64>,
+    pub goal_id: Option<i64>,
     pub due_date: Option<String>,
     pub completed_at: Option<String>,
     pub time_estimate_minutes: i64,
