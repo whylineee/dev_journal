@@ -42,6 +42,9 @@ Important current behavior:
 - Contains weekly planning UX and meetings scheduling
 - Supports upcoming meetings, weekly meeting calendar, reminders, recurrence, participants, notes, decisions, and action items
 - Can convert meeting action items into tasks
+- Includes a stronger `Today Dashboard` summary layer
+- Includes `Weekly Review`
+- Includes upgraded `Focus Session` mode with optional task targeting and session tracking
 
 ### 2. Journal
 - Daily entry workflow by date
@@ -66,6 +69,8 @@ Important current behavior:
 - Drag-and-drop between status columns using `@dnd-kit/core`
 - Task create/edit/delete
 - Task priority, due date, estimate, timer
+- Recurring tasks with `daily`, `weekdays`, `weekly`
+- Recurring tasks materialize the next occurrence when the current one is completed
 - Subtasks CRUD
 - Goal linking
 - Project linking
@@ -73,6 +78,8 @@ Important current behavior:
 
 ### 5. Goals
 - Goal CRUD with status and progress
+- Goal milestones CRUD
+- Milestones can auto-drive goal progress
 - Goals can be linked to projects
 - Tasks can be linked to goals
 
@@ -213,7 +220,7 @@ Frontend also uses:
 
 ## Data Model Snapshot
 
-Current schema migration level: `v11`
+Current schema migration level: `v12`
 
 ### Tables
 - `entries`
@@ -225,6 +232,7 @@ Current schema migration level: `v11`
 - `projects`
 - `project_branches`
 - `task_subtasks`
+- `goal_milestones`
 - `meetings`
 - `schema_migrations`
 
@@ -235,6 +243,7 @@ Current schema migration level: `v11`
 - `goals.project_id -> projects.id`
 - `project_branches.project_id -> projects.id`
 - `task_subtasks.task_id -> tasks.id`
+- `goal_milestones.goal_id -> goals.id`
 - `meetings.project_id -> projects.id`
 
 ### Meeting-specific storage
@@ -254,11 +263,13 @@ Meeting action items are stored as JSON and can be materialized into real tasks.
 ### Tasks
 - Valid statuses: `todo`, `in_progress`, `done`
 - Valid priorities: `low`, `medium`, `high`, `urgent`
+- Valid recurrence values: `none`, `daily`, `weekdays`, `weekly`
 - Timer data is persisted in the DB
 - Drag-and-drop changes task status
 
 ### Goals
 - Valid statuses: `active`, `paused`, `completed`, `archived`
+- If a goal has milestones, progress may be recomputed from milestone completion
 
 ### Projects
 - Valid statuses: `active`, `paused`, `completed`, `archived`
@@ -419,9 +430,13 @@ As of 2026-03-05, the app already includes these recent additions:
 - task subtasks
 - drag-and-drop task status movement
 - task gantt timeline
+- recurring tasks
 - initial theme from OS preference
 - meetings planner with recurrence, reminders, notes, decisions, participants, and action items
 - project-linked meetings
 - page checklists, code blocks, markdown tables, and embedded task database
 - single-column Notion-like page editor layout
-
+- planner today dashboard
+- weekly review
+- focus session tracking
+- goal milestones

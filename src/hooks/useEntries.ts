@@ -72,6 +72,7 @@ export const useImportBackup = () => {
             queryClient.invalidateQueries({ queryKey: ["tasks"] });
             queryClient.invalidateQueries({ queryKey: ["task-subtasks"] });
             queryClient.invalidateQueries({ queryKey: ["goals"] });
+            queryClient.invalidateQueries({ queryKey: ["goal-milestones"] });
             queryClient.invalidateQueries({ queryKey: ["habits"] });
             queryClient.invalidateQueries({ queryKey: ["projects"] });
             queryClient.invalidateQueries({ queryKey: ["project-branches"] });

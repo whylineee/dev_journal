@@ -20,7 +20,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { alpha, useTheme } from "@mui/material/styles";
-import { addDays, addMinutes, format, parseISO, startOfDay } from "date-fns";
+import { addDays, addMinutes, endOfWeek, format, isWithinInterval, parseISO, startOfDay, startOfWeek } from "date-fns";
 import { useEntries } from "../hooks/useEntries";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits, useToggleHabitCompletion } from "../hooks/useHabits";
@@ -44,6 +44,7 @@ import { Meeting, MeetingRecurrence, MeetingStatus } from "../types";
 
 const DAILY_WINS_STORAGE_KEY = "devJournal_daily_wins";
 const PLANNER_COLLAPSE_STORAGE_KEY = "devJournal_planner_collapsed_sections";
+const FOCUS_SESSIONS_STORAGE_KEY = "devJournal_focus_sessions";
 
 const toLocalDatetimeInputValue = (value: Date) => {
   const year = value.getFullYear();
@@ -164,6 +165,20 @@ export const PlannerBoard = ({
   const [meetingFeedback, setMeetingFeedback] = useState("");
   const [focusSecondsLeft, setFocusSecondsLeft] = useState(25 * 60);
   const [focusRunning, setFocusRunning] = useState(false);
+  const [focusDurationMinutes, setFocusDurationMinutes] = useState(25);
+  const [focusTaskId, setFocusTaskId] = useState<number | "">("");
+  const [focusSessionsMap, setFocusSessionsMap] = useState<Record<string, number>>(() => {
+    try {
+      const raw = localStorage.getItem(FOCUS_SESSIONS_STORAGE_KEY);
+      if (!raw) {
+        return {};
+      }
+      const parsed = JSON.parse(raw) as Record<string, number>;
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
   const [dailyWinsInput, setDailyWinsInput] = useState("");
   const [dailyWinsMap, setDailyWinsMap] = useState<Record<string, string[]>>(() => {
     try {
@@ -251,6 +266,11 @@ export const PlannerBoard = ({
       .slice(0, 8);
   }, [meetings]);
 
+  const todayMeetings = useMemo(
+    () => upcomingMeetings.filter((occurrence) => format(occurrence.start, "yyyy-MM-dd") === today),
+    [today, upcomingMeetings]
+  );
+
   const weeklyMeetingOccurrences = useMemo(
     () => expandMeetingOccurrences(meetings, new Date(), 7),
     [meetings]
@@ -280,6 +300,122 @@ export const PlannerBoard = ({
     }));
   }, [weeklyMeetingOccurrences]);
 
+  const todayDashboardCards = useMemo(
+    () => [
+      { label: t("Due today"), value: dueTodayTasks.length, tone: "info" as const },
+      { label: t("Overdue"), value: overdueTasks.length, tone: "error" as const },
+      { label: t("Meetings"), value: todayMeetings.length, tone: "primary" as const },
+      {
+        label: t("Habits done today"),
+        value: `${habitsWithTodayState.filter((habit) => habit.doneToday).length}/${habitsWithTodayState.length}`,
+        tone: "success" as const,
+      },
+    ],
+    [dueTodayTasks.length, overdueTasks.length, todayMeetings.length, habitsWithTodayState, t]
+  );
+
+  const focusCandidates = useMemo(
+    () =>
+      tasks
+        .filter((task) => task.status !== "done")
+        .sort((a, b) => {
+          if (a.status === "in_progress" && b.status !== "in_progress") {
+            return -1;
+          }
+          if (a.status !== "in_progress" && b.status === "in_progress") {
+            return 1;
+          }
+          if (a.due_date && b.due_date) {
+            return a.due_date.localeCompare(b.due_date);
+          }
+          if (a.due_date && !b.due_date) {
+            return -1;
+          }
+          if (!a.due_date && b.due_date) {
+            return 1;
+          }
+          return b.updated_at.localeCompare(a.updated_at);
+        })
+        .slice(0, 10),
+    [tasks]
+  );
+
+  const selectedFocusTask = useMemo(
+    () => focusCandidates.find((task) => task.id === focusTaskId) ?? null,
+    [focusCandidates, focusTaskId]
+  );
+
+  const currentWeekInterval = useMemo(
+    () => ({
+      start: startOfWeek(new Date(), { weekStartsOn: 1 }),
+      end: endOfWeek(new Date(), { weekStartsOn: 1 }),
+    }),
+    []
+  );
+
+  const weeklyReview = useMemo(() => {
+    const completedTasks = tasks.filter((task) => {
+      if (!task.completed_at) {
+        return false;
+      }
+      try {
+        return isWithinInterval(parseISO(task.completed_at), currentWeekInterval);
+      } catch {
+        return false;
+      }
+    });
+
+    const journalEntries = entries.filter((entry) => {
+      try {
+        return isWithinInterval(parseISO(`${entry.date}T00:00:00`), currentWeekInterval);
+      } catch {
+        return false;
+      }
+    });
+
+    const habitCompletions = habits.reduce((sum, habit) => {
+      return (
+        sum +
+        habit.completed_dates.filter((date) => {
+          try {
+            return isWithinInterval(parseISO(`${date}T00:00:00`), currentWeekInterval);
+          } catch {
+            return false;
+          }
+        }).length
+      );
+    }, 0);
+
+    const winsThisWeek = Object.entries(dailyWinsMap).reduce((sum, [date, items]) => {
+      try {
+        return isWithinInterval(parseISO(`${date}T00:00:00`), currentWeekInterval) ? sum + items.length : sum;
+      } catch {
+        return sum;
+      }
+    }, 0);
+
+    const meetingsThisWeek = weeklyMeetingOccurrences.filter((occurrence) =>
+      isWithinInterval(occurrence.start, currentWeekInterval)
+    );
+
+    const focusSessionsThisWeek = Object.entries(focusSessionsMap).reduce((sum, [date, count]) => {
+      try {
+        return isWithinInterval(parseISO(`${date}T00:00:00`), currentWeekInterval) ? sum + count : sum;
+      } catch {
+        return sum;
+      }
+    }, 0);
+
+    return {
+      completedTasks,
+      journalEntries,
+      habitCompletions,
+      winsThisWeek,
+      meetingsThisWeek,
+      focusSessionsThisWeek,
+    };
+  }, [currentWeekInterval, dailyWinsMap, entries, focusSessionsMap, habits, tasks, weeklyMeetingOccurrences]);
+
   const busy =
     toggleHabitCompletion.isPending ||
     updateTaskStatus.isPending ||
@@ -290,6 +426,7 @@ export const PlannerBoard = ({
     materializeMeetingActionItems.isPending;
 
   const dailyWins = dailyWinsMap[today] ?? [];
+  const focusSessionsToday = focusSessionsMap[today] ?? 0;
   const plannerCardSx = {
     p: { xs: 2.5, sm: 3 },
     borderRadius: 3,
@@ -351,6 +488,8 @@ export const PlannerBoard = ({
         project_id: quickProjectId === "" ? null : quickProjectId,
         goal_id: null,
         due_date: quickDueMode === "today" ? today : quickDueMode === "tomorrow" ? tomorrow : null,
+        recurrence: "none",
+        recurrence_until: null,
         time_estimate_minutes: 0,
       },
       {
@@ -497,6 +636,11 @@ export const PlannerBoard = ({
     return `${minutes}:${sec}`;
   };
 
+  const persistFocusSessions = (nextMap: Record<string, number>) => {
+    setFocusSessionsMap(nextMap);
+    localStorage.setItem(FOCUS_SESSIONS_STORAGE_KEY, JSON.stringify(nextMap));
+  };
+
   const persistDailyWins = (nextMap: Record<string, string[]>) => {
     setDailyWinsMap(nextMap);
     localStorage.setItem(DAILY_WINS_STORAGE_KEY, JSON.stringify(nextMap));
@@ -516,6 +660,31 @@ export const PlannerBoard = ({
     const nextWins = dailyWins.filter((_, itemIndex) => itemIndex !== index);
     const nextMap = { ...dailyWinsMap, [today]: nextWins };
     persistDailyWins(nextMap);
+  };
+
+  const handleToggleFocus = () => {
+    if (focusRunning) {
+      setFocusRunning(false);
+      return;
+    }
+
+    if (focusSecondsLeft === 0) {
+      setFocusSecondsLeft(focusDurationMinutes * 60);
+    }
+
+    if (selectedFocusTask && selectedFocusTask.status === "todo") {
+      updateTaskStatus.mutate({
+        id: selectedFocusTask.id,
+        status: "in_progress",
+      });
+    }
+
+    setFocusRunning(true);
+  };
+
+  const handleResetFocus = () => {
+    setFocusRunning(false);
+    setFocusSecondsLeft(focusDurationMinutes * 60);
   };
 
   const isSectionCollapsed = (section: PlannerSectionKey) => Boolean(collapsedSections[section]);
@@ -550,6 +719,11 @@ export const PlannerBoard = ({
               window.clearInterval(timer);
             }
             setFocusRunning(false);
+            const nextMap = {
+              ...focusSessionsMap,
+              [today]: (focusSessionsMap[today] ?? 0) + 1,
+            };
+            persistFocusSessions(nextMap);
             notify("Focus session completed.", "success");
             sendNotification({
               title: "Dev Journal",
@@ -566,7 +740,13 @@ export const PlannerBoard = ({
         window.clearInterval(timer);
       }
     };
-  }, [focusRunning, notify]);
+  }, [focusRunning, focusSessionsMap, notify, today]);
+
+  useEffect(() => {
+    if (!focusRunning) {
+      setFocusSecondsLeft(focusDurationMinutes * 60);
+    }
+  }, [focusDurationMinutes, focusRunning]);
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: { xs: 1, md: 1.5 }, pb: 4 }}>
@@ -578,6 +758,133 @@ export const PlannerBoard = ({
         <Typography variant="body2" color="text.secondary">
           {t("Daily command center for journal, tasks, goals, and habits.")}
         </Typography>
+      </Box>
+
+      <Box sx={{ ...plannerCardSx, mb: { xs: 3, md: 4 } }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", md: "center" }}
+          spacing={1.5}
+          sx={{ mb: 2 }}
+        >
+          <Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {t("Today Dashboard")}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t("See today's load, next meeting, and focus priorities in one place.")}
+            </Typography>
+          </Box>
+          <Chip
+            size="small"
+            color={entries.some((entry) => entry.date === today) ? "success" : "warning"}
+            variant="outlined"
+            label={entries.some((entry) => entry.date === today) ? t("Journal Today") : t("Missing")}
+          />
+        </Stack>
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" },
+            gap: 1.25,
+          }}
+        >
+          {todayDashboardCards.map((card) => (
+            <Box
+              key={card.label}
+              sx={{
+                p: 1.5,
+                borderRadius: 2.5,
+                border: "1px solid",
+                borderColor: `${card.tone}.main`,
+                bgcolor: alpha(muiTheme.palette.background.paper, 0.55),
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                {card.label}
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700, mt: 0.35 }}>
+                {card.value}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+
+        <Box
+          sx={{
+            mt: 2,
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", xl: "1.2fr 1fr" },
+            gap: 2,
+          }}
+        >
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: alpha(muiTheme.palette.background.paper, 0.45),
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              {t("Priority Stack")}
+            </Typography>
+            <Stack spacing={1}>
+              {focusCandidates.slice(0, 3).map((task) => (
+                <Stack key={task.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
+                      {task.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {task.due_date ? `${t("Due date")}: ${task.due_date}` : t("No due date")}
+                    </Typography>
+                  </Box>
+                  <Chip size="small" variant="outlined" label={task.status === "in_progress" ? "In Progress" : "To Do"} />
+                </Stack>
+              ))}
+              {focusCandidates.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  {t("No open tasks to focus on right now.")}
+                </Typography>
+              ) : null}
+            </Stack>
+          </Box>
+
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: alpha(muiTheme.palette.background.paper, 0.45),
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              {t("Next Meeting")}
+            </Typography>
+            {todayMeetings[0] ? (
+              <Stack spacing={0.8}>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  {todayMeetings[0].title}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {format(todayMeetings[0].start, "HH:mm")} - {format(todayMeetings[0].end, "HH:mm")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {todayMeetings[0].meeting.participants.slice(0, 3).join(", ") || t("No participants")}
+                </Typography>
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {t("No meetings scheduled for today.")}
+              </Typography>
+            )}
+          </Box>
+        </Box>
       </Box>
 
       {/* ── Quick Capture (compact, inline) ── */}
@@ -1435,6 +1742,103 @@ export const PlannerBoard = ({
         </Collapse>
       </Box>
 
+      <Box sx={{ ...plannerCardSx, mt: { xs: 2.5, md: 3 } }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            {t("Weekly Review")}
+          </Typography>
+          <Chip
+            size="small"
+            variant="outlined"
+            label={`${format(currentWeekInterval.start, "MMM d")} - ${format(currentWeekInterval.end, "MMM d")}`}
+          />
+        </Stack>
+        <Box
+          sx={{
+            mt: 2,
+            display: "grid",
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", lg: "repeat(6, minmax(0, 1fr))" },
+            gap: 1,
+          }}
+        >
+          {[
+            { label: t("Done"), value: weeklyReview.completedTasks.length },
+            { label: t("Meetings"), value: weeklyReview.meetingsThisWeek.length },
+            { label: t("Journal"), value: weeklyReview.journalEntries.length },
+            { label: t("Habits"), value: weeklyReview.habitCompletions },
+            { label: t("Daily Wins"), value: weeklyReview.winsThisWeek },
+            { label: t("Focus Session"), value: weeklyReview.focusSessionsThisWeek },
+          ].map((item) => (
+            <Box
+              key={item.label}
+              sx={{
+                p: 1.2,
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "divider",
+                bgcolor: alpha(muiTheme.palette.background.paper, 0.4),
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                {item.label}
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {item.value}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+
+        <Box
+          sx={{
+            mt: 2,
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
+            gap: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              {t("Completed this week")}
+            </Typography>
+            <Stack spacing={0.8}>
+              {weeklyReview.completedTasks.slice(0, 5).map((task) => (
+                <Stack key={task.id} direction="row" justifyContent="space-between" spacing={1}>
+                  <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
+                    {task.title}
+                  </Typography>
+                  <Chip size="small" variant="outlined" label={task.priority} />
+                </Stack>
+              ))}
+              {weeklyReview.completedTasks.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  {t("No completed tasks this week yet.")}
+                </Typography>
+              ) : null}
+            </Stack>
+          </Box>
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              {t("Weekly notes")}
+            </Typography>
+            <Stack spacing={0.8}>
+              <Typography variant="body2" color="text.secondary">
+                {t("Meetings with notes")}: {meetings.filter((meeting) => meeting.notes.trim().length > 0).length}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t("Goals Near Deadline")}: {nearGoals.length}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t("Focus sessions today")}: {focusSessionsToday}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t("Wins logged today")}: {dailyWins.length}
+              </Typography>
+            </Stack>
+          </Box>
+        </Box>
+      </Box>
+
       {/* ── Focus & Wins side-by-side ── */}
       <Box
         sx={{
@@ -1453,21 +1857,61 @@ export const PlannerBoard = ({
             {renderSectionToggle("focusSession")}
           </Stack>
           <Collapse in={!isSectionCollapsed("focusSession")} timeout="auto" unmountOnExit>
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 2 }}>
-              <Chip size="medium" color={focusRunning ? "warning" : "default"} label={formatFocusTime(focusSecondsLeft)} />
-              <Button size="small" variant={focusRunning ? "outlined" : "contained"} onClick={() => setFocusRunning((prev) => !prev)}>
-                {focusRunning ? t("Pause") : t("Start Focus")}
-              </Button>
-              <Button
+            <Stack spacing={1.5} sx={{ mt: 2 }}>
+              <TextField
+                select
                 size="small"
-                variant="outlined"
-                onClick={() => {
-                  setFocusRunning(false);
-                  setFocusSecondsLeft(25 * 60);
+                label={t("Focus task")}
+                value={focusTaskId === "" ? "" : String(focusTaskId)}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setFocusTaskId(nextValue === "" ? "" : Number(nextValue));
                 }}
+                SelectProps={{ native: true }}
+                fullWidth
               >
-                {t("Reset")}
-              </Button>
+                <option value="">{t("No task selected")}</option>
+                {focusCandidates.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.title}
+                  </option>
+                ))}
+              </TextField>
+
+              <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
+                {[25, 50, 90].map((minutes) => (
+                  <Chip
+                    key={minutes}
+                    size="small"
+                    color={focusDurationMinutes === minutes ? "primary" : "default"}
+                    variant={focusDurationMinutes === minutes ? "filled" : "outlined"}
+                    label={`${minutes}m`}
+                    onClick={() => setFocusDurationMinutes(minutes)}
+                    sx={{ cursor: "pointer" }}
+                  />
+                ))}
+                <Chip size="small" variant="outlined" label={`${t("Today")}: ${focusSessionsToday}`} />
+              </Stack>
+
+              {selectedFocusTask ? (
+                <Typography variant="body2" color="text.secondary">
+                  {t("Working on")}: {selectedFocusTask.title}
+                </Typography>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  {t("Pick a task or run a free-focus session.")}
+                </Typography>
+              )}
+
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: "wrap" }}>
+                <Chip size="medium" color={focusRunning ? "warning" : "default"} label={formatFocusTime(focusSecondsLeft)} />
+                <Button size="small" variant={focusRunning ? "outlined" : "contained"} onClick={handleToggleFocus}>
+                  {focusRunning ? t("Pause") : t("Start Focus")}
+                </Button>
+                <Button size="small" variant="outlined" onClick={handleResetFocus}>
+                  {t("Reset")}
+                </Button>
+              </Stack>
             </Stack>
           </Collapse>
         </Box>

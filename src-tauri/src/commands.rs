@@ -1,6 +1,6 @@
 use crate::models::{
-    Entry, Goal, Habit, HabitWithLogs, Meeting, MeetingActionItem, Page, Project, ProjectBranch,
-    Task, TaskSubtask,
+    Entry, Goal, GoalMilestone, Habit, HabitWithLogs, Meeting, MeetingActionItem, Page, Project,
+    ProjectBranch, Task, TaskSubtask,
 };
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use rusqlite::Connection;
@@ -29,6 +29,8 @@ pub struct BackupPayload {
     pub task_subtasks: Vec<BackupTaskSubtaskInput>,
     #[serde(default)]
     pub goals: Vec<BackupGoalInput>,
+    #[serde(default)]
+    pub goal_milestones: Vec<BackupGoalMilestoneInput>,
     #[serde(default)]
     pub projects: Vec<BackupProjectInput>,
     #[serde(default)]
@@ -69,6 +71,9 @@ pub struct BackupTaskInput {
     pub project_id: Option<i64>,
     pub goal_id: Option<i64>,
     pub due_date: Option<String>,
+    pub recurrence: Option<String>,
+    pub recurrence_until: Option<String>,
+    pub parent_task_id: Option<i64>,
     pub completed_at: Option<String>,
     pub time_estimate_minutes: Option<i64>,
     pub timer_started_at: Option<String>,
@@ -97,6 +102,18 @@ pub struct BackupGoalInput {
     pub progress: Option<i64>,
     pub project_id: Option<i64>,
     pub target_date: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BackupGoalMilestoneInput {
+    pub id: Option<i64>,
+    pub goal_id: i64,
+    pub title: String,
+    pub completed: Option<bool>,
+    pub position: Option<i64>,
+    pub due_date: Option<String>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
 }
@@ -177,6 +194,15 @@ fn normalize_priority(priority: Option<String>) -> String {
             priority.unwrap_or_else(|| "medium".to_string())
         }
         _ => "medium".to_string(),
+    }
+}
+
+fn normalize_task_recurrence(recurrence: Option<String>) -> String {
+    match recurrence.as_deref() {
+        Some("none") | Some("daily") | Some("weekdays") | Some("weekly") => {
+            recurrence.unwrap_or_else(|| "none".to_string())
+        }
+        _ => "none".to_string(),
     }
 }
 
@@ -450,6 +476,30 @@ fn normalize_subtask_title(title: String) -> String {
     }
 }
 
+fn normalize_goal_milestone_title(title: String) -> String {
+    let trimmed = title.trim();
+    if trimmed.is_empty() {
+        "Untitled milestone".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn normalize_optional_date(value: Option<String>) -> Option<String> {
+    value.and_then(|raw| {
+        let trimmed = raw.trim().to_string();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        if NaiveDate::parse_from_str(&trimmed, "%Y-%m-%d").is_ok() {
+            Some(trimmed)
+        } else {
+            None
+        }
+    })
+}
+
 fn task_exists(conn: &Connection, task_id: i64) -> Result<bool, String> {
     conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM tasks WHERE id = ?1)",
@@ -464,6 +514,154 @@ fn touch_task_updated_at(conn: &Connection, task_id: i64, now: &str) -> Result<(
     conn.execute(
         "UPDATE tasks SET updated_at = ?1 WHERE id = ?2",
         params![now, task_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+fn compute_next_due_date(current_due_date: &str, recurrence: &str) -> Option<String> {
+    let date = NaiveDate::parse_from_str(current_due_date, "%Y-%m-%d").ok()?;
+    let next = match recurrence {
+        "daily" => date + Duration::days(1),
+        "weekdays" => {
+            let mut candidate = date + Duration::days(1);
+            while matches!(candidate.weekday(), chrono::Weekday::Sat | chrono::Weekday::Sun) {
+                candidate += Duration::days(1);
+            }
+            candidate
+        }
+        "weekly" => date + Duration::days(7),
+        _ => return None,
+    };
+
+    Some(next.format("%Y-%m-%d").to_string())
+}
+
+fn materialize_recurring_successor(conn: &Connection, task_id: i64) -> Result<(), String> {
+    let task = conn
+        .query_row(
+            "SELECT title, description, priority, project_id, goal_id, due_date, time_estimate_minutes, recurrence, recurrence_until
+             FROM tasks WHERE id = ?1",
+            params![task_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, Option<i64>>(3)?,
+                    row.get::<_, Option<i64>>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, i64>(6)?,
+                    row.get::<_, String>(7)?,
+                    row.get::<_, Option<String>>(8)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let Some((title, description, priority, project_id, goal_id, due_date, time_estimate_minutes, recurrence, recurrence_until)) = task else {
+        return Ok(());
+    };
+
+    if recurrence == "none" {
+        return Ok(());
+    }
+
+    let Some(due_date) = due_date else {
+        return Ok(());
+    };
+
+    let child_exists = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM tasks WHERE parent_task_id = ?1)",
+            params![task_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|e| e.to_string())?
+        == 1;
+    if child_exists {
+        return Ok(());
+    }
+
+    let Some(next_due_date) = compute_next_due_date(&due_date, &recurrence) else {
+        return Ok(());
+    };
+
+    if let Some(limit) = recurrence_until.as_deref() {
+        let Ok(limit_date) = NaiveDate::parse_from_str(limit, "%Y-%m-%d") else {
+            return Ok(());
+        };
+        let Ok(next_date) = NaiveDate::parse_from_str(&next_due_date, "%Y-%m-%d") else {
+            return Ok(());
+        };
+        if next_date > limit_date {
+            return Ok(());
+        }
+    }
+
+    let now = Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO tasks (
+            title, description, status, priority, project_id, goal_id, due_date, recurrence,
+            recurrence_until, parent_task_id, completed_at, time_estimate_minutes, timer_started_at,
+            timer_accumulated_seconds, created_at, updated_at
+         ) VALUES (?1, ?2, 'todo', ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, ?10, NULL, 0, ?11, ?12)",
+        params![
+            title,
+            description,
+            priority,
+            project_id,
+            goal_id,
+            next_due_date,
+            recurrence,
+            recurrence_until,
+            task_id,
+            time_estimate_minutes,
+            now,
+            now,
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+fn sync_goal_progress_from_milestones(conn: &Connection, goal_id: i64) -> Result<(), String> {
+    let counts = conn
+        .query_row(
+            "SELECT COUNT(*), COALESCE(SUM(completed), 0) FROM goal_milestones WHERE goal_id = ?1",
+            params![goal_id],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let (total, completed) = counts;
+    if total == 0 {
+        return Ok(());
+    }
+
+    let next_progress = ((completed as f64 / total as f64) * 100.0).round() as i64;
+    let current_status: String = conn
+        .query_row("SELECT status FROM goals WHERE id = ?1", params![goal_id], |row| row.get(0))
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "active".to_string());
+
+    let next_status = if current_status == "archived" {
+        current_status
+    } else if next_progress >= 100 {
+        "completed".to_string()
+    } else if current_status == "completed" {
+        "active".to_string()
+    } else {
+        current_status
+    };
+
+    conn.execute(
+        "UPDATE goals SET progress = ?1, status = ?2, updated_at = ?3 WHERE id = ?4",
+        params![next_progress, next_status, Utc::now().to_rfc3339(), goal_id],
     )
     .map_err(|e| e.to_string())?;
 
@@ -764,7 +962,7 @@ pub fn delete_page(id: i64, state: State<'_, AppState>) -> Result<(), String> {
 #[tauri::command]
 pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let mut stmt = conn.prepare("SELECT id, title, description, status, priority, project_id, goal_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT id, title, description, status, priority, project_id, goal_id, due_date, recurrence, recurrence_until, parent_task_id, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at FROM tasks ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
 
     let tasks_iter = stmt
         .query_map([], |row| {
@@ -777,12 +975,15 @@ pub fn get_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
                 project_id: row.get(5)?,
                 goal_id: row.get(6)?,
                 due_date: row.get(7)?,
-                completed_at: row.get(8)?,
-                time_estimate_minutes: row.get(9)?,
-                timer_started_at: row.get(10)?,
-                timer_accumulated_seconds: row.get(11)?,
-                created_at: row.get(12)?,
-                updated_at: row.get(13)?,
+                recurrence: row.get(8)?,
+                recurrence_until: row.get(9)?,
+                parent_task_id: row.get(10)?,
+                completed_at: row.get(11)?,
+                time_estimate_minutes: row.get(12)?,
+                timer_started_at: row.get(13)?,
+                timer_accumulated_seconds: row.get(14)?,
+                created_at: row.get(15)?,
+                updated_at: row.get(16)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -804,6 +1005,8 @@ pub fn create_task(
     project_id: Option<i64>,
     goal_id: Option<i64>,
     due_date: Option<String>,
+    recurrence: Option<String>,
+    recurrence_until: Option<String>,
     time_estimate_minutes: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<Task, String> {
@@ -819,11 +1022,14 @@ pub fn create_task(
     let time_estimate_minutes = normalize_time_estimate_minutes(time_estimate_minutes);
     let project_id = normalize_project_id(&conn, project_id)?;
     let goal_id = normalize_goal_id(&conn, goal_id)?;
+    let recurrence = normalize_task_recurrence(recurrence);
+    let recurrence_until = normalize_optional_date(recurrence_until);
     let timer_started_at: Option<String> = None;
     let timer_accumulated_seconds = 0_i64;
+    let parent_task_id: Option<i64> = None;
 
     conn.execute(
-        "INSERT INTO tasks (title, description, status, priority, project_id, goal_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+        "INSERT INTO tasks (title, description, status, priority, project_id, goal_id, due_date, recurrence, recurrence_until, parent_task_id, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
         params![
             title,
             description,
@@ -832,6 +1038,9 @@ pub fn create_task(
             project_id,
             goal_id,
             due_date,
+            recurrence,
+            recurrence_until,
+            parent_task_id,
             completed_at,
             time_estimate_minutes,
             timer_started_at,
@@ -852,6 +1061,9 @@ pub fn create_task(
         project_id,
         goal_id,
         due_date,
+        recurrence,
+        recurrence_until,
+        parent_task_id,
         completed_at,
         time_estimate_minutes,
         timer_started_at,
@@ -871,6 +1083,8 @@ pub fn update_task(
     project_id: Option<i64>,
     goal_id: Option<i64>,
     due_date: Option<String>,
+    recurrence: Option<String>,
+    recurrence_until: Option<String>,
     time_estimate_minutes: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
@@ -880,7 +1094,14 @@ pub fn update_task(
     let normalized_priority = normalize_priority(priority);
     let normalized_project_id = normalize_project_id(&conn, project_id)?;
     let normalized_goal_id = normalize_goal_id(&conn, goal_id)?;
+    let normalized_recurrence = normalize_task_recurrence(recurrence);
+    let normalized_recurrence_until = normalize_optional_date(recurrence_until);
     let normalized_time_estimate_minutes = normalize_time_estimate_minutes(time_estimate_minutes);
+    let previous_status: String = conn
+        .query_row("SELECT status FROM tasks WHERE id = ?1", params![id], |row| row.get(0))
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "todo".to_string());
     let mut timer_started_at: Option<String> = conn
         .query_row(
             "SELECT timer_started_at FROM tasks WHERE id = ?1",
@@ -914,7 +1135,7 @@ pub fn update_task(
     };
 
     conn.execute(
-        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, priority = ?4, project_id = ?5, goal_id = ?6, due_date = ?7, completed_at = ?8, time_estimate_minutes = ?9, timer_started_at = ?10, timer_accumulated_seconds = ?11, updated_at = ?12 WHERE id = ?13",
+        "UPDATE tasks SET title = ?1, description = ?2, status = ?3, priority = ?4, project_id = ?5, goal_id = ?6, due_date = ?7, recurrence = ?8, recurrence_until = ?9, completed_at = ?10, time_estimate_minutes = ?11, timer_started_at = ?12, timer_accumulated_seconds = ?13, updated_at = ?14 WHERE id = ?15",
         params![
             title,
             description,
@@ -923,6 +1144,8 @@ pub fn update_task(
             normalized_project_id,
             normalized_goal_id,
             due_date,
+            normalized_recurrence,
+            normalized_recurrence_until,
             completed_at,
             normalized_time_estimate_minutes,
             timer_started_at,
@@ -931,6 +1154,10 @@ pub fn update_task(
             id
         ],
     ).map_err(|e| e.to_string())?;
+
+    if status == "done" && previous_status != "done" {
+        materialize_recurring_successor(&conn, id)?;
+    }
 
     Ok(())
 }
@@ -944,6 +1171,11 @@ pub fn update_task_status(
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().to_rfc3339();
     let status = normalize_status(status);
+    let previous_status: String = conn
+        .query_row("SELECT status FROM tasks WHERE id = ?1", params![id], |row| row.get(0))
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "todo".to_string());
     let mut timer_started_at: Option<String> = conn
         .query_row(
             "SELECT timer_started_at FROM tasks WHERE id = ?1",
@@ -981,6 +1213,10 @@ pub fn update_task_status(
         params![status, completed_at, timer_started_at, timer_accumulated_seconds, now, id],
     )
     .map_err(|e| e.to_string())?;
+
+    if status == "done" && previous_status != "done" {
+        materialize_recurring_successor(&conn, id)?;
+    }
 
     Ok(())
 }
@@ -1255,6 +1491,196 @@ pub fn delete_task_subtask(id: i64, state: State<'_, AppState>) -> Result<(), St
     if let Some(task_id) = task_id {
         let now = chrono::Utc::now().to_rfc3339();
         touch_task_updated_at(&conn, task_id, &now)?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_goal_milestones(
+    goal_id: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<Vec<GoalMilestone>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut milestones = Vec::new();
+
+    if let Some(goal_id) = goal_id {
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, goal_id, title, completed, position, due_date, created_at, updated_at
+                 FROM goal_milestones
+                 WHERE goal_id = ?1
+                 ORDER BY position ASC, id ASC",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![goal_id], |row| {
+                Ok(GoalMilestone {
+                    id: row.get(0)?,
+                    goal_id: row.get(1)?,
+                    title: row.get(2)?,
+                    completed: row.get::<_, i64>(3)? == 1,
+                    position: row.get(4)?,
+                    due_date: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+
+        for row in rows {
+            milestones.push(row.map_err(|e| e.to_string())?);
+        }
+    } else {
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, goal_id, title, completed, position, due_date, created_at, updated_at
+                 FROM goal_milestones
+                 ORDER BY goal_id ASC, position ASC, id ASC",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(GoalMilestone {
+                    id: row.get(0)?,
+                    goal_id: row.get(1)?,
+                    title: row.get(2)?,
+                    completed: row.get::<_, i64>(3)? == 1,
+                    position: row.get(4)?,
+                    due_date: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+
+        for row in rows {
+            milestones.push(row.map_err(|e| e.to_string())?);
+        }
+    }
+
+    Ok(milestones)
+}
+
+#[tauri::command]
+pub fn create_goal_milestone(
+    goal_id: i64,
+    title: String,
+    due_date: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<GoalMilestone, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let Some(goal_id) = normalize_goal_id(&conn, Some(goal_id))? else {
+        return Err("Goal not found".to_string());
+    };
+    let title = normalize_goal_milestone_title(title);
+    let due_date = normalize_optional_date(due_date);
+    let now = Utc::now().to_rfc3339();
+    let position: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(position), -1) + 1 FROM goal_milestones WHERE goal_id = ?1",
+            params![goal_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT INTO goal_milestones (goal_id, title, completed, position, due_date, created_at, updated_at)
+         VALUES (?1, ?2, 0, ?3, ?4, ?5, ?6)",
+        params![goal_id, title, position, due_date, now, now],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let id = conn.last_insert_rowid();
+    sync_goal_progress_from_milestones(&conn, goal_id)?;
+
+    Ok(GoalMilestone {
+        id,
+        goal_id,
+        title,
+        completed: false,
+        position,
+        due_date,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub fn update_goal_milestone(
+    id: i64,
+    title: Option<String>,
+    completed: Option<bool>,
+    due_date: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let current = conn
+        .query_row(
+            "SELECT goal_id, title, completed, due_date FROM goal_milestones WHERE id = ?1",
+            params![id],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)? == 1,
+                    row.get::<_, Option<String>>(3)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let Some((goal_id, current_title, current_completed, current_due_date)) = current else {
+        return Ok(());
+    };
+
+    let next_title = match title {
+        Some(value) => normalize_goal_milestone_title(value),
+        None => current_title,
+    };
+    let next_completed = completed.unwrap_or(current_completed);
+    let next_due_date = match due_date {
+        Some(value) => normalize_optional_date(Some(value)),
+        None => current_due_date,
+    };
+
+    conn.execute(
+        "UPDATE goal_milestones
+         SET title = ?1, completed = ?2, due_date = ?3, updated_at = ?4
+         WHERE id = ?5",
+        params![
+            next_title,
+            if next_completed { 1_i64 } else { 0_i64 },
+            next_due_date,
+            Utc::now().to_rfc3339(),
+            id
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    sync_goal_progress_from_milestones(&conn, goal_id)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_goal_milestone(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let goal_id: Option<i64> = conn
+        .query_row(
+            "SELECT goal_id FROM goal_milestones WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .flatten();
+
+    conn.execute("DELETE FROM goal_milestones WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+
+    if let Some(goal_id) = goal_id {
+        sync_goal_progress_from_milestones(&conn, goal_id)?;
     }
 
     Ok(())
@@ -1544,6 +1970,9 @@ pub fn materialize_meeting_action_items(
             project_id,
             goal_id: None,
             due_date: due_date.clone(),
+            recurrence: "none".to_string(),
+            recurrence_until: None,
+            parent_task_id: None,
             completed_at: None,
             time_estimate_minutes: 0,
             timer_started_at: None,
@@ -2017,6 +2446,8 @@ pub fn delete_goal(id: i64, state: State<'_, AppState>) -> Result<(), String> {
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     tx.execute("UPDATE tasks SET goal_id = NULL WHERE goal_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM goal_milestones WHERE goal_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
     tx.execute("DELETE FROM goals WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
     tx.commit().map_err(|e| e.to_string())?;
@@ -2207,6 +2638,8 @@ pub fn import_backup(
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM pages", [])
             .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM goal_milestones", [])
+            .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM task_subtasks", [])
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM tasks", [])
@@ -2347,6 +2780,9 @@ pub fn import_backup(
         let project_id = task.project_id;
         let goal_id = task.goal_id;
         let due_date = task.due_date;
+        let recurrence = normalize_task_recurrence(task.recurrence);
+        let recurrence_until = normalize_optional_date(task.recurrence_until);
+        let parent_task_id = task.parent_task_id;
         let completed_at = task.completed_at;
         let time_estimate_minutes = normalize_time_estimate_minutes(task.time_estimate_minutes);
         let mut timer_started_at = task.timer_started_at;
@@ -2362,8 +2798,8 @@ pub fn import_backup(
 
         if let Some(id) = task.id {
             tx.execute(
-                "INSERT INTO tasks (id, title, description, status, priority, project_id, goal_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                "INSERT INTO tasks (id, title, description, status, priority, project_id, goal_id, due_date, recurrence, recurrence_until, parent_task_id, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
                  ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     description = excluded.description,
@@ -2372,6 +2808,9 @@ pub fn import_backup(
                     project_id = excluded.project_id,
                     goal_id = excluded.goal_id,
                     due_date = excluded.due_date,
+                    recurrence = excluded.recurrence,
+                    recurrence_until = excluded.recurrence_until,
+                    parent_task_id = excluded.parent_task_id,
                     completed_at = excluded.completed_at,
                     time_estimate_minutes = excluded.time_estimate_minutes,
                     timer_started_at = excluded.timer_started_at,
@@ -2387,6 +2826,9 @@ pub fn import_backup(
                     project_id,
                     goal_id,
                     due_date,
+                    recurrence,
+                    recurrence_until,
+                    parent_task_id,
                     completed_at,
                     time_estimate_minutes,
                     timer_started_at,
@@ -2398,8 +2840,8 @@ pub fn import_backup(
             .map_err(|e| e.to_string())?;
         } else {
             tx.execute(
-                "INSERT INTO tasks (title, description, status, priority, project_id, goal_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                "INSERT INTO tasks (title, description, status, priority, project_id, goal_id, due_date, recurrence, recurrence_until, parent_task_id, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
                 params![
                     task.title,
                     task.description,
@@ -2408,6 +2850,9 @@ pub fn import_backup(
                     project_id,
                     goal_id,
                     due_date,
+                    recurrence,
+                    recurrence_until,
+                    parent_task_id,
                     completed_at,
                     time_estimate_minutes,
                     timer_started_at,
@@ -2517,6 +2962,56 @@ pub fn import_backup(
             )
             .map_err(|e| e.to_string())?;
         }
+    }
+
+    for milestone in payload.goal_milestones {
+        let Some(goal_id) = normalize_goal_id(&tx, Some(milestone.goal_id))? else {
+            continue;
+        };
+
+        let created_at = milestone.created_at.unwrap_or_else(|| now.clone());
+        let updated_at = milestone.updated_at.unwrap_or_else(|| created_at.clone());
+        let title = normalize_goal_milestone_title(milestone.title);
+        let completed = if milestone.completed.unwrap_or(false) { 1_i64 } else { 0_i64 };
+        let position = milestone.position.unwrap_or(0).max(0);
+        let due_date = normalize_optional_date(milestone.due_date);
+
+        if let Some(id) = milestone.id {
+            tx.execute(
+                "INSERT INTO goal_milestones (id, goal_id, title, completed, position, due_date, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                 ON CONFLICT(id) DO UPDATE SET
+                    goal_id = excluded.goal_id,
+                    title = excluded.title,
+                    completed = excluded.completed,
+                    position = excluded.position,
+                    due_date = excluded.due_date,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at",
+                params![id, goal_id, title, completed, position, due_date, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO goal_milestones (goal_id, title, completed, position, due_date, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![goal_id, title, completed, position, due_date, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    let mut goal_ids_to_sync = HashSet::new();
+    for goal in tx
+        .prepare("SELECT DISTINCT goal_id FROM goal_milestones")
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| row.get::<_, i64>(0))
+        .map_err(|e| e.to_string())?
+    {
+        goal_ids_to_sync.insert(goal.map_err(|e| e.to_string())?);
+    }
+    for goal_id in goal_ids_to_sync {
+        sync_goal_progress_from_milestones(&tx, goal_id)?;
     }
 
     for meeting in payload.meetings {

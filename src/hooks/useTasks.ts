@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
-import { Task, TaskPriority, TaskStatus, TaskSubtask } from "../types";
+import { Task, TaskPriority, TaskRecurrence, TaskStatus, TaskSubtask } from "../types";
 
 const TASKS_QUERY_KEY = ["tasks"] as const;
 const TASK_SUBTASKS_QUERY_KEY = ["task-subtasks"] as const;
@@ -40,6 +40,8 @@ export const useCreateTask = () => {
       project_id,
       goal_id,
       due_date,
+      recurrence,
+      recurrence_until,
       time_estimate_minutes,
     }: {
       title: string;
@@ -49,6 +51,8 @@ export const useCreateTask = () => {
       project_id: number | null;
       goal_id: number | null;
       due_date: string | null;
+      recurrence: TaskRecurrence;
+      recurrence_until: string | null;
       time_estimate_minutes: number;
     }) => {
       return await invoke<Task>("create_task", {
@@ -59,6 +63,8 @@ export const useCreateTask = () => {
         projectId: project_id,
         goalId: goal_id,
         dueDate: due_date,
+        recurrence,
+        recurrenceUntil: recurrence_until,
         timeEstimateMinutes: time_estimate_minutes,
       });
     },
@@ -82,6 +88,8 @@ export const useUpdateTask = () => {
       project_id,
       goal_id,
       due_date,
+      recurrence,
+      recurrence_until,
       time_estimate_minutes,
     }: {
       id: number;
@@ -92,6 +100,8 @@ export const useUpdateTask = () => {
       project_id: number | null;
       goal_id: number | null;
       due_date: string | null;
+      recurrence: TaskRecurrence;
+      recurrence_until: string | null;
       time_estimate_minutes: number;
     }) => {
       await invoke("update_task", {
@@ -103,6 +113,8 @@ export const useUpdateTask = () => {
         projectId: project_id,
         goalId: goal_id,
         dueDate: due_date,
+        recurrence,
+        recurrenceUntil: recurrence_until,
         timeEstimateMinutes: time_estimate_minutes,
       });
     },

@@ -17,6 +17,7 @@ export interface Page {
 
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
+export type TaskRecurrence = "none" | "daily" | "weekdays" | "weekly";
 export type GoalStatus = "active" | "paused" | "completed" | "archived";
 export type MeetingStatus = "planned" | "live" | "done" | "missed" | "cancelled";
 export type MeetingRecurrence = "none" | "daily" | "weekdays" | "weekly";
@@ -37,6 +38,9 @@ export interface Task {
     project_id: number | null;
     goal_id: number | null;
     due_date: string | null;
+    recurrence: TaskRecurrence;
+    recurrence_until: string | null;
+    parent_task_id: number | null;
     completed_at: string | null;
     time_estimate_minutes: number;
     timer_started_at: string | null;
@@ -84,6 +88,17 @@ export interface Goal {
     progress: number;
     project_id: number | null;
     target_date: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface GoalMilestone {
+    id: number;
+    goal_id: number;
+    title: string;
+    completed: boolean;
+    position: number;
+    due_date: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -151,6 +166,9 @@ export interface BackupPayload {
         project_id?: number | null;
         goal_id?: number | null;
         due_date?: string | null;
+        recurrence?: TaskRecurrence;
+        recurrence_until?: string | null;
+        parent_task_id?: number | null;
         completed_at?: string | null;
         time_estimate_minutes?: number;
         timer_started_at?: string | null;
@@ -175,6 +193,16 @@ export interface BackupPayload {
         progress?: number;
         project_id?: number | null;
         target_date?: string | null;
+        created_at?: string;
+        updated_at?: string;
+    }>;
+    goal_milestones?: Array<{
+        id?: number;
+        goal_id: number;
+        title: string;
+        completed?: boolean;
+        position?: number;
+        due_date?: string | null;
         created_at?: string;
         updated_at?: string;
     }>;

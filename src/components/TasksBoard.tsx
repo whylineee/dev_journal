@@ -56,7 +56,7 @@ import {
 } from "../hooks/useTasks";
 import { useProjects } from "../hooks/useProjects";
 import { useGoals } from "../hooks/useGoals";
-import { Task, TaskPriority, TaskStatus, TaskSubtask } from "../types";
+import { Task, TaskPriority, TaskRecurrence, TaskStatus, TaskSubtask } from "../types";
 import {
   compareTasks,
   formatDuration,
@@ -94,6 +94,13 @@ const priorityLabel: Record<TaskPriority, string> = {
   medium: "Medium",
   high: "High",
   urgent: "Urgent",
+};
+
+const recurrenceLabel: Record<TaskRecurrence, string> = {
+  none: "Does not repeat",
+  daily: "Daily",
+  weekdays: "Weekdays",
+  weekly: "Weekly",
 };
 
 const TASK_OUTCOMES_STORAGE_KEY = "devJournal_task_outcomes";
@@ -251,6 +258,8 @@ export const TasksBoard = () => {
   const [projectId, setProjectId] = useState<number | "">("");
   const [goalId, setGoalId] = useState<number | "">("");
   const [dueDate, setDueDate] = useState("");
+  const [recurrence, setRecurrence] = useState<TaskRecurrence>("none");
+  const [recurrenceUntil, setRecurrenceUntil] = useState("");
   const [timeEstimateMinutes, setTimeEstimateMinutes] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [beforeOutcome, setBeforeOutcome] = useState("");
@@ -426,6 +435,8 @@ export const TasksBoard = () => {
     setProjectId("");
     setGoalId("");
     setDueDate("");
+    setRecurrence("none");
+    setRecurrenceUntil("");
     setTimeEstimateMinutes(0);
     setBeforeOutcome("");
     setAfterOutcome("");
@@ -441,6 +452,8 @@ export const TasksBoard = () => {
     setProjectId(task.project_id ?? "");
     setGoalId(task.goal_id ?? "");
     setDueDate(task.due_date ?? "");
+    setRecurrence(task.recurrence);
+    setRecurrenceUntil(task.recurrence_until ?? "");
     setTimeEstimateMinutes(task.time_estimate_minutes);
     const outcome = taskOutcomes[String(task.id)];
     setBeforeOutcome(outcome?.before ?? "");
@@ -484,6 +497,10 @@ export const TasksBoard = () => {
     if (!cleanTitle) {
       return;
     }
+    if (recurrence !== "none" && !dueDate) {
+      notify("Recurring tasks require a due date.", "warning");
+      return;
+    }
 
     const normalizedTimeEstimate = normalizeEstimateMinutes(timeEstimateMinutes);
 
@@ -498,6 +515,8 @@ export const TasksBoard = () => {
           project_id: projectId === "" ? null : projectId,
           goal_id: goalId === "" ? null : goalId,
           due_date: dueDate || null,
+          recurrence,
+          recurrence_until: recurrence === "none" ? null : recurrenceUntil || null,
           time_estimate_minutes: normalizedTimeEstimate,
         },
         {
@@ -517,6 +536,8 @@ export const TasksBoard = () => {
           project_id: projectId === "" ? null : projectId,
           goal_id: goalId === "" ? null : goalId,
           due_date: dueDate || null,
+          recurrence,
+          recurrence_until: recurrence === "none" ? null : recurrenceUntil || null,
           time_estimate_minutes: normalizedTimeEstimate,
         },
         {
@@ -889,6 +910,14 @@ export const TasksBoard = () => {
                               variant="outlined"
                             />
                           ) : null}
+                          {task.recurrence !== "none" ? (
+                            <Chip
+                              size="small"
+                              label={recurrenceLabel[task.recurrence]}
+                              color="secondary"
+                              variant="outlined"
+                            />
+                          ) : null}
                           <Chip
                             size="small"
                             icon={<TimerIcon fontSize="small" />}
@@ -1120,6 +1149,14 @@ export const TasksBoard = () => {
                     ) : null}
                     {activeTask.due_date ? (
                       <Chip size="small" label={`Due: ${formatTaskDateOnly(activeTask.due_date)}`} variant="outlined" />
+                    ) : null}
+                    {activeTask.recurrence !== "none" ? (
+                      <Chip
+                        size="small"
+                        label={`Repeats: ${recurrenceLabel[activeTask.recurrence]}`}
+                        color="secondary"
+                        variant="outlined"
+                      />
                     ) : null}
                   </Stack>
                 </Box>
@@ -1373,6 +1410,32 @@ export const TasksBoard = () => {
                 value={timeEstimateMinutes}
                 onChange={(event) => setTimeEstimateMinutes(normalizeEstimateMinutes(Number(event.target.value)))}
                 inputProps={{ min: 0, max: 10080, step: 5 }}
+                fullWidth
+              />
+            </Stack>
+
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+              <TextField
+                select
+                label="Repeat"
+                value={recurrence}
+                onChange={(event) => setRecurrence(event.target.value as TaskRecurrence)}
+                SelectProps={{ native: true }}
+                fullWidth
+              >
+                <option value="none">Does not repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekdays">Weekdays</option>
+                <option value="weekly">Weekly</option>
+              </TextField>
+
+              <TextField
+                type="date"
+                label="Repeat until"
+                value={recurrenceUntil}
+                onChange={(event) => setRecurrenceUntil(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+                disabled={recurrence === "none"}
                 fullWidth
               />
             </Stack>

@@ -335,6 +335,52 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v12: recurring tasks + goal milestones.
+    apply_migration(conn, 12, |conn| {
+        ensure_column(
+            conn,
+            "tasks",
+            "recurrence",
+            "TEXT NOT NULL DEFAULT 'none'",
+        )?;
+        ensure_column(conn, "tasks", "recurrence_until", "TEXT")?;
+        ensure_column(conn, "tasks", "parent_task_id", "INTEGER")?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_recurrence_due_date
+             ON tasks(recurrence, due_date)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_parent_task_id
+             ON tasks(parent_task_id)",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS goal_milestones (
+                id INTEGER PRIMARY KEY,
+                goal_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                position INTEGER NOT NULL DEFAULT 0,
+                due_date TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(goal_id) REFERENCES goals(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_goal_milestones_goal_position
+             ON goal_milestones(goal_id, position, id)",
+            [],
+        )?;
+
+        Ok(())
+    })?;
+
     Ok(())
 }
 

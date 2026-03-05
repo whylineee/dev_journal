@@ -29,6 +29,9 @@ pub struct Task {
     pub project_id: Option<i64>,
     pub goal_id: Option<i64>,
     pub due_date: Option<String>,
+    pub recurrence: String,
+    pub recurrence_until: Option<String>,
+    pub parent_task_id: Option<i64>,
     pub completed_at: Option<String>,
     pub time_estimate_minutes: i64,
     pub timer_started_at: Option<String>,
@@ -87,6 +90,18 @@ pub struct Goal {
     pub progress: i64,
     pub project_id: Option<i64>,
     pub target_date: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GoalMilestone {
+    pub id: i64,
+    pub goal_id: i64,
+    pub title: String,
+    pub completed: bool,
+    pub position: i64,
+    pub due_date: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }

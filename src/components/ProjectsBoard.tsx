@@ -317,6 +317,8 @@ export const ProjectsBoard = () => {
         project_id: selectedProject.id,
         goal_id: null,
         due_date: workspaceTaskDueDate || null,
+        recurrence: "none",
+        recurrence_until: null,
         time_estimate_minutes: 0,
       },
       {

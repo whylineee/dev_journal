@@ -24,7 +24,7 @@ import { useI18n } from "../i18n/I18nContext";
 import { useEntries, useImportBackup } from "../hooks/useEntries";
 import { usePages } from "../hooks/usePages";
 import { useTaskSubtasks, useTasks } from "../hooks/useTasks";
-import { useGoals } from "../hooks/useGoals";
+import { useGoalMilestones, useGoals } from "../hooks/useGoals";
 import { useHabits } from "../hooks/useHabits";
 import { useProjects } from "../hooks/useProjects";
 import { useProjectBranches } from "../hooks/useProjectBranches";
@@ -76,6 +76,7 @@ export const SettingsScreen = ({
   const { data: tasks } = useTasks();
   const { data: taskSubtasks } = useTaskSubtasks(null);
   const { data: goals } = useGoals();
+  const { data: goalMilestones } = useGoalMilestones(null);
   const { data: habits } = useHabits();
   const { data: projects } = useProjects();
   const { data: projectBranches } = useProjectBranches(null);
@@ -94,6 +95,7 @@ export const SettingsScreen = ({
       tasks: tasks ?? [],
       task_subtasks: taskSubtasks ?? [],
       goals: goals ?? [],
+      goal_milestones: goalMilestones ?? [],
       projects: projects ?? [],
       project_branches: projectBranches ?? [],
       meetings: meetings ?? [],

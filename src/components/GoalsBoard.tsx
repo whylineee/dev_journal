@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Checkbox,
   Chip,
   Dialog,
   DialogActions,
@@ -16,12 +17,22 @@ import {
   Typography,
 } from "@mui/material";
 import FlagCircleIcon from "@mui/icons-material/FlagCircle";
+import AddTaskIcon from "@mui/icons-material/AddTask";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import { format, isBefore, parseISO, startOfDay } from "date-fns";
 import { Goal, GoalStatus, Task } from "../types";
-import { useCreateGoal, useDeleteGoal, useGoals, useUpdateGoal } from "../hooks/useGoals";
+import {
+  useCreateGoal,
+  useCreateGoalMilestone,
+  useDeleteGoal,
+  useDeleteGoalMilestone,
+  useGoalMilestones,
+  useGoals,
+  useUpdateGoal,
+  useUpdateGoalMilestone,
+} from "../hooks/useGoals";
 import { useProjects } from "../hooks/useProjects";
 import { useTasks } from "../hooks/useTasks";
 import { useI18n } from "../i18n/I18nContext";
@@ -94,8 +105,12 @@ export const GoalsBoard = () => {
   const { data: goals = [], isLoading } = useGoals();
   const { data: projects = [] } = useProjects();
   const { data: tasks = [] } = useTasks();
+  const { data: milestones = [] } = useGoalMilestones(null);
   const createGoal = useCreateGoal();
+  const createGoalMilestone = useCreateGoalMilestone();
   const updateGoal = useUpdateGoal();
+  const updateGoalMilestone = useUpdateGoalMilestone();
+  const deleteGoalMilestone = useDeleteGoalMilestone();
   const deleteGoal = useDeleteGoal();
 
   const [query, setQuery] = useState("");
@@ -109,8 +124,16 @@ export const GoalsBoard = () => {
   const [progress, setProgress] = useState(0);
   const [projectId, setProjectId] = useState<number | "">("");
   const [targetDate, setTargetDate] = useState("");
+  const [newMilestoneTitles, setNewMilestoneTitles] = useState<Record<number, string>>({});
+  const [newMilestoneDueDates, setNewMilestoneDueDates] = useState<Record<number, string>>({});
 
-  const busy = createGoal.isPending || updateGoal.isPending || deleteGoal.isPending;
+  const busy =
+    createGoal.isPending ||
+    updateGoal.isPending ||
+    deleteGoal.isPending ||
+    createGoalMilestone.isPending ||
+    updateGoalMilestone.isPending ||
+    deleteGoalMilestone.isPending;
 
   const stats = useMemo(() => {
     const completed = goals.filter((goal) => goal.status === "completed").length;
@@ -140,6 +163,27 @@ export const GoalsBoard = () => {
     });
     return map;
   }, [tasks]);
+
+  const milestonesByGoal = useMemo(() => {
+    const map = new Map<number, typeof milestones>();
+    milestones.forEach((milestone) => {
+      const current = map.get(milestone.goal_id) ?? [];
+      current.push(milestone);
+      map.set(milestone.goal_id, current);
+    });
+    map.forEach((items, goalId) => {
+      map.set(
+        goalId,
+        [...items].sort((a, b) => {
+          if (a.position !== b.position) {
+            return a.position - b.position;
+          }
+          return a.id - b.id;
+        })
+      );
+    });
+    return map;
+  }, [milestones]);
 
   const filteredGoals = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -223,6 +267,27 @@ export const GoalsBoard = () => {
 
   const handleDelete = (id: number) => {
     deleteGoal.mutate(id);
+  };
+
+  const handleAddMilestone = (goalId: number) => {
+    const title = (newMilestoneTitles[goalId] ?? "").trim();
+    if (!title) {
+      return;
+    }
+
+    createGoalMilestone.mutate(
+      {
+        goal_id: goalId,
+        title,
+        due_date: newMilestoneDueDates[goalId] || null,
+      },
+      {
+        onSuccess: () => {
+          setNewMilestoneTitles((prev) => ({ ...prev, [goalId]: "" }));
+          setNewMilestoneDueDates((prev) => ({ ...prev, [goalId]: "" }));
+        },
+      }
+    );
   };
 
   const quickUpdate = (goal: Goal, nextStatus: GoalStatus, nextProgress: number) => {
@@ -328,6 +393,12 @@ export const GoalsBoard = () => {
           const overdue = isOverdue(goal);
           const linkedTasks = tasksByGoal.get(goal.id) ?? [];
           const completedLinkedTasks = linkedTasks.filter((task) => task.status === "done").length;
+          const goalMilestones = milestonesByGoal.get(goal.id) ?? [];
+          const completedMilestones = goalMilestones.filter((milestone) => milestone.completed).length;
+          const displayProgress =
+            goalMilestones.length > 0
+              ? Math.round((completedMilestones / goalMilestones.length) * 100)
+              : goal.progress;
 
           return (
             <Paper
@@ -367,6 +438,12 @@ export const GoalsBoard = () => {
                       color={linkedTasks.length > 0 ? "success" : "default"}
                       variant="outlined"
                     />
+                    <Chip
+                      size="small"
+                      label={`Milestones: ${completedMilestones}/${goalMilestones.length}`}
+                      color={goalMilestones.length > 0 ? "secondary" : "default"}
+                      variant="outlined"
+                    />
                   </Stack>
 
                   {goal.description ? (
@@ -402,44 +479,160 @@ export const GoalsBoard = () => {
                         Progress
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {goal.progress}%
+                        {displayProgress}%
                       </Typography>
                     </Stack>
                     <LinearProgress
                       variant="determinate"
-                      value={goal.progress}
+                      value={displayProgress}
                       color={goal.status === "completed" ? "success" : "primary"}
                       sx={{ height: 8, borderRadius: 5 }}
                     />
                   </Box>
 
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      p: 1.25,
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      bgcolor: "background.default",
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        {t("Milestones")}
+                      </Typography>
+                      {goalMilestones.length > 0 ? (
+                        <Chip size="small" label={`${completedMilestones}/${goalMilestones.length} done`} variant="outlined" />
+                      ) : null}
+                    </Stack>
+
+                    <Stack spacing={0.8}>
+                      {goalMilestones.length === 0 ? (
+                        <Typography variant="caption" color="text.secondary">
+                          No milestones yet. Add the first checkpoint below.
+                        </Typography>
+                      ) : (
+                        goalMilestones.map((milestone) => (
+                          <Stack
+                            key={milestone.id}
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            sx={{ py: 0.35 }}
+                          >
+                            <Checkbox
+                              size="small"
+                              checked={milestone.completed}
+                              disabled={busy}
+                              onChange={(event) =>
+                                updateGoalMilestone.mutate({
+                                  id: milestone.id,
+                                  completed: event.target.checked,
+                                })
+                              }
+                            />
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  textDecoration: milestone.completed ? "line-through" : "none",
+                                  color: milestone.completed ? "text.secondary" : "text.primary",
+                                }}
+                              >
+                                {milestone.title}
+                              </Typography>
+                              {milestone.due_date ? (
+                                <Typography variant="caption" color="text.secondary">
+                                  Due: {formatDate(milestone.due_date)}
+                                </Typography>
+                              ) : null}
+                            </Box>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => deleteGoalMilestone.mutate(milestone.id)}
+                              disabled={busy}
+                            >
+                              <DeleteOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </Stack>
+                        ))
+                      )}
+                    </Stack>
+
+                    <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ mt: 1.2 }}>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        placeholder="New milestone"
+                        value={newMilestoneTitles[goal.id] ?? ""}
+                        onChange={(event) =>
+                          setNewMilestoneTitles((prev) => ({ ...prev, [goal.id]: event.target.value }))
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            handleAddMilestone(goal.id);
+                          }
+                        }}
+                      />
+                      <TextField
+                        size="small"
+                        type="date"
+                        value={newMilestoneDueDates[goal.id] ?? ""}
+                        onChange={(event) =>
+                          setNewMilestoneDueDates((prev) => ({ ...prev, [goal.id]: event.target.value }))
+                        }
+                        InputLabelProps={{ shrink: true }}
+                        sx={{ minWidth: 170 }}
+                      />
+                      <Button
+                        variant="outlined"
+                        startIcon={<AddTaskIcon />}
+                        onClick={() => handleAddMilestone(goal.id)}
+                        disabled={busy || (newMilestoneTitles[goal.id] ?? "").trim().length === 0}
+                      >
+                        Add
+                      </Button>
+                    </Stack>
+                  </Box>
+
                   <Stack direction="row" spacing={0.75} sx={{ mt: 1.5, flexWrap: "wrap", gap: 0.75 }}>
-                    <Chip
-                      label="-10%"
-                      size="small"
-                      variant="outlined"
-                      onClick={() =>
-                        quickUpdate(
-                          goal,
-                          goal.progress <= 10 && goal.status === "completed" ? "active" : goal.status,
-                          goal.progress - 10
-                        )
-                      }
-                      clickable
-                    />
-                    <Chip
-                      label="+10%"
-                      size="small"
-                      variant="outlined"
-                      onClick={() =>
-                        quickUpdate(
-                          goal,
-                          goal.progress + 10 >= 100 ? "completed" : goal.status,
-                          goal.progress + 10
-                        )
-                      }
-                      clickable
-                    />
+                    {goalMilestones.length === 0 ? (
+                      <>
+                        <Chip
+                          label="-10%"
+                          size="small"
+                          variant="outlined"
+                          onClick={() =>
+                            quickUpdate(
+                              goal,
+                              goal.progress <= 10 && goal.status === "completed" ? "active" : goal.status,
+                              goal.progress - 10
+                            )
+                          }
+                          clickable
+                        />
+                        <Chip
+                          label="+10%"
+                          size="small"
+                          variant="outlined"
+                          onClick={() =>
+                            quickUpdate(
+                              goal,
+                              goal.progress + 10 >= 100 ? "completed" : goal.status,
+                              goal.progress + 10
+                            )
+                          }
+                          clickable
+                        />
+                      </>
+                    ) : (
+                      <Chip label="Auto progress from milestones" size="small" color="secondary" variant="outlined" />
+                    )}
                     <Chip
                       label="Mark Completed"
                       size="small"
