@@ -18,6 +18,7 @@ export interface Page {
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 export type GoalStatus = "active" | "paused" | "completed" | "archived";
+export type MeetingStatus = "planned" | "done" | "cancelled";
 
 export interface Task {
     id: number;
@@ -42,6 +43,20 @@ export interface TaskSubtask {
     title: string;
     completed: boolean;
     position: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Meeting {
+    id: number;
+    title: string;
+    agenda: string;
+    start_at: string;
+    end_at: string;
+    meet_url: string | null;
+    calendar_event_url: string | null;
+    project_id: number | null;
+    status: MeetingStatus;
     created_at: string;
     updated_at: string;
 }
@@ -180,5 +195,18 @@ export interface BackupPayload {
         habit_id: number;
         date: string;
         created_at?: string;
+    }>;
+    meetings?: Array<{
+        id?: number;
+        title: string;
+        agenda?: string;
+        start_at: string;
+        end_at: string;
+        meet_url?: string | null;
+        calendar_event_url?: string | null;
+        project_id?: number | null;
+        status?: MeetingStatus;
+        created_at?: string;
+        updated_at?: string;
     }>;
 }

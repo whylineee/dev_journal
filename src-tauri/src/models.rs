@@ -49,6 +49,21 @@ pub struct TaskSubtask {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct Meeting {
+    pub id: i64,
+    pub title: String,
+    pub agenda: String,
+    pub start_at: String,
+    pub end_at: String,
+    pub meet_url: Option<String>,
+    pub calendar_event_url: Option<String>,
+    pub project_id: Option<i64>,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Goal {
     pub id: i64,
     pub title: String,

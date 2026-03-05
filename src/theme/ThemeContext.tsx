@@ -110,6 +110,7 @@ const buildMuiTheme = ({
   palette: ReturnType<typeof getThemePreset>["light"];
   uiDensity: UiDensity;
 }): Theme => {
+  const isDark = appearanceMode === "dark";
   const baseTheme = createTheme({
     palette: {
       mode: appearanceMode,
@@ -129,8 +130,8 @@ const buildMuiTheme = ({
     typography: {
       fontFamily,
       h4: { fontWeight: 700, letterSpacing: "-0.02em", fontSize: "1.9rem" },
-      h5: { fontWeight: 600, letterSpacing: "-0.01em", fontSize: "1.45rem" },
-      h6: { fontWeight: 600, fontSize: "1.12rem" },
+      h5: { fontWeight: 650, letterSpacing: "-0.01em", fontSize: "1.42rem" },
+      h6: { fontWeight: 650, fontSize: "1.08rem" },
       subtitle1: { fontWeight: 500, fontSize: "0.95rem" },
       subtitle2: {
         fontWeight: 500,
@@ -146,7 +147,7 @@ const buildMuiTheme = ({
         lineHeight: 1.5,
       },
       button: {
-        fontSize: "0.87rem",
+        fontSize: "0.86rem",
         letterSpacing: "0.01em",
         fontWeight: 600,
       },
@@ -159,6 +160,10 @@ const buildMuiTheme = ({
             backgroundImage: palette.bodyGradient,
             backgroundAttachment: "fixed",
             minHeight: "100vh",
+            color: palette.textPrimary,
+            fontFeatureSettings: '"cv02" 1, "cv03" 1, "cv04" 1, "cv11" 1',
+            WebkitFontSmoothing: "antialiased",
+            MozOsxFontSmoothing: "grayscale",
           },
           "::-webkit-scrollbar": { width: "8px", height: "8px" },
           "::-webkit-scrollbar-track": { background: "transparent" },
@@ -176,15 +181,22 @@ const buildMuiTheme = ({
           root: {
             backgroundImage: "none",
             backgroundColor:
-              appearanceMode === "dark"
-                ? "rgba(18, 18, 18, 0.76)"
-                : "rgba(255, 255, 255, 0.86)",
-            backdropFilter: "blur(12px)",
+              isDark
+                ? "rgba(15, 15, 15, 0.78)"
+                : "rgba(255, 255, 255, 0.88)",
+            backdropFilter: "blur(14px)",
             border: `1px solid ${palette.divider}`,
             boxShadow:
-              appearanceMode === "dark"
+              isDark
                 ? "0 4px 24px -4px rgba(0, 0, 0, 0.36)"
                 : "0 4px 20px -8px rgba(15, 23, 42, 0.18)",
+          },
+        },
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: Math.max(10, borderRadius - 2),
           },
         },
       },
@@ -196,10 +208,10 @@ const buildMuiTheme = ({
           root: {
             textTransform: "none",
             fontWeight: 600,
-            borderRadius: Math.max(8, borderRadius - 4),
-            minHeight: uiDensity === "compact" ? 32 : 38,
-            padding: uiDensity === "compact" ? "5px 14px" : "8px 20px",
-            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+            borderRadius: Math.max(8, borderRadius - 5),
+            minHeight: uiDensity === "compact" ? 34 : 40,
+            padding: uiDensity === "compact" ? "6px 14px" : "9px 18px",
+            transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
           },
           containedPrimary: {
             boxShadow: `0 4px 14px 0 ${palette.primary}50`,
@@ -217,13 +229,25 @@ const buildMuiTheme = ({
         },
         styleOverrides: {
           root: {
+            "& .MuiInputLabel-root": {
+              color: palette.textSecondary,
+            },
+            "& .MuiInputLabel-root.Mui-focused": {
+              color: palette.primary,
+            },
+            "& .MuiInputLabel-root.MuiInputLabel-shrink": {
+              backgroundColor: isDark ? "rgba(15, 15, 15, 0.9)" : "rgba(255, 255, 255, 0.92)",
+              paddingLeft: 6,
+              paddingRight: 6,
+              borderRadius: 6,
+            },
             "& .MuiOutlinedInput-root": {
               backgroundColor:
-                appearanceMode === "dark"
+                isDark
                   ? "rgba(0, 0, 0, 0.24)"
                   : "rgba(255, 255, 255, 0.72)",
               transition: "all 0.2s",
-              borderRadius: Math.max(8, borderRadius - 4),
+              borderRadius: Math.max(8, borderRadius - 5),
               "& fieldset": { borderColor: palette.divider },
               "&:hover fieldset": { borderColor: palette.secondary },
               "&.Mui-focused fieldset": {
@@ -231,7 +255,7 @@ const buildMuiTheme = ({
                 borderWidth: "1px",
               },
               "&.Mui-focused": {
-                boxShadow: `0 0 0 4px ${palette.primary}26`,
+                boxShadow: `0 0 0 3px ${palette.primary}22`,
               },
             },
           },
@@ -241,10 +265,13 @@ const buildMuiTheme = ({
         styleOverrides: {
           root: {
             fontWeight: 500,
+            borderRadius: 999,
+            height: uiDensity === "compact" ? 24 : 26,
           },
           label: {
             paddingLeft: 8,
             paddingRight: 8,
+            fontSize: "0.76rem",
           },
         },
       },
@@ -252,7 +279,7 @@ const buildMuiTheme = ({
         styleOverrides: {
           paper: {
             backgroundColor:
-              appearanceMode === "dark"
+              isDark
                 ? "rgba(10, 10, 10, 0.72)"
                 : "rgba(255, 255, 255, 0.82)",
             backdropFilter: "blur(20px)",
@@ -264,7 +291,7 @@ const buildMuiTheme = ({
         styleOverrides: {
           root: {
             backgroundColor:
-              appearanceMode === "dark"
+              isDark
                 ? "rgba(10, 10, 10, 0.62)"
                 : "rgba(255, 255, 255, 0.82)",
             backdropFilter: "blur(16px)",
@@ -278,21 +305,16 @@ const buildMuiTheme = ({
           root: {
             borderRadius: Math.max(8, borderRadius - 8),
             margin: "4px 8px",
-            padding: uiDensity === "compact" ? "6px 12px" : "8px 16px",
+            padding: uiDensity === "compact" ? "7px 12px" : "9px 14px",
+            transition: "background-color 0.16s ease, border-color 0.16s ease",
+            border: "1px solid transparent",
+            "&:hover": {
+              borderColor: palette.divider,
+            },
             "&.Mui-selected": {
-              backgroundColor: `${palette.primary}25`,
-              "&:hover": { backgroundColor: `${palette.primary}35` },
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                left: -8,
-                top: "50%",
-                transform: "translateY(-50%)",
-                height: "60%",
-                width: 4,
-                backgroundColor: palette.primary,
-                borderRadius: "0 4px 4px 0",
-              },
+              backgroundColor: `${palette.primary}21`,
+              borderColor: `${palette.primary}60`,
+              "&:hover": { backgroundColor: `${palette.primary}2c` },
             },
           },
         },

@@ -1,5 +1,5 @@
 use crate::models::{
-    Entry, Goal, Habit, HabitWithLogs, Page, Project, ProjectBranch, Task, TaskSubtask,
+    Entry, Goal, Habit, HabitWithLogs, Meeting, Page, Project, ProjectBranch, Task, TaskSubtask,
 };
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use rusqlite::Connection;
@@ -35,6 +35,8 @@ pub struct BackupPayload {
     pub habits: Vec<BackupHabitInput>,
     #[serde(default)]
     pub habit_logs: Vec<BackupHabitLogInput>,
+    #[serde(default)]
+    pub meetings: Vec<BackupMeetingInput>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -138,6 +140,21 @@ pub struct BackupHabitLogInput {
     pub created_at: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct BackupMeetingInput {
+    pub id: Option<i64>,
+    pub title: String,
+    pub agenda: Option<String>,
+    pub start_at: String,
+    pub end_at: String,
+    pub meet_url: Option<String>,
+    pub calendar_event_url: Option<String>,
+    pub project_id: Option<i64>,
+    pub status: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
 fn normalize_status(status: String) -> String {
     match status.as_str() {
         "todo" | "in_progress" | "done" => status,
@@ -208,6 +225,52 @@ fn normalize_project_branch_name(name: String) -> String {
     } else {
         trimmed.to_string()
     }
+}
+
+fn normalize_meeting_title(title: String) -> String {
+    let trimmed = title.trim();
+    if trimmed.is_empty() {
+        "Untitled meeting".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn normalize_optional_text(value: Option<String>) -> Option<String> {
+    value.and_then(|raw| {
+        let trimmed = raw.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    })
+}
+
+fn normalize_meeting_status(status: Option<String>) -> String {
+    match status.as_deref() {
+        Some("planned") | Some("done") | Some("cancelled") => {
+            status.unwrap_or_else(|| "planned".to_string())
+        }
+        _ => "planned".to_string(),
+    }
+}
+
+fn parse_datetime_utc(value: &str) -> Result<chrono::DateTime<Utc>, String> {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|datetime| datetime.with_timezone(&Utc))
+        .map_err(|_| "Invalid date-time format".to_string())
+}
+
+fn normalize_meeting_range(start_at: String, end_at: String) -> Result<(String, String), String> {
+    let normalized_start = parse_datetime_utc(start_at.trim())?;
+    let normalized_end = parse_datetime_utc(end_at.trim())?;
+
+    if normalized_end <= normalized_start {
+        return Err("Meeting end time must be after start time".to_string());
+    }
+
+    Ok((normalized_start.to_rfc3339(), normalized_end.to_rfc3339()))
 }
 
 fn normalize_project_color(color: Option<String>) -> String {
@@ -1116,6 +1179,171 @@ pub fn delete_task_subtask(id: i64, state: State<'_, AppState>) -> Result<(), St
 }
 
 #[tauri::command]
+pub fn get_meetings(state: State<'_, AppState>) -> Result<Vec<Meeting>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, title, agenda, start_at, end_at, meet_url, calendar_event_url, project_id, status, created_at, updated_at
+             FROM meetings
+             ORDER BY
+                CASE status
+                    WHEN 'planned' THEN 0
+                    WHEN 'done' THEN 1
+                    WHEN 'cancelled' THEN 2
+                    ELSE 3
+                END,
+                datetime(start_at) ASC,
+                updated_at DESC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let iter = stmt
+        .query_map([], |row| {
+            Ok(Meeting {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                agenda: row.get(2)?,
+                start_at: row.get(3)?,
+                end_at: row.get(4)?,
+                meet_url: row.get(5)?,
+                calendar_event_url: row.get(6)?,
+                project_id: row.get(7)?,
+                status: row.get(8)?,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut meetings = Vec::new();
+    for meeting in iter {
+        meetings.push(meeting.map_err(|e| e.to_string())?);
+    }
+
+    Ok(meetings)
+}
+
+#[tauri::command]
+pub fn create_meeting(
+    title: String,
+    agenda: String,
+    start_at: String,
+    end_at: String,
+    meet_url: Option<String>,
+    calendar_event_url: Option<String>,
+    project_id: Option<i64>,
+    status: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Meeting, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = Utc::now().to_rfc3339();
+    let title = normalize_meeting_title(title);
+    let agenda = agenda.trim().to_string();
+    let (start_at, end_at) = normalize_meeting_range(start_at, end_at)?;
+    let meet_url = normalize_optional_text(meet_url);
+    let calendar_event_url = normalize_optional_text(calendar_event_url);
+    let project_id = normalize_project_id(&conn, project_id)?;
+    let status = normalize_meeting_status(status);
+
+    conn.execute(
+        "INSERT INTO meetings (title, agenda, start_at, end_at, meet_url, calendar_event_url, project_id, status, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![
+            title,
+            agenda,
+            start_at,
+            end_at,
+            meet_url,
+            calendar_event_url,
+            project_id,
+            status,
+            now,
+            now
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let id = conn.last_insert_rowid();
+
+    Ok(Meeting {
+        id,
+        title,
+        agenda,
+        start_at,
+        end_at,
+        meet_url,
+        calendar_event_url,
+        project_id,
+        status,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub fn update_meeting(
+    id: i64,
+    title: String,
+    agenda: String,
+    start_at: String,
+    end_at: String,
+    meet_url: Option<String>,
+    calendar_event_url: Option<String>,
+    project_id: Option<i64>,
+    status: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let now = Utc::now().to_rfc3339();
+    let title = normalize_meeting_title(title);
+    let agenda = agenda.trim().to_string();
+    let (start_at, end_at) = normalize_meeting_range(start_at, end_at)?;
+    let meet_url = normalize_optional_text(meet_url);
+    let calendar_event_url = normalize_optional_text(calendar_event_url);
+    let project_id = normalize_project_id(&conn, project_id)?;
+    let status = normalize_meeting_status(status);
+
+    conn.execute(
+        "UPDATE meetings
+         SET title = ?1,
+             agenda = ?2,
+             start_at = ?3,
+             end_at = ?4,
+             meet_url = ?5,
+             calendar_event_url = ?6,
+             project_id = ?7,
+             status = ?8,
+             updated_at = ?9
+         WHERE id = ?10",
+        params![
+            title,
+            agenda,
+            start_at,
+            end_at,
+            meet_url,
+            calendar_event_url,
+            project_id,
+            status,
+            now,
+            id
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_meeting(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+
+    conn.execute("DELETE FROM meetings WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_projects(state: State<'_, AppState>) -> Result<Vec<Project>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
@@ -1229,6 +1457,11 @@ pub fn delete_project(id: i64, state: State<'_, AppState>) -> Result<(), String>
         .map_err(|e| e.to_string())?;
     tx.execute("UPDATE goals SET project_id = NULL WHERE project_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+    tx.execute(
+        "UPDATE meetings SET project_id = NULL WHERE project_id = ?1",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
     tx.execute(
         "DELETE FROM project_branches WHERE project_id = ?1",
         params![id],
@@ -1758,6 +1991,8 @@ pub fn import_backup(
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM tasks", [])
             .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM meetings", [])
+            .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM goals", [])
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM project_branches", [])
@@ -2059,6 +2294,68 @@ pub fn import_backup(
                 "INSERT INTO goals (title, description, status, progress, project_id, target_date, created_at, updated_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![goal.title, description, status, progress, project_id, goal.target_date, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    for meeting in payload.meetings {
+        let created_at = meeting.created_at.unwrap_or_else(|| now.clone());
+        let updated_at = meeting.updated_at.unwrap_or_else(|| created_at.clone());
+        let title = normalize_meeting_title(meeting.title);
+        let agenda = meeting.agenda.unwrap_or_default().trim().to_string();
+        let (start_at, end_at) = normalize_meeting_range(meeting.start_at, meeting.end_at)?;
+        let meet_url = normalize_optional_text(meeting.meet_url);
+        let calendar_event_url = normalize_optional_text(meeting.calendar_event_url);
+        let project_id = normalize_project_id(&tx, meeting.project_id)?;
+        let status = normalize_meeting_status(meeting.status);
+
+        if let Some(id) = meeting.id {
+            tx.execute(
+                "INSERT INTO meetings (id, title, agenda, start_at, end_at, meet_url, calendar_event_url, project_id, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                 ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    agenda = excluded.agenda,
+                    start_at = excluded.start_at,
+                    end_at = excluded.end_at,
+                    meet_url = excluded.meet_url,
+                    calendar_event_url = excluded.calendar_event_url,
+                    project_id = excluded.project_id,
+                    status = excluded.status,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at",
+                params![
+                    id,
+                    title,
+                    agenda,
+                    start_at,
+                    end_at,
+                    meet_url,
+                    calendar_event_url,
+                    project_id,
+                    status,
+                    created_at,
+                    updated_at
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO meetings (title, agenda, start_at, end_at, meet_url, calendar_event_url, project_id, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                params![
+                    title,
+                    agenda,
+                    start_at,
+                    end_at,
+                    meet_url,
+                    calendar_event_url,
+                    project_id,
+                    status,
+                    created_at,
+                    updated_at
+                ],
             )
             .map_err(|e| e.to_string())?;
         }

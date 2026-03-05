@@ -15,27 +15,68 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import AddTaskIcon from "@mui/icons-material/AddTask";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import VideoCallIcon from "@mui/icons-material/VideoCall";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { alpha, useTheme } from "@mui/material/styles";
-import { addDays, format } from "date-fns";
+import { addDays, addMinutes, format, parseISO } from "date-fns";
 import { useEntries } from "../hooks/useEntries";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits, useToggleHabitCompletion } from "../hooks/useHabits";
 import { useProjects } from "../hooks/useProjects";
 import { useCreateTask, useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
+import { useCreateMeeting, useDeleteMeeting, useMeetings, useUpdateMeeting } from "../hooks/useMeetings";
 import { isGoalNearDeadline } from "../utils/goalUtils";
 import { isTaskDueToday, isTaskOverdue } from "../utils/taskUtils";
 import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 import { sendNotification } from "@tauri-apps/plugin-notification";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 const DAILY_WINS_STORAGE_KEY = "devJournal_daily_wins";
 const PLANNER_COLLAPSE_STORAGE_KEY = "devJournal_planner_collapsed_sections";
+
+const toLocalDatetimeInputValue = (value: Date) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  const hours = String(value.getHours()).padStart(2, "0");
+  const minutes = String(value.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const buildGoogleCalendarLink = (params: {
+  title: string;
+  details: string;
+  startAt: string;
+  endAt: string;
+  location?: string;
+}) => {
+  const start = new Date(params.startAt);
+  const end = new Date(params.endAt);
+  const formatDate = (value: Date) =>
+    value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+
+  const search = new URLSearchParams({
+    action: "TEMPLATE",
+    text: params.title,
+    details: params.details,
+    dates: `${formatDate(start)}/${formatDate(end)}`,
+  });
+
+  if (params.location?.trim()) {
+    search.set("location", params.location.trim());
+  }
+
+  return `https://calendar.google.com/calendar/render?${search.toString()}`;
+};
 
 type PlannerSectionKey =
   | "tasksToday"
   | "overdueTasks"
   | "goalsNearDeadline"
   | "habitsToday"
+  | "meetings"
   | "tomorrowPlan"
   | "focusSession"
   | "dailyWins";
@@ -61,17 +102,41 @@ export const PlannerBoard = ({
   const toggleHabitCompletion = useToggleHabitCompletion();
   const updateTaskStatus = useUpdateTaskStatus();
   const createTask = useCreateTask();
+  const createMeeting = useCreateMeeting();
+  const updateMeeting = useUpdateMeeting();
+  const deleteMeeting = useDeleteMeeting();
 
   const { data: entries = [] } = useEntries();
   const { data: tasks = [] } = useTasks();
   const { data: goals = [] } = useGoals();
   const { data: habits = [] } = useHabits();
   const { data: projects = [] } = useProjects();
+  const { data: meetings = [] } = useMeetings();
 
   const [quickTaskTitle, setQuickTaskTitle] = useState("");
   const [quickDueMode, setQuickDueMode] = useState<"today" | "tomorrow" | "none">("today");
   const [quickProjectId, setQuickProjectId] = useState<number | "">("");
   const [quickTaskFeedback, setQuickTaskFeedback] = useState("");
+  const [meetingTitle, setMeetingTitle] = useState("");
+  const [meetingAgenda, setMeetingAgenda] = useState("");
+  const [meetingMeetUrl, setMeetingMeetUrl] = useState("");
+  const [meetingCalendarUrl, setMeetingCalendarUrl] = useState("");
+  const [meetingProjectId, setMeetingProjectId] = useState<number | "">("");
+  const [meetingStartAt, setMeetingStartAt] = useState(() => {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
+    now.setMinutes(roundedMinutes, 0, 0);
+    return toLocalDatetimeInputValue(addMinutes(now, 30));
+  });
+  const [meetingEndAt, setMeetingEndAt] = useState(() => {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
+    now.setMinutes(roundedMinutes, 0, 0);
+    return toLocalDatetimeInputValue(addMinutes(now, 90));
+  });
+  const [meetingFeedback, setMeetingFeedback] = useState("");
   const [focusSecondsLeft, setFocusSecondsLeft] = useState(25 * 60);
   const [focusRunning, setFocusRunning] = useState(false);
   const [dailyWinsInput, setDailyWinsInput] = useState("");
@@ -154,10 +219,51 @@ export const PlannerBoard = ({
     [habits, today]
   );
 
+  const upcomingMeetings = useMemo(() => {
+    const nowMs = Date.now();
+    return meetings
+      .filter((meeting) => {
+        const endMs = new Date(meeting.end_at).getTime();
+        return Number.isFinite(endMs) && endMs >= nowMs - 15 * 60 * 1000;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
+      )
+      .slice(0, 8);
+  }, [meetings]);
+
+  const meetingDayBuckets = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, index) =>
+      format(addDays(new Date(), index), "yyyy-MM-dd")
+    );
+    const counts = new Map<string, number>();
+    days.forEach((day) => counts.set(day, 0));
+
+    meetings.forEach((meeting) => {
+      const start = new Date(meeting.start_at);
+      if (!Number.isFinite(start.getTime())) {
+        return;
+      }
+      const dayKey = format(start, "yyyy-MM-dd");
+      if (counts.has(dayKey)) {
+        counts.set(dayKey, (counts.get(dayKey) ?? 0) + 1);
+      }
+    });
+
+    return days.map((day) => ({
+      day,
+      count: counts.get(day) ?? 0,
+    }));
+  }, [meetings]);
+
   const busy =
     toggleHabitCompletion.isPending ||
     updateTaskStatus.isPending ||
-    createTask.isPending;
+    createTask.isPending ||
+    createMeeting.isPending ||
+    updateMeeting.isPending ||
+    deleteMeeting.isPending;
 
   const dailyWins = dailyWinsMap[today] ?? [];
   const plannerCardSx = {
@@ -192,6 +298,90 @@ export const PlannerBoard = ({
         },
       }
     );
+  };
+
+  const handleCreateMeeting = () => {
+    const normalizedTitle = meetingTitle.trim();
+    if (!normalizedTitle) {
+      return;
+    }
+
+    const start = new Date(meetingStartAt);
+    const end = new Date(meetingEndAt);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
+      setMeetingFeedback(t("Meeting end time must be after start time."));
+      return;
+    }
+
+    createMeeting.mutate(
+      {
+        title: normalizedTitle,
+        agenda: meetingAgenda.trim(),
+        start_at: start.toISOString(),
+        end_at: end.toISOString(),
+        meet_url: meetingMeetUrl.trim() || null,
+        calendar_event_url: meetingCalendarUrl.trim() || null,
+        project_id: meetingProjectId === "" ? null : meetingProjectId,
+        status: "planned",
+      },
+      {
+        onSuccess: () => {
+          setMeetingTitle("");
+          setMeetingAgenda("");
+          setMeetingMeetUrl("");
+          setMeetingCalendarUrl("");
+          setMeetingProjectId("");
+          setMeetingFeedback(t("Meeting scheduled."));
+        },
+        onError: () => {
+          setMeetingFeedback(t("Failed to schedule meeting."));
+        },
+      }
+    );
+  };
+
+  const openExternalUrl = (url: string, fallbackMessage: string) => {
+    openUrl(url).catch(() => {
+      notify(fallbackMessage, "error");
+    });
+  };
+
+  const toggleMeetingDone = (meetingId: number, completed: boolean) => {
+    const target = meetings.find((meeting) => meeting.id === meetingId);
+    if (!target) {
+      return;
+    }
+
+    updateMeeting.mutate({
+      id: target.id,
+      title: target.title,
+      agenda: target.agenda,
+      start_at: target.start_at,
+      end_at: target.end_at,
+      meet_url: target.meet_url,
+      calendar_event_url: target.calendar_event_url,
+      project_id: target.project_id,
+      status: completed ? "done" : "planned",
+    });
+  };
+
+  const cancelMeeting = (meetingId: number) => {
+    const target = meetings.find((meeting) => meeting.id === meetingId);
+    if (!target) {
+      return;
+    }
+
+    updateMeeting.mutate({
+      id: target.id,
+      title: target.title,
+      agenda: target.agenda,
+      start_at: target.start_at,
+      end_at: target.end_at,
+      meet_url: target.meet_url,
+      calendar_event_url: target.calendar_event_url,
+      project_id: target.project_id,
+      status: "cancelled",
+    });
   };
 
   const formatFocusTime = (seconds: number) => {
@@ -410,6 +600,256 @@ export const PlannerBoard = ({
           </Box>
         </Box>
       )}
+
+      {/* ── Meetings Planner ── */}
+      <Box sx={{ ...plannerCardSx, mb: { xs: 3, md: 4 } }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            {t("Meetings")}
+          </Typography>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Chip
+              size="small"
+              variant="outlined"
+              icon={<CalendarMonthIcon sx={{ fontSize: 14 }} />}
+              label={`${meetingDayBuckets.reduce((sum, item) => sum + item.count, 0)} ${t("this week")}`}
+            />
+            {renderSectionToggle("meetings")}
+          </Stack>
+        </Stack>
+
+        <Collapse in={!isSectionCollapsed("meetings")} timeout="auto" unmountOnExit>
+          <Box
+            sx={{
+              mt: 2,
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", lg: "1.15fr 1fr" },
+              gap: 2,
+            }}
+          >
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "divider",
+                bgcolor: alpha(muiTheme.palette.background.paper, 0.45),
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
+                {t("Schedule meeting")}
+              </Typography>
+              <Stack spacing={1}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder={t("Meeting title")}
+                  value={meetingTitle}
+                  onChange={(event) => setMeetingTitle(event.target.value)}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  multiline
+                  minRows={2}
+                  placeholder={t("Agenda")}
+                  value={meetingAgenda}
+                  onChange={(event) => setMeetingAgenda(event.target.value)}
+                />
+                <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="datetime-local"
+                    label={t("Start")}
+                    value={meetingStartAt}
+                    onChange={(event) => setMeetingStartAt(event.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="datetime-local"
+                    label={t("End")}
+                    value={meetingEndAt}
+                    onChange={(event) => setMeetingEndAt(event.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Stack>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder={t("Google Meet URL")}
+                  value={meetingMeetUrl}
+                  onChange={(event) => setMeetingMeetUrl(event.target.value)}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder={t("Calendar event URL (optional)")}
+                  value={meetingCalendarUrl}
+                  onChange={(event) => setMeetingCalendarUrl(event.target.value)}
+                />
+                <TextField
+                  select
+                  size="small"
+                  value={meetingProjectId === "" ? "" : String(meetingProjectId)}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setMeetingProjectId(nextValue === "" ? "" : Number(nextValue));
+                  }}
+                  SelectProps={{ native: true }}
+                  fullWidth
+                >
+                  <option value="">{t("No project")}</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </TextField>
+
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<VideoCallIcon />}
+                  disabled={busy || meetingTitle.trim().length === 0}
+                  onClick={handleCreateMeeting}
+                >
+                  {t("Add meeting")}
+                </Button>
+                {meetingFeedback ? (
+                  <Typography variant="caption" color="text.secondary">
+                    {meetingFeedback}
+                  </Typography>
+                ) : null}
+              </Stack>
+            </Box>
+
+            <Box>
+              <Stack direction="row" spacing={0.8} sx={{ mb: 1.5, flexWrap: "wrap" }}>
+                {meetingDayBuckets.map((bucket) => (
+                  <Chip
+                    key={bucket.day}
+                    size="small"
+                    variant={bucket.day === today ? "filled" : "outlined"}
+                    color={bucket.day === today ? "primary" : "default"}
+                    label={`${format(parseISO(bucket.day), "EEE d")} · ${bucket.count}`}
+                  />
+                ))}
+              </Stack>
+
+              <Stack spacing={1}>
+                {upcomingMeetings.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {t("No meetings yet.")}
+                  </Typography>
+                ) : (
+                  upcomingMeetings.map((meeting) => {
+                    const startAt = parseISO(meeting.start_at);
+                    const endAt = parseISO(meeting.end_at);
+                    const meetingProject = projects.find((project) => project.id === meeting.project_id) ?? null;
+                    const calendarUrl =
+                      meeting.calendar_event_url ??
+                      buildGoogleCalendarLink({
+                        title: meeting.title,
+                        details: meeting.agenda,
+                        startAt: meeting.start_at,
+                        endAt: meeting.end_at,
+                        location: meeting.meet_url ?? undefined,
+                      });
+                    return (
+                      <Box
+                        key={meeting.id}
+                        sx={{
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          p: 1.25,
+                          bgcolor: alpha(muiTheme.palette.background.paper, 0.45),
+                        }}
+                      >
+                        <Stack direction="row" justifyContent="space-between" spacing={1}>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                              {meeting.title}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {format(startAt, "MMM d, HH:mm")} - {format(endAt, "HH:mm")}
+                            </Typography>
+                            {meetingProject ? (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                {t("Project")}: {meetingProject.name}
+                              </Typography>
+                            ) : null}
+                          </Box>
+                          <Chip
+                            size="small"
+                            label={meeting.status === "done" ? t("Done") : meeting.status === "cancelled" ? t("Cancelled") : t("Planned")}
+                            color={meeting.status === "done" ? "success" : meeting.status === "cancelled" ? "default" : "primary"}
+                            variant={meeting.status === "planned" ? "filled" : "outlined"}
+                          />
+                        </Stack>
+
+                        <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap" }}>
+                          {meeting.meet_url ? (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<VideoCallIcon />}
+                              onClick={() =>
+                                openExternalUrl(meeting.meet_url!, t("Unable to open meeting URL."))
+                              }
+                            >
+                              {t("Open Meet")}
+                            </Button>
+                          ) : null}
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<CalendarMonthIcon />}
+                            onClick={() =>
+                              openExternalUrl(calendarUrl, t("Unable to open calendar URL."))
+                            }
+                          >
+                            {t("Open Calendar")}
+                          </Button>
+                          <Button
+                            size="small"
+                            onClick={() => toggleMeetingDone(meeting.id, meeting.status !== "done")}
+                            disabled={busy}
+                          >
+                            {meeting.status === "done" ? t("Reopen") : t("Mark done")}
+                          </Button>
+                          {meeting.status !== "cancelled" ? (
+                            <Button
+                              size="small"
+                              color="warning"
+                              onClick={() => cancelMeeting(meeting.id)}
+                              disabled={busy}
+                            >
+                              {t("Cancel")}
+                            </Button>
+                          ) : null}
+                          <Button
+                            size="small"
+                            color="error"
+                            startIcon={<DeleteOutlineIcon />}
+                            onClick={() => deleteMeeting.mutate(meeting.id)}
+                            disabled={busy}
+                          >
+                            {t("Delete")}
+                          </Button>
+                        </Stack>
+                      </Box>
+                    );
+                  })
+                )}
+              </Stack>
+            </Box>
+          </Box>
+        </Collapse>
+      </Box>
 
       {/* ── Dashboard Grid ── */}
       <Box

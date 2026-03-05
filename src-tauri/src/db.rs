@@ -265,6 +265,38 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v10: meetings and calendar planning.
+    apply_migration(conn, 10, |conn| {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS meetings (
+                id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                agenda TEXT NOT NULL DEFAULT '',
+                start_at TEXT NOT NULL,
+                end_at TEXT NOT NULL,
+                meet_url TEXT,
+                calendar_event_url TEXT,
+                project_id INTEGER,
+                status TEXT NOT NULL DEFAULT 'planned',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_meetings_start_status ON meetings(start_at, status)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_meetings_project_id ON meetings(project_id)",
+            [],
+        )?;
+
+        Ok(())
+    })?;
+
     Ok(())
 }
 

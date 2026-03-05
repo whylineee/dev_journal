@@ -5,7 +5,6 @@ import {
   Divider,
   FormControlLabel,
   Paper,
-  Stack,
   Switch,
   TextField,
   Typography,
@@ -29,6 +28,7 @@ import { useGoals } from "../hooks/useGoals";
 import { useHabits } from "../hooks/useHabits";
 import { useProjects } from "../hooks/useProjects";
 import { useProjectBranches } from "../hooks/useProjectBranches";
+import { useMeetings } from "../hooks/useMeetings";
 import { BackupPayload } from "../types";
 
 interface SettingsScreenProps {
@@ -79,6 +79,7 @@ export const SettingsScreen = ({
   const { data: habits } = useHabits();
   const { data: projects } = useProjects();
   const { data: projectBranches } = useProjectBranches(null);
+  const { data: meetings } = useMeetings();
 
   const importBackupMutation = useImportBackup();
   const [replaceExistingOnImport, setReplaceExistingOnImport] = useState(true);
@@ -95,6 +96,7 @@ export const SettingsScreen = ({
       goals: goals ?? [],
       projects: projects ?? [],
       project_branches: projectBranches ?? [],
+      meetings: meetings ?? [],
       habits: habits ?? [],
       habit_logs: (habits ?? []).flatMap((habit) =>
         habit.completed_dates.map((date) => ({
@@ -201,14 +203,21 @@ export const SettingsScreen = ({
 
         <Divider sx={{ my: 3 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t("Appearance")}</Typography>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
+        <Box
+          sx={{
+            mt: 1,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: 1.25,
+          }}
+        >
           <TextField
             select
             size="small"
             label={t("Theme mode")}
             value={appearanceMode}
             onChange={(event) => setAppearanceMode(event.target.value as AppearanceMode)}
-            sx={{ width: { xs: "100%", sm: 260 } }}
+            fullWidth
             SelectProps={{ native: true }}
           >
             <option value="dark">{t("Dark")}</option>
@@ -221,7 +230,7 @@ export const SettingsScreen = ({
             label={t("Font")}
             value={fontPreset}
             onChange={(event) => setFontPreset(event.target.value as FontPreset)}
-            sx={{ width: { xs: "100%", sm: 260 } }}
+            fullWidth
             SelectProps={{ native: true }}
           >
             <option value="inter">Inter</option>
@@ -235,7 +244,7 @@ export const SettingsScreen = ({
             label={t("Density")}
             value={uiDensity}
             onChange={(event) => setUiDensity(event.target.value as UiDensity)}
-            sx={{ width: { xs: "100%", sm: 260 } }}
+            fullWidth
             SelectProps={{ native: true }}
           >
             <option value="comfortable">{t("Comfortable")}</option>
@@ -253,7 +262,7 @@ export const SettingsScreen = ({
                 setBorderRadius(Math.min(24, Math.max(6, value)));
               }
             }}
-            sx={{ width: { xs: "100%", sm: 260 } }}
+            fullWidth
             inputProps={{ min: 6, max: 24, step: 1 }}
           />
 
@@ -263,13 +272,13 @@ export const SettingsScreen = ({
             label={t("Language")}
             value={language}
             onChange={(event) => setLanguage(event.target.value === "uk" ? "uk" : "en")}
-            sx={{ width: { xs: "100%", sm: 260 } }}
+            fullWidth
             SelectProps={{ native: true }}
           >
             <option value="en">{t("English")}</option>
             <option value="uk">{t("Ukrainian")}</option>
           </TextField>
-        </Stack>
+        </Box>
 
         <Divider sx={{ my: 3 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t("Productivity")}</Typography>
