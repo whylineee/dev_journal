@@ -39,7 +39,6 @@ interface ThemeContextType {
   resetTheme: () => void;
 }
 
-const defaultAppearanceMode: AppearanceMode = "light";
 const defaultFontPreset: FontPreset = "inter";
 const defaultUiDensity: UiDensity = "comfortable";
 const defaultBorderRadius = 16;
@@ -53,6 +52,14 @@ const STORAGE_KEYS = {
 } as const;
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+const resolveSystemAppearanceMode = (): AppearanceMode => {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return "light";
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
 
 export const useThemeContext = () => {
   const context = useContext(ThemeContext);
@@ -303,7 +310,7 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
   });
   const [appearanceMode, setAppearanceMode] = useState<AppearanceMode>(() => {
     const mode = localStorage.getItem(STORAGE_KEYS.appearanceMode);
-    return mode === "dark" || mode === "light" ? mode : defaultAppearanceMode;
+    return mode === "dark" || mode === "light" ? mode : resolveSystemAppearanceMode();
   });
   const [fontPreset, setFontPreset] = useState<FontPreset>(() => {
     const preset = localStorage.getItem(STORAGE_KEYS.fontPreset);
@@ -345,7 +352,7 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
 
   const resetTheme = () => {
     setThemePreset(DEFAULT_THEME_PRESET);
-    setAppearanceMode(defaultAppearanceMode);
+    setAppearanceMode(resolveSystemAppearanceMode());
     setFontPreset(defaultFontPreset);
     setUiDensity(defaultUiDensity);
     setBorderRadius(defaultBorderRadius);

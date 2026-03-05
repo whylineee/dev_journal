@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { DragEvent, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -85,6 +85,32 @@ const priorityLabel: Record<TaskPriority, string> = {
 const TASK_OUTCOMES_STORAGE_KEY = "devJournal_task_outcomes";
 
 type TaskOutcomeMap = Record<string, { before: string; after: string }>;
+type GanttEntry = {
+  task: Task;
+  start: Date;
+  end: Date;
+  offsetDays: number;
+  durationDays: number;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const startOfDay = (value: string) => {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const diffDays = (from: Date, to: Date) => {
+  return Math.round((to.getTime() - from.getTime()) / DAY_MS);
+};
+
+const formatDayKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const readTaskOutcomes = (): TaskOutcomeMap => {
   try {
@@ -143,6 +169,8 @@ export const TasksBoard = () => {
   const [beforeOutcome, setBeforeOutcome] = useState("");
   const [afterOutcome, setAfterOutcome] = useState("");
   const [taskOutcomes, setTaskOutcomes] = useState<TaskOutcomeMap>(() => readTaskOutcomes());
+  const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
   const activeTask = useMemo(() => tasks.find((task) => task.id === activeTaskId) ?? null, [tasks, activeTaskId]);
   const { data: activeTaskSubtasks = [] } = useTaskSubtasks(
     activeTaskId,
@@ -250,6 +278,46 @@ export const TasksBoard = () => {
       done: filteredTasks.filter((task) => task.status === "done"),
     };
   }, [filteredTasks]);
+
+  const gantt = useMemo(() => {
+    const source = tasks
+      .filter((task) => Boolean(task.due_date))
+      .map((task) => {
+        const dueDate = startOfDay(task.due_date!);
+        const createdDate = startOfDay(task.created_at);
+        const estimateDays = Math.max(1, Math.ceil(task.time_estimate_minutes / (8 * 60)));
+        const plannedStart = new Date(dueDate);
+        plannedStart.setDate(plannedStart.getDate() - estimateDays + 1);
+        const startDate = plannedStart < createdDate ? createdDate : plannedStart;
+        return {
+          task,
+          start: startDate,
+          end: dueDate,
+        };
+      })
+      .filter((entry) => entry.start <= entry.end)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    if (source.length === 0) {
+      return {
+        entries: [] as GanttEntry[],
+        rangeStart: null as Date | null,
+        rangeEnd: null as Date | null,
+        totalDays: 0,
+      };
+    }
+
+    const rangeStart = source.reduce((min, entry) => (entry.start < min ? entry.start : min), source[0].start);
+    const rangeEnd = source.reduce((max, entry) => (entry.end > max ? entry.end : max), source[0].end);
+    const totalDays = Math.max(1, diffDays(rangeStart, rangeEnd) + 1);
+    const entries: GanttEntry[] = source.map((entry) => {
+      const offsetDays = Math.max(0, diffDays(rangeStart, entry.start));
+      const durationDays = Math.max(1, diffDays(entry.start, entry.end) + 1);
+      return { ...entry, offsetDays, durationDays };
+    });
+
+    return { entries, rangeStart, rangeEnd, totalDays };
+  }, [tasks]);
 
   const openCreateDialog = (initialStatus: TaskStatus = "todo") => {
     setEditingTask(null);
@@ -381,6 +449,44 @@ export const TasksBoard = () => {
 
   const toggleDone = (task: Task, checked: boolean) => {
     updateStatus.mutate({ id: task.id, status: checked ? "done" : "todo" });
+  };
+
+  const handleCardDragStart = (event: DragEvent<HTMLDivElement>, taskId: number) => {
+    setDraggedTaskId(taskId);
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleCardDragEnd = () => {
+    setDraggedTaskId(null);
+    setDragOverStatus(null);
+  };
+
+  const handleColumnDragOver = (event: DragEvent<HTMLDivElement>, status: TaskStatus) => {
+    if (busy || draggedTaskId === null) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (dragOverStatus !== status) {
+      setDragOverStatus(status);
+    }
+  };
+
+  const handleColumnDrop = (event: DragEvent<HTMLDivElement>, status: TaskStatus) => {
+    event.preventDefault();
+    setDragOverStatus(null);
+    if (busy || draggedTaskId === null) {
+      return;
+    }
+
+    const draggedTask = tasks.find((task) => task.id === draggedTaskId);
+    setDraggedTaskId(null);
+    if (!draggedTask || draggedTask.status === status) {
+      return;
+    }
+
+    moveToStatus(draggedTask, status);
+    notify(`Task moved to ${statusLabel[status]}.`, "info");
   };
 
   const openEditFromTaskDetails = () => {
@@ -564,7 +670,25 @@ export const TasksBoard = () => {
 
       <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
         {columns.map((column) => (
-          <Paper key={column.status} sx={{ p: 2, flex: 1, minHeight: 340 }}>
+          <Paper
+            key={column.status}
+            onDragOver={(event) => handleColumnDragOver(event, column.status)}
+            onDrop={(event) => handleColumnDrop(event, column.status)}
+            onDragLeave={() => {
+              if (dragOverStatus === column.status) {
+                setDragOverStatus(null);
+              }
+            }}
+            sx={{
+              p: 2,
+              flex: 1,
+              minHeight: 340,
+              borderStyle: dragOverStatus === column.status ? "dashed" : "solid",
+              borderColor: dragOverStatus === column.status ? "primary.main" : "divider",
+              transition: "border-color 0.16s ease, background-color 0.16s ease",
+              backgroundColor: dragOverStatus === column.status ? "action.hover" : "background.paper",
+            }}
+          >
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -601,9 +725,14 @@ export const TasksBoard = () => {
                   <Paper
                     key={task.id}
                     variant="outlined"
+                    draggable={!busy}
+                    onDragStart={(event) => handleCardDragStart(event, task.id)}
+                    onDragEnd={handleCardDragEnd}
                     sx={{
                       p: 1.5,
                       borderColor: overdue ? "error.main" : "divider",
+                      opacity: draggedTaskId === task.id ? 0.5 : 1,
+                      cursor: busy ? "default" : "grab",
                     }}
                   >
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
@@ -775,6 +904,85 @@ export const TasksBoard = () => {
           </Paper>
         ))}
       </Stack>
+
+      <Paper sx={{ p: 2, mt: 2 }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", md: "center" }}
+          spacing={1}
+        >
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {t("Gantt timeline")}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t("Tasks by planned duration and due date")}
+            </Typography>
+          </Box>
+          {gantt.rangeStart && gantt.rangeEnd ? (
+            <Chip
+              size="small"
+              variant="outlined"
+              label={`${formatTaskDateOnly(formatDayKey(gantt.rangeStart))} - ${formatTaskDateOnly(formatDayKey(gantt.rangeEnd))}`}
+            />
+          ) : null}
+        </Stack>
+
+        {gantt.entries.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+            {t("Add due dates to tasks to see Gantt chart.")}
+          </Typography>
+        ) : (
+          <Stack spacing={1.35} sx={{ mt: 1.5 }}>
+            {gantt.entries.map((entry) => {
+              const left = (entry.offsetDays / gantt.totalDays) * 100;
+              const width = (entry.durationDays / gantt.totalDays) * 100;
+
+              return (
+                <Box key={entry.task.id}>
+                  <Stack direction="row" justifyContent="space-between" spacing={1}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                      {entry.task.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatTaskDateOnly(formatDayKey(entry.start))} - {formatTaskDateOnly(formatDayKey(entry.end))}
+                    </Typography>
+                  </Stack>
+
+                  <Box
+                    sx={{
+                      position: "relative",
+                      mt: 0.5,
+                      height: 14,
+                      borderRadius: 999,
+                      backgroundColor: "action.selected",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        left: `${left}%`,
+                        width: `${Math.max(width, 2)}%`,
+                        top: 0,
+                        bottom: 0,
+                        borderRadius: 999,
+                        backgroundColor:
+                          entry.task.status === "done"
+                            ? "success.main"
+                            : entry.task.status === "in_progress"
+                              ? "info.main"
+                              : "warning.main",
+                      }}
+                    />
+                  </Box>
+                </Box>
+              );
+            })}
+          </Stack>
+        )}
+      </Paper>
 
       <Dialog
         open={isTaskDetailsOpen && Boolean(activeTask)}
