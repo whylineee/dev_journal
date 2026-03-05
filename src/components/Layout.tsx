@@ -86,19 +86,7 @@ export const Layout = ({
   const activeGoalsCount = (goals ?? []).filter((goal) => goal.status === "active" || goal.status === "paused").length;
   const completedHabitsToday = (habits ?? []).filter((habit) => habit.completed_dates.includes(todayStr)).length;
   const totalHabits = habits?.length ?? 0;
-  const activeProjectsCount = (projects ?? []).filter((project) => project.status !== "archived").length;
-
-  const activeTabLabel: Record<LayoutTab, string> = {
-    planner: t("Planner"),
-    journal: t("Journal"),
-    tasks: t("Tasks"),
-    goals: t("Goals"),
-    habits: t("Habits"),
-    projects: t("Projects"),
-    insights: t("Insights"),
-    page: t("Pages"),
-    settings: t("Settings"),
-  };
+  const activeProjectsCount = (projects ?? []).filter((project) => project.status === "active" || project.status === "paused").length;
 
   const navItemStyle = (isSelected: boolean) => ({
     borderRadius: 2,
