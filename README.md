@@ -100,6 +100,7 @@ Windows-версію потрібно збирати на Windows-хості (а
 ## 🧭 Документація для розробки
 
 - `/Users/marko/Desktop/Projects/dev-journal/docs/ARCHITECTURE.md` — актуальна схема шарів, відповідальностей та правил додавання нового функціоналу.
+- `/Users/marko/Desktop/Projects/dev-journal/AGENTS.md` — живий технічний паспорт проєкту для AI-агентів і розробників: функціонал, архітектура, домени, обмеження, workflow.
 
 ## 📖 Документація API (Tauri Commands)
 

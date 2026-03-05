@@ -24,6 +24,10 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import CallSplitIcon from "@mui/icons-material/CallSplit";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import ReplayIcon from "@mui/icons-material/Replay";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import VideoCallIcon from "@mui/icons-material/VideoCall";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { format } from "date-fns";
 import { Project, ProjectBranchStatus, ProjectStatus, Task, TaskPriority } from "../types";
 import {
   useCreateProject,
@@ -37,10 +41,12 @@ import {
   useProjectBranches,
   useUpdateProjectBranch,
 } from "../hooks/useProjectBranches";
+import { useMeetings } from "../hooks/useMeetings";
 import { useTasks, useCreateTask, useUpdateTaskStatus } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useEntries } from "../hooks/useEntries";
 import { useI18n } from "../i18n/I18nContext";
+import { expandMeetingOccurrences } from "../utils/meetingUtils";
 
 const statusLabel: Record<ProjectStatus, string> = {
   active: "Active",
@@ -98,6 +104,7 @@ export const ProjectsBoard = () => {
   const { data: tasks = [] } = useTasks();
   const { data: goals = [] } = useGoals();
   const { data: entries = [] } = useEntries();
+  const { data: meetings = [] } = useMeetings();
 
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
@@ -159,9 +166,9 @@ export const ProjectsBoard = () => {
   }, [projects, tasks]);
 
   const projectStats = useMemo(() => {
-    const map = new Map<number, { entries: number; tasks: number; openTasks: number; goals: number }>();
+    const map = new Map<number, { entries: number; tasks: number; openTasks: number; goals: number; meetings: number }>();
     projects.forEach((project) => {
-      map.set(project.id, { entries: 0, tasks: 0, openTasks: 0, goals: 0 });
+      map.set(project.id, { entries: 0, tasks: 0, openTasks: 0, goals: 0, meetings: 0 });
     });
 
     entries.forEach((entry) => {
@@ -182,9 +189,27 @@ export const ProjectsBoard = () => {
         map.get(goal.project_id)!.goals += 1;
       }
     });
+    meetings.forEach((meeting) => {
+      if (meeting.project_id && map.has(meeting.project_id)) {
+        map.get(meeting.project_id)!.meetings += 1;
+      }
+    });
 
     return map;
-  }, [entries, goals, projects, tasks]);
+  }, [entries, goals, meetings, projects, tasks]);
+
+  const projectMeetingsMap = useMemo(() => {
+    const occurrences = expandMeetingOccurrences(meetings, new Date(), 21);
+    const map = new Map<number, typeof occurrences>();
+    projects.forEach((project) => map.set(project.id, []));
+    occurrences.forEach((occurrence) => {
+      const projectId = occurrence.meeting.project_id;
+      if (projectId && map.has(projectId)) {
+        map.get(projectId)?.push(occurrence);
+      }
+    });
+    return map;
+  }, [meetings, projects]);
 
   const dashboardStats = useMemo(() => {
     const total = projects.length;
@@ -413,9 +438,11 @@ export const ProjectsBoard = () => {
             tasks: 0,
             openTasks: 0,
             goals: 0,
+            meetings: 0,
           };
           const workspaceOpen = selectedProjectId === project.id;
           const workspaceTasks = projectTasksMap.get(project.id) ?? [];
+          const workspaceMeetings = projectMeetingsMap.get(project.id) ?? [];
 
           return (
             <Paper key={project.id} variant="outlined" sx={{ p: 2 }}>
@@ -450,6 +477,7 @@ export const ProjectsBoard = () => {
                     <Chip size="small" variant="outlined" label={`${t("Journal")}: ${stats.entries}`} />
                     <Chip size="small" variant="outlined" label={`${t("Tasks")}: ${stats.tasks}`} />
                     <Chip size="small" variant="outlined" label={`${t("Goals")}: ${stats.goals}`} />
+                    <Chip size="small" variant="outlined" label={`${t("Meetings")}: ${stats.meetings}`} />
                   </Stack>
                 </Box>
 
@@ -597,6 +625,57 @@ export const ProjectsBoard = () => {
                       {workspaceTasks.length === 0 ? (
                         <Typography variant="body2" color="text.secondary">
                           {t("No project tasks yet.")}
+                        </Typography>
+                      ) : null}
+                    </Stack>
+                  </Stack>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Stack spacing={1.5}>
+                    <Typography variant="subtitle2">{t("Meetings")}</Typography>
+                    <Stack spacing={1}>
+                      {workspaceMeetings.slice(0, 5).map((occurrence) => (
+                        <Paper key={occurrence.occurrence_id} variant="outlined" sx={{ p: 1.25 }}>
+                          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {occurrence.title}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                {format(occurrence.start, "MMM d, HH:mm")} - {format(occurrence.end, "HH:mm")}
+                              </Typography>
+                            </Box>
+                            <Stack direction="row" spacing={0.75}>
+                              {occurrence.meeting.meet_url ? (
+                                <Button
+                                  size="small"
+                                  startIcon={<VideoCallIcon />}
+                                  onClick={() => openUrl(occurrence.meeting.meet_url!)}
+                                >
+                                  {t("Open Meet")}
+                                </Button>
+                              ) : null}
+                              <Button
+                                size="small"
+                                startIcon={<CalendarMonthIcon />}
+                                onClick={() =>
+                                  openUrl(
+                                    occurrence.meeting.calendar_event_url ??
+                                      `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(occurrence.title)}`
+                                  )
+                                }
+                              >
+                                {t("Open Calendar")}
+                              </Button>
+                            </Stack>
+                          </Stack>
+                        </Paper>
+                      ))}
+
+                      {workspaceMeetings.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                          {t("No project meetings yet.")}
                         </Typography>
                       ) : null}
                     </Stack>

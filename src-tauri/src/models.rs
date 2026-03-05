@@ -49,6 +49,14 @@ pub struct TaskSubtask {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct MeetingActionItem {
+    pub id: String,
+    pub title: String,
+    pub completed: bool,
+    pub task_id: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Meeting {
     pub id: i64,
     pub title: String,
@@ -58,6 +66,13 @@ pub struct Meeting {
     pub meet_url: Option<String>,
     pub calendar_event_url: Option<String>,
     pub project_id: Option<i64>,
+    pub participants: Vec<String>,
+    pub notes: String,
+    pub decisions: String,
+    pub action_items: Vec<MeetingActionItem>,
+    pub recurrence: String,
+    pub recurrence_until: Option<String>,
+    pub reminder_minutes: i64,
     pub status: String,
     pub created_at: String,
     pub updated_at: String,

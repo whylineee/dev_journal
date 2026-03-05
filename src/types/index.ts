@@ -18,7 +18,15 @@ export interface Page {
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 export type GoalStatus = "active" | "paused" | "completed" | "archived";
-export type MeetingStatus = "planned" | "done" | "cancelled";
+export type MeetingStatus = "planned" | "live" | "done" | "missed" | "cancelled";
+export type MeetingRecurrence = "none" | "daily" | "weekdays" | "weekly";
+
+export interface MeetingActionItem {
+    id: string;
+    title: string;
+    completed: boolean;
+    task_id: number | null;
+}
 
 export interface Task {
     id: number;
@@ -56,6 +64,13 @@ export interface Meeting {
     meet_url: string | null;
     calendar_event_url: string | null;
     project_id: number | null;
+    participants: string[];
+    notes: string;
+    decisions: string;
+    action_items: MeetingActionItem[];
+    recurrence: MeetingRecurrence;
+    recurrence_until: string | null;
+    reminder_minutes: number;
     status: MeetingStatus;
     created_at: string;
     updated_at: string;
@@ -205,6 +220,13 @@ export interface BackupPayload {
         meet_url?: string | null;
         calendar_event_url?: string | null;
         project_id?: number | null;
+        participants?: string[];
+        notes?: string;
+        decisions?: string;
+        action_items?: MeetingActionItem[];
+        recurrence?: MeetingRecurrence;
+        recurrence_until?: string | null;
+        reminder_minutes?: number;
         status?: MeetingStatus;
         created_at?: string;
         updated_at?: string;

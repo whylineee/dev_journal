@@ -20,12 +20,15 @@ import { usePages } from "./hooks/usePages";
 import { useGoals } from "./hooks/useGoals";
 import { useHabits } from "./hooks/useHabits";
 import { useProjects } from "./hooks/useProjects";
+import { useMeetings } from "./hooks/useMeetings";
 import { useThemeContext } from "./theme/ThemeContext";
 import { useI18n } from "./i18n/I18nContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { useAppNotifications } from "./notifications/AppNotifications";
+import { expandMeetingOccurrences } from "./utils/meetingUtils";
 
 const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
+const MEETING_REMINDER_STORAGE_KEY = "devJournal_meeting_reminders_sent";
 
 function App() {
   const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'projects' | 'insights' | 'settings'>('planner');
@@ -54,6 +57,7 @@ function App() {
   const { data: goals } = useGoals();
   const { data: habits } = useHabits();
   const { data: projects } = useProjects();
+  const { data: meetings } = useMeetings();
   const { appearanceMode, setAppearanceMode } = useThemeContext();
   const { language, setLanguage, t } = useI18n();
   const { notify } = useAppNotifications();
@@ -133,6 +137,84 @@ function App() {
 
     return () => clearInterval(interval);
   }, [entries, notify, reminderEnabled, reminderHour, t]);
+
+  useEffect(() => {
+    const readReminderMap = (): Record<string, string> => {
+      try {
+        const raw = localStorage.getItem(MEETING_REMINDER_STORAGE_KEY);
+        if (!raw) {
+          return {};
+        }
+        const parsed = JSON.parse(raw) as Record<string, string>;
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch {
+        return {};
+      }
+    };
+
+    const writeReminderMap = (value: Record<string, string>) => {
+      localStorage.setItem(MEETING_REMINDER_STORAGE_KEY, JSON.stringify(value));
+    };
+
+    const checkMeetingReminders = async () => {
+      if (!meetings?.length) {
+        return;
+      }
+
+      const occurrences = expandMeetingOccurrences(meetings, new Date(), 2);
+      const now = new Date();
+      const reminderMap = readReminderMap();
+      let permissionGranted = await isPermissionGranted();
+      if (!permissionGranted) {
+        const permission = await requestPermission();
+        permissionGranted = permission === "granted";
+      }
+      if (!permissionGranted) {
+        return;
+      }
+
+      let updated = false;
+      occurrences.forEach((occurrence) => {
+        if (occurrence.meeting.reminder_minutes <= 0) {
+          return;
+        }
+        if (occurrence.status === "done" || occurrence.status === "cancelled" || occurrence.status === "missed") {
+          return;
+        }
+
+        const reminderAt = new Date(
+          occurrence.start.getTime() - occurrence.meeting.reminder_minutes * 60 * 1000
+        );
+        const occurrenceKey = `${occurrence.meeting_id}:${occurrence.start.toISOString()}`;
+        if (reminderMap[occurrenceKey]) {
+          return;
+        }
+        if (now < reminderAt || now > occurrence.start) {
+          return;
+        }
+
+        const body = t("{title} starts in {minutes} minutes.", {
+          title: occurrence.title,
+          minutes: occurrence.meeting.reminder_minutes,
+        });
+        sendNotification({
+          title: t("Meeting reminder"),
+          body,
+        });
+        notify(body, "info");
+        reminderMap[occurrenceKey] = now.toISOString();
+        updated = true;
+      });
+
+      if (updated) {
+        writeReminderMap(reminderMap);
+      }
+    };
+
+    const interval = window.setInterval(checkMeetingReminders, 30000);
+    checkMeetingReminders();
+    return () => window.clearInterval(interval);
+  }, [meetings, notify, t]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

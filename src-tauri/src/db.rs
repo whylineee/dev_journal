@@ -297,6 +297,44 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v11: enrich meetings with reminders, recurrence, notes, participants, and action items.
+    apply_migration(conn, 11, |conn| {
+        ensure_column(
+            conn,
+            "meetings",
+            "participants_json",
+            "TEXT NOT NULL DEFAULT '[]'",
+        )?;
+        ensure_column(conn, "meetings", "notes", "TEXT NOT NULL DEFAULT ''")?;
+        ensure_column(conn, "meetings", "decisions", "TEXT NOT NULL DEFAULT ''")?;
+        ensure_column(
+            conn,
+            "meetings",
+            "action_items_json",
+            "TEXT NOT NULL DEFAULT '[]'",
+        )?;
+        ensure_column(
+            conn,
+            "meetings",
+            "recurrence",
+            "TEXT NOT NULL DEFAULT 'none'",
+        )?;
+        ensure_column(conn, "meetings", "recurrence_until", "TEXT")?;
+        ensure_column(
+            conn,
+            "meetings",
+            "reminder_minutes",
+            "INTEGER NOT NULL DEFAULT 10",
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_meetings_recurrence ON meetings(recurrence, recurrence_until)",
+            [],
+        )?;
+
+        Ok(())
+    })?;
+
     Ok(())
 }
 

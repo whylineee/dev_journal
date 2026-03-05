@@ -18,20 +18,29 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import VideoCallIcon from "@mui/icons-material/VideoCall";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { alpha, useTheme } from "@mui/material/styles";
-import { addDays, addMinutes, format, parseISO } from "date-fns";
+import { addDays, addMinutes, format, parseISO, startOfDay } from "date-fns";
 import { useEntries } from "../hooks/useEntries";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits, useToggleHabitCompletion } from "../hooks/useHabits";
 import { useProjects } from "../hooks/useProjects";
 import { useCreateTask, useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
-import { useCreateMeeting, useDeleteMeeting, useMeetings, useUpdateMeeting } from "../hooks/useMeetings";
+import {
+  useCreateMeeting,
+  useDeleteMeeting,
+  useMaterializeMeetingActionItems,
+  useMeetings,
+  useUpdateMeeting,
+} from "../hooks/useMeetings";
 import { isGoalNearDeadline } from "../utils/goalUtils";
+import { expandMeetingOccurrences } from "../utils/meetingUtils";
 import { isTaskDueToday, isTaskOverdue } from "../utils/taskUtils";
 import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 import { sendNotification } from "@tauri-apps/plugin-notification";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { Meeting, MeetingRecurrence, MeetingStatus } from "../types";
 
 const DAILY_WINS_STORAGE_KEY = "devJournal_daily_wins";
 const PLANNER_COLLAPSE_STORAGE_KEY = "devJournal_planner_collapsed_sections";
@@ -71,6 +80,12 @@ const buildGoogleCalendarLink = (params: {
   return `https://calendar.google.com/calendar/render?${search.toString()}`;
 };
 
+const parseLines = (value: string) =>
+  value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
 type PlannerSectionKey =
   | "tasksToday"
   | "overdueTasks"
@@ -105,6 +120,7 @@ export const PlannerBoard = ({
   const createMeeting = useCreateMeeting();
   const updateMeeting = useUpdateMeeting();
   const deleteMeeting = useDeleteMeeting();
+  const materializeMeetingActionItems = useMaterializeMeetingActionItems();
 
   const { data: entries = [] } = useEntries();
   const { data: tasks = [] } = useTasks();
@@ -122,6 +138,15 @@ export const PlannerBoard = ({
   const [meetingMeetUrl, setMeetingMeetUrl] = useState("");
   const [meetingCalendarUrl, setMeetingCalendarUrl] = useState("");
   const [meetingProjectId, setMeetingProjectId] = useState<number | "">("");
+  const [meetingParticipants, setMeetingParticipants] = useState("");
+  const [meetingNotes, setMeetingNotes] = useState("");
+  const [meetingDecisions, setMeetingDecisions] = useState("");
+  const [meetingActionItems, setMeetingActionItems] = useState("");
+  const [meetingRecurrence, setMeetingRecurrence] = useState<MeetingRecurrence>("none");
+  const [meetingRecurrenceUntil, setMeetingRecurrenceUntil] = useState("");
+  const [meetingReminderMinutes, setMeetingReminderMinutes] = useState(10);
+  const [meetingStatus, setMeetingStatus] = useState<MeetingStatus>("planned");
+  const [editingMeetingId, setEditingMeetingId] = useState<number | null>(null);
   const [meetingStartAt, setMeetingStartAt] = useState(() => {
     const now = new Date();
     now.setSeconds(0, 0);
@@ -220,18 +245,20 @@ export const PlannerBoard = ({
   );
 
   const upcomingMeetings = useMemo(() => {
-    const nowMs = Date.now();
-    return meetings
-      .filter((meeting) => {
-        const endMs = new Date(meeting.end_at).getTime();
-        return Number.isFinite(endMs) && endMs >= nowMs - 15 * 60 * 1000;
-      })
-      .sort(
-        (a, b) =>
-          new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
-      )
+    const now = new Date();
+    return expandMeetingOccurrences(meetings, now, 14)
+      .filter((occurrence) => occurrence.end.getTime() >= now.getTime() - 15 * 60 * 1000)
       .slice(0, 8);
   }, [meetings]);
+
+  const weeklyMeetingOccurrences = useMemo(
+    () => expandMeetingOccurrences(meetings, new Date(), 7),
+    [meetings]
+  );
+  const editingMeeting = useMemo(
+    () => meetings.find((meeting) => meeting.id === editingMeetingId) ?? null,
+    [editingMeetingId, meetings]
+  );
 
   const meetingDayBuckets = useMemo(() => {
     const days = Array.from({ length: 7 }, (_, index) =>
@@ -240,12 +267,8 @@ export const PlannerBoard = ({
     const counts = new Map<string, number>();
     days.forEach((day) => counts.set(day, 0));
 
-    meetings.forEach((meeting) => {
-      const start = new Date(meeting.start_at);
-      if (!Number.isFinite(start.getTime())) {
-        return;
-      }
-      const dayKey = format(start, "yyyy-MM-dd");
+    weeklyMeetingOccurrences.forEach((occurrence) => {
+      const dayKey = format(occurrence.start, "yyyy-MM-dd");
       if (counts.has(dayKey)) {
         counts.set(dayKey, (counts.get(dayKey) ?? 0) + 1);
       }
@@ -255,7 +278,7 @@ export const PlannerBoard = ({
       day,
       count: counts.get(day) ?? 0,
     }));
-  }, [meetings]);
+  }, [weeklyMeetingOccurrences]);
 
   const busy =
     toggleHabitCompletion.isPending ||
@@ -263,7 +286,8 @@ export const PlannerBoard = ({
     createTask.isPending ||
     createMeeting.isPending ||
     updateMeeting.isPending ||
-    deleteMeeting.isPending;
+    deleteMeeting.isPending ||
+    materializeMeetingActionItems.isPending;
 
   const dailyWins = dailyWinsMap[today] ?? [];
   const plannerCardSx = {
@@ -272,6 +296,44 @@ export const PlannerBoard = ({
     border: "1px solid",
     borderColor: "divider",
     bgcolor: alpha(muiTheme.palette.background.paper, 0.7),
+  };
+
+  const resetMeetingForm = () => {
+    setEditingMeetingId(null);
+    setMeetingTitle("");
+    setMeetingAgenda("");
+    setMeetingMeetUrl("");
+    setMeetingCalendarUrl("");
+    setMeetingProjectId("");
+    setMeetingParticipants("");
+    setMeetingNotes("");
+    setMeetingDecisions("");
+    setMeetingActionItems("");
+    setMeetingRecurrence("none");
+    setMeetingRecurrenceUntil("");
+    setMeetingReminderMinutes(10);
+    setMeetingStatus("planned");
+    setMeetingFeedback("");
+  };
+
+  const loadMeetingIntoForm = (meeting: Meeting) => {
+    setEditingMeetingId(meeting.id);
+    setMeetingTitle(meeting.title);
+    setMeetingAgenda(meeting.agenda);
+    setMeetingMeetUrl(meeting.meet_url ?? "");
+    setMeetingCalendarUrl(meeting.calendar_event_url ?? "");
+    setMeetingProjectId(meeting.project_id ?? "");
+    setMeetingParticipants(meeting.participants.join("\n"));
+    setMeetingNotes(meeting.notes);
+    setMeetingDecisions(meeting.decisions);
+    setMeetingActionItems(meeting.action_items.map((item) => item.title).join("\n"));
+    setMeetingRecurrence(meeting.recurrence);
+    setMeetingRecurrenceUntil(meeting.recurrence_until ? format(parseISO(meeting.recurrence_until), "yyyy-MM-dd") : "");
+    setMeetingReminderMinutes(meeting.reminder_minutes);
+    setMeetingStatus(meeting.status === "live" || meeting.status === "missed" ? "planned" : meeting.status);
+    setMeetingStartAt(toLocalDatetimeInputValue(parseISO(meeting.start_at)));
+    setMeetingEndAt(toLocalDatetimeInputValue(parseISO(meeting.end_at)));
+    setMeetingFeedback("");
   };
 
   const handleQuickAddTask = () => {
@@ -313,55 +375,72 @@ export const PlannerBoard = ({
       return;
     }
 
-    createMeeting.mutate(
-      {
-        title: normalizedTitle,
-        agenda: meetingAgenda.trim(),
-        start_at: start.toISOString(),
-        end_at: end.toISOString(),
-        meet_url: meetingMeetUrl.trim() || null,
-        calendar_event_url: meetingCalendarUrl.trim() || null,
-        project_id: meetingProjectId === "" ? null : meetingProjectId,
-        status: "planned",
+    const participants = parseLines(meetingParticipants);
+    const action_items = parseLines(meetingActionItems).map((title, index) => {
+      const existingItem = editingMeeting?.action_items[index];
+      return {
+        id: existingItem?.id ?? `draft-${Date.now()}-${index}`,
+        title,
+        completed: existingItem?.completed ?? false,
+        task_id: existingItem?.task_id ?? null,
+      };
+    });
+    const recurrence_until =
+      meetingRecurrence !== "none" && meetingRecurrenceUntil
+        ? new Date(`${meetingRecurrenceUntil}T23:59:59`).toISOString()
+        : null;
+
+    const payload = {
+      title: normalizedTitle,
+      agenda: meetingAgenda.trim(),
+      start_at: start.toISOString(),
+      end_at: end.toISOString(),
+      meet_url: meetingMeetUrl.trim() || null,
+      calendar_event_url: meetingCalendarUrl.trim() || null,
+      project_id: meetingProjectId === "" ? null : meetingProjectId,
+      participants,
+      notes: meetingNotes.trim(),
+      decisions: meetingDecisions.trim(),
+      action_items,
+      recurrence: meetingRecurrence,
+      recurrence_until,
+      reminder_minutes: meetingReminderMinutes,
+      status: meetingStatus,
+    } as const;
+
+    if (editingMeetingId !== null) {
+      updateMeeting.mutate(
+        {
+          id: editingMeetingId,
+          ...payload,
+        },
+        {
+          onSuccess: () => {
+            resetMeetingForm();
+            setMeetingFeedback(t("Meeting updated."));
+          },
+          onError: () => {
+            setMeetingFeedback(t("Failed to update meeting."));
+          },
+        }
+      );
+      return;
+    }
+
+    createMeeting.mutate(payload, {
+      onSuccess: () => {
+        resetMeetingForm();
+        setMeetingFeedback(t("Meeting scheduled."));
       },
-      {
-        onSuccess: () => {
-          setMeetingTitle("");
-          setMeetingAgenda("");
-          setMeetingMeetUrl("");
-          setMeetingCalendarUrl("");
-          setMeetingProjectId("");
-          setMeetingFeedback(t("Meeting scheduled."));
-        },
-        onError: () => {
-          setMeetingFeedback(t("Failed to schedule meeting."));
-        },
-      }
-    );
+      onError: () => {
+        setMeetingFeedback(t("Failed to schedule meeting."));
+      },
+    });
   };
 
   const openExternalUrl = (url: string, fallbackMessage: string) => {
     openUrl(url).catch(() => {
       notify(fallbackMessage, "error");
-    });
-  };
-
-  const toggleMeetingDone = (meetingId: number, completed: boolean) => {
-    const target = meetings.find((meeting) => meeting.id === meetingId);
-    if (!target) {
-      return;
-    }
-
-    updateMeeting.mutate({
-      id: target.id,
-      title: target.title,
-      agenda: target.agenda,
-      start_at: target.start_at,
-      end_at: target.end_at,
-      meet_url: target.meet_url,
-      calendar_event_url: target.calendar_event_url,
-      project_id: target.project_id,
-      status: completed ? "done" : "planned",
     });
   };
 
@@ -380,7 +459,35 @@ export const PlannerBoard = ({
       meet_url: target.meet_url,
       calendar_event_url: target.calendar_event_url,
       project_id: target.project_id,
+      participants: target.participants,
+      notes: target.notes,
+      decisions: target.decisions,
+      action_items: target.action_items,
+      recurrence: target.recurrence,
+      recurrence_until: target.recurrence_until,
+      reminder_minutes: target.reminder_minutes,
       status: "cancelled",
+    });
+  };
+
+  const setMeetingWorkflowStatus = (meeting: Meeting, status: MeetingStatus) => {
+    updateMeeting.mutate({
+      id: meeting.id,
+      title: meeting.title,
+      agenda: meeting.agenda,
+      start_at: meeting.start_at,
+      end_at: meeting.end_at,
+      meet_url: meeting.meet_url,
+      calendar_event_url: meeting.calendar_event_url,
+      project_id: meeting.project_id,
+      participants: meeting.participants,
+      notes: meeting.notes,
+      decisions: meeting.decisions,
+      action_items: meeting.action_items,
+      recurrence: meeting.recurrence,
+      recurrence_until: meeting.recurrence_until,
+      reminder_minutes: meeting.reminder_minutes,
+      status,
     });
   };
 
@@ -623,229 +730,492 @@ export const PlannerBoard = ({
             sx={{
               mt: 2,
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", lg: "1.15fr 1fr" },
-              gap: 2,
+              gap: 2.5,
             }}
           >
             <Box
               sx={{
-                p: 1.5,
-                borderRadius: 2,
-                border: "1px solid",
-                borderColor: "divider",
-                bgcolor: alpha(muiTheme.palette.background.paper, 0.45),
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", xl: "1.05fr 1.2fr" },
+                gap: 2,
               }}
             >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
-                {t("Schedule meeting")}
-              </Typography>
-              <Stack spacing={1}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder={t("Meeting title")}
-                  value={meetingTitle}
-                  onChange={(event) => setMeetingTitle(event.target.value)}
-                />
-                <TextField
-                  fullWidth
-                  size="small"
-                  multiline
-                  minRows={2}
-                  placeholder={t("Agenda")}
-                  value={meetingAgenda}
-                  onChange={(event) => setMeetingAgenda(event.target.value)}
-                />
-                <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="datetime-local"
-                    label={t("Start")}
-                    value={meetingStartAt}
-                    onChange={(event) => setMeetingStartAt(event.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="datetime-local"
-                    label={t("End")}
-                    value={meetingEndAt}
-                    onChange={(event) => setMeetingEndAt(event.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                  />
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: alpha(muiTheme.palette.background.paper, 0.45),
+                }}
+              >
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {editingMeetingId === null ? t("Schedule meeting") : t("Edit meeting")}
+                  </Typography>
+                  {editingMeetingId !== null ? (
+                    <Button size="small" color="inherit" onClick={resetMeetingForm}>
+                      {t("Cancel")}
+                    </Button>
+                  ) : null}
                 </Stack>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder={t("Google Meet URL")}
-                  value={meetingMeetUrl}
-                  onChange={(event) => setMeetingMeetUrl(event.target.value)}
-                />
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder={t("Calendar event URL (optional)")}
-                  value={meetingCalendarUrl}
-                  onChange={(event) => setMeetingCalendarUrl(event.target.value)}
-                />
-                <TextField
-                  select
-                  size="small"
-                  value={meetingProjectId === "" ? "" : String(meetingProjectId)}
-                  onChange={(event) => {
-                    const nextValue = event.target.value;
-                    setMeetingProjectId(nextValue === "" ? "" : Number(nextValue));
-                  }}
-                  SelectProps={{ native: true }}
-                  fullWidth
-                >
-                  <option value="">{t("No project")}</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </TextField>
-
-                <Button
-                  variant="contained"
-                  size="small"
-                  startIcon={<VideoCallIcon />}
-                  disabled={busy || meetingTitle.trim().length === 0}
-                  onClick={handleCreateMeeting}
-                >
-                  {t("Add meeting")}
-                </Button>
-                {meetingFeedback ? (
-                  <Typography variant="caption" color="text.secondary">
-                    {meetingFeedback}
-                  </Typography>
-                ) : null}
-              </Stack>
-            </Box>
-
-            <Box>
-              <Stack direction="row" spacing={0.8} sx={{ mb: 1.5, flexWrap: "wrap" }}>
-                {meetingDayBuckets.map((bucket) => (
-                  <Chip
-                    key={bucket.day}
+                <Stack spacing={1}>
+                  <TextField
+                    fullWidth
                     size="small"
-                    variant={bucket.day === today ? "filled" : "outlined"}
-                    color={bucket.day === today ? "primary" : "default"}
-                    label={`${format(parseISO(bucket.day), "EEE d")} · ${bucket.count}`}
+                    placeholder={t("Meeting title")}
+                    value={meetingTitle}
+                    onChange={(event) => setMeetingTitle(event.target.value)}
                   />
-                ))}
-              </Stack>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    multiline
+                    minRows={2}
+                    placeholder={t("Agenda")}
+                    value={meetingAgenda}
+                    onChange={(event) => setMeetingAgenda(event.target.value)}
+                  />
+                  <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="datetime-local"
+                      label={t("Start")}
+                      value={meetingStartAt}
+                      onChange={(event) => setMeetingStartAt(event.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="datetime-local"
+                      label={t("End")}
+                      value={meetingEndAt}
+                      onChange={(event) => setMeetingEndAt(event.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Stack>
+                  <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+                    <TextField
+                      select
+                      size="small"
+                      label={t("Repeat")}
+                      value={meetingRecurrence}
+                      onChange={(event) => setMeetingRecurrence(event.target.value as MeetingRecurrence)}
+                      SelectProps={{ native: true }}
+                      fullWidth
+                    >
+                      <option value="none">{t("Does not repeat")}</option>
+                      <option value="daily">{t("Daily")}</option>
+                      <option value="weekdays">{t("Weekdays")}</option>
+                      <option value="weekly">{t("Weekly")}</option>
+                    </TextField>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="date"
+                      label={t("Repeat until")}
+                      value={meetingRecurrenceUntil}
+                      onChange={(event) => setMeetingRecurrenceUntil(event.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      disabled={meetingRecurrence === "none"}
+                    />
+                  </Stack>
+                  <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label={t("Reminder (minutes)")}
+                      type="number"
+                      value={meetingReminderMinutes}
+                      onChange={(event) => setMeetingReminderMinutes(Number(event.target.value) || 0)}
+                      inputProps={{ min: 0, max: 240, step: 5 }}
+                    />
+                    <TextField
+                      select
+                      size="small"
+                      label={t("Status")}
+                      value={meetingStatus}
+                      onChange={(event) => setMeetingStatus(event.target.value as MeetingStatus)}
+                      SelectProps={{ native: true }}
+                      fullWidth
+                    >
+                      <option value="planned">{t("Planned")}</option>
+                      <option value="live">{t("Live")}</option>
+                      <option value="done">{t("Done")}</option>
+                      <option value="missed">{t("Missed")}</option>
+                      <option value="cancelled">{t("Cancelled")}</option>
+                    </TextField>
+                  </Stack>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder={t("Google Meet URL")}
+                    value={meetingMeetUrl}
+                    onChange={(event) => setMeetingMeetUrl(event.target.value)}
+                  />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder={t("Calendar event URL (optional)")}
+                    value={meetingCalendarUrl}
+                    onChange={(event) => setMeetingCalendarUrl(event.target.value)}
+                  />
+                  <TextField
+                    select
+                    size="small"
+                    value={meetingProjectId === "" ? "" : String(meetingProjectId)}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      setMeetingProjectId(nextValue === "" ? "" : Number(nextValue));
+                    }}
+                    SelectProps={{ native: true }}
+                    fullWidth
+                  >
+                    <option value="">{t("No project")}</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </TextField>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    multiline
+                    minRows={2}
+                    label={t("Participants")}
+                    placeholder={t("One participant per line")}
+                    value={meetingParticipants}
+                    onChange={(event) => setMeetingParticipants(event.target.value)}
+                  />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    multiline
+                    minRows={3}
+                    label={t("Notes")}
+                    value={meetingNotes}
+                    onChange={(event) => setMeetingNotes(event.target.value)}
+                  />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    multiline
+                    minRows={2}
+                    label={t("Decisions")}
+                    value={meetingDecisions}
+                    onChange={(event) => setMeetingDecisions(event.target.value)}
+                  />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    multiline
+                    minRows={3}
+                    label={t("Action items")}
+                    placeholder={t("One action item per line")}
+                    value={meetingActionItems}
+                    onChange={(event) => setMeetingActionItems(event.target.value)}
+                  />
 
-              <Stack spacing={1}>
-                {upcomingMeetings.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    {t("No meetings yet.")}
-                  </Typography>
-                ) : (
-                  upcomingMeetings.map((meeting) => {
-                    const startAt = parseISO(meeting.start_at);
-                    const endAt = parseISO(meeting.end_at);
-                    const meetingProject = projects.find((project) => project.id === meeting.project_id) ?? null;
-                    const calendarUrl =
-                      meeting.calendar_event_url ??
-                      buildGoogleCalendarLink({
-                        title: meeting.title,
-                        details: meeting.agenda,
-                        startAt: meeting.start_at,
-                        endAt: meeting.end_at,
-                        location: meeting.meet_url ?? undefined,
-                      });
-                    return (
-                      <Box
-                        key={meeting.id}
-                        sx={{
-                          borderRadius: 2,
-                          border: "1px solid",
-                          borderColor: "divider",
-                          p: 1.25,
-                          bgcolor: alpha(muiTheme.palette.background.paper, 0.45),
-                        }}
-                      >
-                        <Stack direction="row" justifyContent="space-between" spacing={1}>
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
-                              {meeting.title}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {format(startAt, "MMM d, HH:mm")} - {format(endAt, "HH:mm")}
-                            </Typography>
-                            {meetingProject ? (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                                {t("Project")}: {meetingProject.name}
+                  <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<VideoCallIcon />}
+                      disabled={busy || meetingTitle.trim().length === 0}
+                      onClick={handleCreateMeeting}
+                    >
+                      {editingMeetingId === null ? t("Add meeting") : t("Save meeting")}
+                    </Button>
+                    {editingMeetingId !== null ? (
+                      <Button variant="outlined" size="small" onClick={resetMeetingForm}>
+                        {t("Clear")}
+                      </Button>
+                    ) : null}
+                  </Stack>
+                  {meetingFeedback ? (
+                    <Typography variant="caption" color="text.secondary">
+                      {meetingFeedback}
+                    </Typography>
+                  ) : null}
+                </Stack>
+              </Box>
+
+              <Box>
+                <Stack direction="row" spacing={0.8} sx={{ mb: 1.5, flexWrap: "wrap" }}>
+                  {meetingDayBuckets.map((bucket) => (
+                    <Chip
+                      key={bucket.day}
+                      size="small"
+                      variant={bucket.day === today ? "filled" : "outlined"}
+                      color={bucket.day === today ? "primary" : "default"}
+                      label={`${format(parseISO(bucket.day), "EEE d")} · ${bucket.count}`}
+                    />
+                  ))}
+                </Stack>
+
+                <Stack spacing={1}>
+                  {upcomingMeetings.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      {t("No meetings yet.")}
+                    </Typography>
+                  ) : (
+                    upcomingMeetings.map((occurrence) => {
+                      const meeting = occurrence.meeting;
+                      const meetingProject = projects.find((project) => project.id === meeting.project_id) ?? null;
+                      const calendarUrl =
+                        meeting.calendar_event_url ??
+                        buildGoogleCalendarLink({
+                          title: meeting.title,
+                          details: [meeting.agenda, meeting.notes, meeting.decisions].filter(Boolean).join("\n\n"),
+                          startAt: occurrence.start.toISOString(),
+                          endAt: occurrence.end.toISOString(),
+                          location: meeting.meet_url ?? undefined,
+                        });
+
+                      return (
+                        <Box
+                          key={occurrence.occurrence_id}
+                          sx={{
+                            borderRadius: 2,
+                            border: "1px solid",
+                            borderColor: "divider",
+                            p: 1.25,
+                            bgcolor: alpha(muiTheme.palette.background.paper, 0.45),
+                          }}
+                        >
+                          <Stack direction="row" justifyContent="space-between" spacing={1}>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                                {meeting.title}
                               </Typography>
-                            ) : null}
-                          </Box>
-                          <Chip
-                            size="small"
-                            label={meeting.status === "done" ? t("Done") : meeting.status === "cancelled" ? t("Cancelled") : t("Planned")}
-                            color={meeting.status === "done" ? "success" : meeting.status === "cancelled" ? "default" : "primary"}
-                            variant={meeting.status === "planned" ? "filled" : "outlined"}
-                          />
-                        </Stack>
+                              <Typography variant="caption" color="text.secondary">
+                                {format(occurrence.start, "MMM d, HH:mm")} - {format(occurrence.end, "HH:mm")}
+                              </Typography>
+                              {meetingProject ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                  {t("Project")}: {meetingProject.name}
+                                </Typography>
+                              ) : null}
+                              {meeting.agenda ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.35 }}>
+                                  {meeting.agenda}
+                                </Typography>
+                              ) : null}
+                            </Box>
+                            <Stack alignItems="flex-end" spacing={0.5}>
+                              <Chip
+                                size="small"
+                                label={
+                                  occurrence.status === "done"
+                                    ? t("Done")
+                                    : occurrence.status === "live"
+                                      ? t("Live")
+                                      : occurrence.status === "missed"
+                                        ? t("Missed")
+                                        : occurrence.status === "cancelled"
+                                          ? t("Cancelled")
+                                          : t("Planned")
+                                }
+                                color={
+                                  occurrence.status === "done"
+                                    ? "success"
+                                    : occurrence.status === "live"
+                                      ? "warning"
+                                      : occurrence.status === "missed"
+                                        ? "error"
+                                        : occurrence.status === "cancelled"
+                                          ? "default"
+                                          : "primary"
+                                }
+                                variant={occurrence.status === "planned" ? "filled" : "outlined"}
+                              />
+                              {meeting.recurrence !== "none" ? (
+                                <Chip size="small" variant="outlined" label={t(meeting.recurrence === "weekdays" ? "Weekdays" : meeting.recurrence === "weekly" ? "Weekly" : "Daily")} />
+                              ) : null}
+                            </Stack>
+                          </Stack>
 
-                        <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap" }}>
-                          {meeting.meet_url ? (
+                          <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap" }}>
+                            {meeting.participants.slice(0, 3).map((participant) => (
+                              <Chip key={participant} size="small" variant="outlined" label={participant} />
+                            ))}
+                            {meeting.action_items.length > 0 ? (
+                              <Chip size="small" variant="outlined" label={`${t("Action items")}: ${meeting.action_items.length}`} />
+                            ) : null}
+                            {meeting.reminder_minutes > 0 ? (
+                              <Chip size="small" variant="outlined" label={`${t("Reminder")}: ${meeting.reminder_minutes}m`} />
+                            ) : null}
+                          </Stack>
+
+                          <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap" }}>
+                            {meeting.meet_url ? (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<VideoCallIcon />}
+                                onClick={() => openExternalUrl(meeting.meet_url!, t("Unable to open meeting URL."))}
+                              >
+                                {t("Open Meet")}
+                              </Button>
+                            ) : null}
                             <Button
                               size="small"
                               variant="outlined"
-                              startIcon={<VideoCallIcon />}
-                              onClick={() =>
-                                openExternalUrl(meeting.meet_url!, t("Unable to open meeting URL."))
-                              }
+                              startIcon={<CalendarMonthIcon />}
+                              onClick={() => openExternalUrl(calendarUrl, t("Unable to open calendar URL."))}
                             >
-                              {t("Open Meet")}
+                              {t("Open Calendar")}
                             </Button>
-                          ) : null}
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<CalendarMonthIcon />}
-                            onClick={() =>
-                              openExternalUrl(calendarUrl, t("Unable to open calendar URL."))
-                            }
-                          >
-                            {t("Open Calendar")}
-                          </Button>
-                          <Button
-                            size="small"
-                            onClick={() => toggleMeetingDone(meeting.id, meeting.status !== "done")}
-                            disabled={busy}
-                          >
-                            {meeting.status === "done" ? t("Reopen") : t("Mark done")}
-                          </Button>
-                          {meeting.status !== "cancelled" ? (
                             <Button
                               size="small"
-                              color="warning"
-                              onClick={() => cancelMeeting(meeting.id)}
+                              variant="outlined"
+                              onClick={() =>
+                                materializeMeetingActionItems.mutate({
+                                  meeting_id: meeting.id,
+                                  due_date: format(occurrence.start, "yyyy-MM-dd"),
+                                })
+                              }
+                              disabled={busy || meeting.action_items.every((item) => item.task_id !== null)}
+                            >
+                              {t("Create tasks")}
+                            </Button>
+                            <Button size="small" onClick={() => loadMeetingIntoForm(meeting)} startIcon={<EditOutlinedIcon />}>
+                              {t("Edit")}
+                            </Button>
+                            {occurrence.status !== "live" && occurrence.status !== "done" ? (
+                              <Button size="small" onClick={() => setMeetingWorkflowStatus(meeting, "live")} disabled={busy}>
+                                {t("Go live")}
+                              </Button>
+                            ) : null}
+                            {occurrence.status !== "done" ? (
+                              <Button size="small" onClick={() => setMeetingWorkflowStatus(meeting, "done")} disabled={busy}>
+                                {t("Mark done")}
+                              </Button>
+                            ) : (
+                              <Button size="small" onClick={() => setMeetingWorkflowStatus(meeting, "planned")} disabled={busy}>
+                                {t("Reopen")}
+                              </Button>
+                            )}
+                            {meeting.status !== "cancelled" ? (
+                              <Button size="small" color="warning" onClick={() => cancelMeeting(meeting.id)} disabled={busy}>
+                                {t("Cancel")}
+                              </Button>
+                            ) : null}
+                            <Button
+                              size="small"
+                              color="error"
+                              startIcon={<DeleteOutlineIcon />}
+                              onClick={() => deleteMeeting.mutate(meeting.id)}
                               disabled={busy}
                             >
-                              {t("Cancel")}
+                              {t("Delete")}
                             </Button>
-                          ) : null}
-                          <Button
-                            size="small"
-                            color="error"
-                            startIcon={<DeleteOutlineIcon />}
-                            onClick={() => deleteMeeting.mutate(meeting.id)}
-                            disabled={busy}
-                          >
-                            {t("Delete")}
-                          </Button>
-                        </Stack>
+                          </Stack>
+                        </Box>
+                      );
+                    })
+                  )}
+                </Stack>
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "divider",
+                overflow: "hidden",
+              }}
+            >
+              <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {t("Weekly calendar")}
+                </Typography>
+              </Box>
+              <Box sx={{ display: "grid", gridTemplateColumns: "72px repeat(7, minmax(0, 1fr))", minHeight: 540 }}>
+                <Box sx={{ borderRight: "1px solid", borderColor: "divider", bgcolor: alpha(muiTheme.palette.text.primary, 0.02) }}>
+                  {Array.from({ length: 14 }, (_, index) => 8 + index).map((hour) => (
+                    <Box key={hour} sx={{ height: 38, px: 1, pt: 0.4, borderBottom: "1px solid", borderColor: "divider" }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {String(hour).padStart(2, "0")}:00
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+                {Array.from({ length: 7 }, (_, index) => addDays(startOfDay(new Date()), index)).map((day) => {
+                  const dayOccurrences = weeklyMeetingOccurrences.filter(
+                    (occurrence) => format(occurrence.start, "yyyy-MM-dd") === format(day, "yyyy-MM-dd")
+                  );
+                  return (
+                    <Box key={day.toISOString()} sx={{ position: "relative", borderRight: "1px solid", borderColor: "divider" }}>
+                      <Box sx={{ height: 34, px: 1, py: 0.6, borderBottom: "1px solid", borderColor: "divider", bgcolor: format(day, "yyyy-MM-dd") === today ? alpha(muiTheme.palette.primary.main, 0.08) : "transparent" }}>
+                        <Typography variant="caption" color="text.secondary">
+                          {format(day, "EEE d")}
+                        </Typography>
                       </Box>
-                    );
-                  })
-                )}
-              </Stack>
+                      <Box sx={{ position: "relative", height: 506 }}>
+                        {Array.from({ length: 14 }, (_, index) => (
+                          <Box
+                            key={`${day.toISOString()}-${index}`}
+                            sx={{
+                              height: 36,
+                              borderBottom: "1px solid",
+                              borderColor: alpha(muiTheme.palette.divider, 0.75),
+                            }}
+                          />
+                        ))}
+                        {dayOccurrences.map((occurrence) => {
+                          const top = Math.max(0, ((occurrence.start.getHours() + occurrence.start.getMinutes() / 60) - 8) * 36);
+                          const height = Math.max(28, ((occurrence.end.getTime() - occurrence.start.getTime()) / (60 * 60 * 1000)) * 36);
+                          return (
+                            <Box
+                              key={occurrence.occurrence_id}
+                              sx={{
+                                position: "absolute",
+                                left: 6,
+                                right: 6,
+                                top: `${top}px`,
+                                height: `${height}px`,
+                                borderRadius: 1.5,
+                                px: 0.8,
+                                py: 0.55,
+                                overflow: "hidden",
+                                bgcolor:
+                                  occurrence.status === "done"
+                                    ? alpha(muiTheme.palette.success.main, 0.18)
+                                    : occurrence.status === "live"
+                                      ? alpha(muiTheme.palette.warning.main, 0.2)
+                                      : occurrence.status === "missed"
+                                        ? alpha(muiTheme.palette.error.main, 0.16)
+                                        : alpha(muiTheme.palette.primary.main, 0.16),
+                                border: "1px solid",
+                                borderColor:
+                                  occurrence.status === "done"
+                                    ? "success.main"
+                                    : occurrence.status === "live"
+                                      ? "warning.main"
+                                      : occurrence.status === "missed"
+                                        ? "error.main"
+                                        : "primary.main",
+                              }}
+                            >
+                              <Typography variant="caption" sx={{ display: "block", fontWeight: 700, lineHeight: 1.15 }}>
+                                {occurrence.title}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.1 }}>
+                                {format(occurrence.start, "HH:mm")} - {format(occurrence.end, "HH:mm")}
+                              </Typography>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
             </Box>
           </Box>
         </Collapse>

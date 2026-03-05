@@ -1,7 +1,28 @@
-import { Box, TextField, Typography, Button, Paper, IconButton, Tooltip, InputBase, Chip } from "@mui/material";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+    Box,
+    TextField,
+    Typography,
+    Button,
+    Paper,
+    IconButton,
+    Tooltip,
+    InputBase,
+    Chip,
+    Checkbox,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow,
+    Stack,
+} from "@mui/material";
+import { useState, useEffect, useMemo, useCallback, ComponentProps } from "react";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { usePage, useCreatePage, useUpdatePage, useDeletePage } from "../hooks/usePages";
+import { useGoals } from "../hooks/useGoals";
+import { useProjects } from "../hooks/useProjects";
+import { useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
 import { motion } from "framer-motion";
 import { alpha, useTheme } from "@mui/material/styles";
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
@@ -9,9 +30,13 @@ import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import CodeIcon from '@mui/icons-material/Code';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
+import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
+import ViewAgendaOutlinedIcon from '@mui/icons-material/ViewAgendaOutlined';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import { Task } from "../types";
 
 interface PageEditorProps {
     pageId: number | null;
@@ -22,13 +47,213 @@ interface PageEditorProps {
 }
 
 const countWords = (value: string) => value.split(/\s+/).filter((word) => word.length > 0).length;
+const TASK_TABLE_BLOCK = "{{TASK_TABLE}}";
+
+const splitPageContent = (value: string) => {
+    return value.split(TASK_TABLE_BLOCK).flatMap((segment, index, source) => {
+        const chunks: Array<{ type: "markdown" | "tasks"; value: string }> = [];
+        if (segment.length > 0) {
+            chunks.push({ type: "markdown", value: segment });
+        }
+        if (index < source.length - 1) {
+            chunks.push({ type: "tasks", value: TASK_TABLE_BLOCK });
+        }
+        return chunks;
+    });
+};
+
+const toggleChecklistLine = (value: string, lineNumber: number) => {
+    const lines = value.split("\n");
+    const index = lineNumber - 1;
+    if (index < 0 || index >= lines.length) {
+        return value;
+    }
+
+    const currentLine = lines[index];
+    if (currentLine.includes("- [ ]")) {
+        lines[index] = currentLine.replace("- [ ]", "- [x]");
+    } else if (currentLine.includes("- [x]")) {
+        lines[index] = currentLine.replace("- [x]", "- [ ]");
+    }
+
+    return lines.join("\n");
+};
+
+const PageTaskTable = ({
+    tasks,
+    projectsById,
+    goalsById,
+    onToggleTask,
+}: {
+    tasks: Task[];
+    projectsById: Map<number, string>;
+    goalsById: Map<number, string>;
+    onToggleTask: (task: Task, checked: boolean) => void;
+}) => {
+    const [view, setView] = useState<"all" | "open" | "checklist">("all");
+
+    const visibleTasks = useMemo(() => {
+        if (view === "open") {
+            return tasks.filter((task) => task.status !== "done");
+        }
+        return tasks;
+    }, [tasks, view]);
+
+    return (
+        <Paper
+            variant="outlined"
+            sx={{
+                mt: 2,
+                borderRadius: 2.5,
+                borderColor: "divider",
+                overflow: "hidden",
+                bgcolor: "background.paper",
+            }}
+        >
+            <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Tasks Database
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
+                    Embedded tasks view for this page.
+                </Typography>
+                <Stack direction="row" spacing={0.75} sx={{ mt: 1.5, flexWrap: "wrap" }}>
+                    <Chip
+                        label="All Tasks"
+                        size="small"
+                        color={view === "all" ? "primary" : "default"}
+                        variant={view === "all" ? "filled" : "outlined"}
+                        onClick={() => setView("all")}
+                    />
+                    <Chip
+                        label="Open"
+                        size="small"
+                        color={view === "open" ? "primary" : "default"}
+                        variant={view === "open" ? "filled" : "outlined"}
+                        onClick={() => setView("open")}
+                    />
+                    <Chip
+                        label="Checklist"
+                        size="small"
+                        color={view === "checklist" ? "primary" : "default"}
+                        variant={view === "checklist" ? "filled" : "outlined"}
+                        onClick={() => setView("checklist")}
+                    />
+                </Stack>
+            </Box>
+
+            {view === "checklist" ? (
+                <Stack spacing={0.5} sx={{ p: 1.5 }}>
+                    {visibleTasks.map((task) => (
+                        <Stack key={task.id} direction="row" spacing={1} alignItems="center">
+                            <Checkbox
+                                checked={task.status === "done"}
+                                onChange={(_, checked) => onToggleTask(task, checked)}
+                                size="small"
+                            />
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    textDecoration: task.status === "done" ? "line-through" : "none",
+                                    opacity: task.status === "done" ? 0.65 : 1,
+                                }}
+                            >
+                                {task.title}
+                            </Typography>
+                        </Stack>
+                    ))}
+                    {visibleTasks.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                            No tasks to show.
+                        </Typography>
+                    ) : null}
+                </Stack>
+            ) : (
+                <Table size="small">
+                    <TableHead>
+                        <TableRow>
+                            <TableCell sx={{ width: 44 }} />
+                            <TableCell>Task name</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell>Project</TableCell>
+                            <TableCell>Goal</TableCell>
+                            <TableCell>Due date</TableCell>
+                            <TableCell>Priority</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {visibleTasks.map((task) => (
+                            <TableRow key={task.id} hover>
+                                <TableCell padding="checkbox">
+                                    <Checkbox
+                                        checked={task.status === "done"}
+                                        onChange={(_, checked) => onToggleTask(task, checked)}
+                                        size="small"
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                        {task.title}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell>
+                                    <Chip
+                                        size="small"
+                                        label={
+                                            task.status === "done"
+                                                ? "Done"
+                                                : task.status === "in_progress"
+                                                    ? "In Progress"
+                                                    : "To Do"
+                                        }
+                                        color={
+                                            task.status === "done"
+                                                ? "success"
+                                                : task.status === "in_progress"
+                                                    ? "info"
+                                                    : "default"
+                                        }
+                                        variant={task.status === "todo" ? "outlined" : "filled"}
+                                    />
+                                </TableCell>
+                                <TableCell>{task.project_id ? projectsById.get(task.project_id) ?? "—" : "—"}</TableCell>
+                                <TableCell>{task.goal_id ? goalsById.get(task.goal_id) ?? "—" : "—"}</TableCell>
+                                <TableCell>{task.due_date ?? "—"}</TableCell>
+                                <TableCell>
+                                    <Chip
+                                        size="small"
+                                        variant="outlined"
+                                        label={task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        {visibleTasks.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={7}>
+                                    <Typography variant="body2" color="text.secondary">
+                                        No tasks to show.
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : null}
+                    </TableBody>
+                </Table>
+            )}
+        </Paper>
+    );
+};
 
 export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSuccess, onDeleteSuccess }: PageEditorProps) => {
     const muiTheme = useTheme();
     const { data: page, isLoading } = usePage(pageId);
+    const { data: tasks = [] } = useTasks();
+    const { data: projects = [] } = useProjects();
+    const { data: goals = [] } = useGoals();
     const createMutation = useCreatePage();
     const updateMutation = useUpdatePage();
     const deleteMutation = useDeletePage();
+    const updateTaskStatus = useUpdateTaskStatus();
 
     const [title, setTitle] = useState("Untitled Page");
     const [content, setContent] = useState("");
@@ -146,6 +371,20 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         setContent((prev) => (prev.trim().length === 0 ? snippet : `${prev}${prev.endsWith("\n") ? "" : "\n"}\n${snippet}`));
     };
 
+    const insertChecklist = () => {
+        const snippet = "- [ ] First item\n- [ ] Second item";
+        setContent((prev) => (prev.trim().length === 0 ? snippet : `${prev}${prev.endsWith("\n") ? "" : "\n"}\n${snippet}`));
+    };
+
+    const insertTable = () => {
+        const snippet = "| Column | Value |\n| --- | --- |\n| Item | Text |";
+        setContent((prev) => (prev.trim().length === 0 ? snippet : `${prev}${prev.endsWith("\n") ? "" : "\n"}\n${snippet}`));
+    };
+
+    const insertTaskDatabase = () => {
+        setContent((prev) => (prev.trim().length === 0 ? TASK_TABLE_BLOCK : `${prev}${prev.endsWith("\n") ? "" : "\n"}\n${TASK_TABLE_BLOCK}`));
+    };
+
     const clearDraft = () => {
         localStorage.removeItem(draftKey);
         setDraftRestored(false);
@@ -154,12 +393,87 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     };
 
     const words = countWords(content);
+    const projectsById = useMemo(() => {
+        const map = new Map<number, string>();
+        projects.forEach((project) => map.set(project.id, project.name));
+        return map;
+    }, [projects]);
+    const goalsById = useMemo(() => {
+        const map = new Map<number, string>();
+        goals.forEach((goal) => map.set(goal.id, goal.title));
+        return map;
+    }, [goals]);
+    const pagePreviewBlocks = useMemo(() => splitPageContent(content), [content]);
     const toolbarButtonSx = {
         color: "text.secondary",
         "&:hover": {
             color: "text.primary",
             bgcolor: alpha(muiTheme.palette.primary.main, 0.12),
         },
+    };
+
+    const markdownComponents = useMemo(() => ({
+        table: (props: ComponentProps<"table">) => (
+            <Box sx={{ overflowX: "auto", my: 2 }}>
+                <Table size="small" sx={{ minWidth: 520 }} {...props} />
+            </Box>
+        ),
+        thead: (props: ComponentProps<"thead">) => <TableHead {...props} />,
+        tbody: (props: ComponentProps<"tbody">) => <TableBody {...props} />,
+        tr: (props: ComponentProps<"tr">) => <TableRow {...props} />,
+        th: (props: ComponentProps<"th">) => (
+            <Box
+                component="th"
+                sx={{
+                    px: 2,
+                    py: 1.25,
+                    textAlign: "left",
+                    fontWeight: 700,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                }}
+                {...props}
+            />
+        ),
+        td: (props: ComponentProps<"td">) => (
+            <Box
+                component="td"
+                sx={{
+                    px: 2,
+                    py: 1.1,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                }}
+                {...props}
+            />
+        ),
+        input: ({ node, ...props }: ComponentProps<"input"> & { node?: { position?: { start?: { line?: number } } } }) => {
+            if (props.type !== "checkbox") {
+                return <input {...props} />;
+            }
+
+            return (
+                <Checkbox
+                    checked={Boolean(props.checked)}
+                    size="small"
+                    onChange={() => {
+                        const line = node?.position?.start?.line;
+                        if (!line) {
+                            return;
+                        }
+                        setContent((prev) => toggleChecklistLine(prev, line));
+                    }}
+                    sx={{ p: 0.25, mr: 0.5 }}
+                />
+            );
+        },
+    }), []);
+
+    const handleTaskToggle = (task: Task, checked: boolean) => {
+        updateTaskStatus.mutate({
+            id: task.id,
+            status: checked ? "done" : "todo",
+        });
     };
 
     if (isLoading && pageId) return (
@@ -239,6 +553,21 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                 <FormatListBulletedIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
+                        <Tooltip title="Checklist">
+                            <IconButton size="small" onClick={insertChecklist} sx={toolbarButtonSx}>
+                                <CheckBoxOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Table">
+                            <IconButton size="small" onClick={insertTable} sx={toolbarButtonSx}>
+                                <TableChartOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Tasks Database">
+                            <IconButton size="small" onClick={insertTaskDatabase} sx={toolbarButtonSx}>
+                                <ViewAgendaOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
                     </Paper>
                 </Box>
 
@@ -246,45 +575,118 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                     <Chip label={`Words: ${words}`} size="small" variant="outlined" />
                     <Chip label={autosaveEnabled ? 'Autosave on' : 'Autosave off'} size="small" color={autosaveEnabled ? 'success' : 'default'} variant="outlined" />
                     <Chip label="Ctrl/Cmd+S to save" size="small" variant="outlined" />
+                    <Chip label="Use {{TASK_TABLE}} for tasks DB" size="small" variant="outlined" />
                     {draftRestored ? <Chip label="Draft restored" size="small" color="info" variant="outlined" /> : null}
                     <Button size="small" onClick={insertTemplate}>Insert template</Button>
                 </Box>
 
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, md: 4 }, flex: 1 }}>
-                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <Paper
+                    variant="outlined"
+                    sx={{
+                        flex: 1,
+                        borderRadius: 4,
+                        borderColor: "divider",
+                        overflow: "hidden",
+                        bgcolor: alpha(muiTheme.palette.background.paper, 0.9),
+                        boxShadow: `0 24px 64px ${alpha(muiTheme.palette.common.black, 0.08)}`,
+                    }}
+                >
+                    <Box
+                        sx={{
+                            px: { xs: 2, md: 4 },
+                            py: { xs: 2.5, md: 3.5 },
+                            borderBottom: "1px solid",
+                            borderColor: "divider",
+                        }}
+                    >
+                        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.14em" }}>
+                            Page Canvas
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            One editor, like Notion. Write in Markdown, use checklists, and drop task databases inline.
+                        </Typography>
+                    </Box>
+
+                    <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 2, md: 3 } }}>
                         <TextField
                             multiline
                             fullWidth
+                            minRows={16}
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                             placeholder="Type '/' for commands or start writing in Markdown..."
-                            sx={{ flex: 1, '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start' } }}
-                            InputProps={{ sx: { height: '100%' } }}
+                            variant="standard"
+                            InputProps={{
+                                disableUnderline: true,
+                                sx: {
+                                    alignItems: "flex-start",
+                                    fontSize: 18,
+                                    lineHeight: 1.8,
+                                    "& textarea": {
+                                        minHeight: "420px !important",
+                                    },
+                                },
+                            }}
+                            sx={{
+                                "& .MuiInputBase-root": {
+                                    p: 0,
+                                },
+                                "& textarea::placeholder": {
+                                    color: "text.disabled",
+                                    opacity: 1,
+                                },
+                            }}
                         />
                     </Box>
 
                     {previewEnabled ? (
-                        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            <Paper
+                        <Box
+                            sx={{
+                                px: { xs: 2, md: 4 },
+                                pb: { xs: 2.5, md: 4 },
+                            }}
+                        >
+                            <Box
                                 sx={{
-                                    p: 3,
-                                    flex: 1,
-                                    borderRadius: 2,
-                                    overflowY: 'auto',
+                                    pt: 2.5,
+                                    borderTop: "1px solid",
                                     borderColor: "divider",
-                                    bgcolor: alpha(muiTheme.palette.background.paper, 0.72),
                                 }}
-                                variant="outlined"
                             >
+                                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.14em" }}>
+                                    Live Blocks
+                                </Typography>
                                 {content ? (
-                                    <Markdown>{content}</Markdown>
+                                    <Box sx={{ mt: 1.5 }}>
+                                        {pagePreviewBlocks.map((block, index) =>
+                                            block.type === "tasks" ? (
+                                                <PageTaskTable
+                                                    key={`tasks-${index}`}
+                                                    tasks={tasks}
+                                                    projectsById={projectsById}
+                                                    goalsById={goalsById}
+                                                    onToggleTask={handleTaskToggle}
+                                                />
+                                            ) : (
+                                                <Markdown
+                                                    key={`markdown-${index}`}
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={markdownComponents}
+                                                >
+                                                    {block.value}
+                                                </Markdown>
+                                            )
+                                        )}
+                                    </Box>
                                 ) : (
-                                    <Typography color="text.disabled" sx={{ fontStyle: 'italic' }}>Markdown preview will appear here...</Typography>
+                                    <Typography color="text.disabled" sx={{ fontStyle: "italic", mt: 1.5 }}>
+                                        Start writing to see inline blocks and task databases.
+                                    </Typography>
                                 )}
-                            </Paper>
+                            </Box>
                         </Box>
                     ) : null}
-                </Box>
+                </Paper>
 
                 <Box
                     sx={{

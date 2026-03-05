@@ -83,6 +83,7 @@ pub fn run() {
             commands::create_meeting,
             commands::update_meeting,
             commands::delete_meeting,
+            commands::materialize_meeting_action_items,
             commands::get_projects,
             commands::create_project,
             commands::update_project,
