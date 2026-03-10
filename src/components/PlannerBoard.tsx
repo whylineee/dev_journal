@@ -901,7 +901,13 @@ export const PlannerBoard = ({
         <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
           {t("Quick Capture")}
         </Typography>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "flex-start" }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1.5}
+          useFlexGap
+          alignItems={{ md: "flex-start" }}
+          sx={{ flexWrap: "wrap" }}
+        >
           <TextField
             fullWidth
             size="small"
@@ -914,7 +920,7 @@ export const PlannerBoard = ({
                 handleQuickAddTask();
               }
             }}
-            sx={{ flex: 2 }}
+            sx={{ flex: 2, minWidth: { xs: "100%", md: 240 } }}
           />
           <TextField
             select
@@ -925,7 +931,7 @@ export const PlannerBoard = ({
               setQuickProjectId(nextValue === "" ? "" : Number(nextValue));
             }}
             SelectProps={{ native: true }}
-            sx={{ minWidth: 160, flex: 0.8 }}
+            sx={{ minWidth: { xs: "100%", md: 170 }, flex: { md: 0.8 } }}
           >
             <option value="">{t("No project")}</option>
             {projects.map((project) => (
@@ -934,7 +940,7 @@ export const PlannerBoard = ({
               </option>
             ))}
           </TextField>
-          <Stack direction="row" spacing={0.5}>
+          <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: "wrap" }}>
             {(["today", "tomorrow", "none"] as const).map((mode) => (
               <Chip
                 key={mode}
@@ -953,7 +959,7 @@ export const PlannerBoard = ({
             startIcon={<AddTaskIcon />}
             disabled={busy || quickTaskTitle.trim().length === 0}
             onClick={handleQuickAddTask}
-            sx={{ minWidth: 120, whiteSpace: "nowrap" }}
+            sx={{ minWidth: 120, whiteSpace: "nowrap", ml: { md: "auto" } }}
           >
             {t("Add Task")}
           </Button>

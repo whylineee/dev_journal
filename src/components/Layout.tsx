@@ -190,7 +190,7 @@ export const Layout = ({
   const drawerContent = (
     <>
       <Toolbar sx={{ minHeight: { xs: 68, md: 72 } }} />
-      <Box sx={{ px: 2, pb: 1.5, overflow: "auto" }}>
+      <Box sx={{ px: 2, pb: 1.5, overflowY: "auto", overflowX: "hidden" }}>
         <Box
           sx={{
             px: 2,
@@ -648,7 +648,8 @@ export const Layout = ({
           flexGrow: 1,
           p: { xs: 1.5, sm: 2, md: 3.5 },
           pt: { xs: 10, md: 11 },
-          overflow: "auto",
+          overflowY: "auto",
+          overflowX: "hidden",
           position: "relative",
         }}
       >
