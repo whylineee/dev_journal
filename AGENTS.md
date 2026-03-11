@@ -332,14 +332,16 @@ The app uses a glassmorphism visual language across all surfaces:
 - **Blur hierarchy**: Drawer 40px > AppBar/Dialog 32-40px > Paper 24px > Cards/inner 12-16px > Buttons/Chips 8px
 - **`WebkitBackdropFilter`** is always set alongside `backdropFilter` for Safari compatibility
 - **Gradient buttons**: `containedPrimary` uses `linear-gradient(135deg, primary, secondary)` with a white-border highlight
+- **Button contrast text**: `gradientContrastText()` utility in `ThemeContext.tsx` computes WCAG-aware contrast color (`#0a0a0a` or `#ffffff`) based on the average luminance of `primary` and `secondary` palette colors. This is set as `contrastText` on both `palette.primary` and `palette.secondary`, and applied to `containedPrimary` button text and icons. No more hardcoded `isDark` check for button text.
+- **Button states**: `containedPrimary` defines explicit `&:active` (press-down with reduced shadow and slight darken) and `&:focus-visible` (outline ring instead of glow) states. `backdropFilter` is only applied to `outlined` buttons (which have semi-transparent backgrounds), not to `containedPrimary` (opaque gradient).
 - **Hover animations**: cards and list items use `translateY(-1px)` on hover for lift effect
-- **Scrollbars**: thin (6px) with transparent tracks and semi-transparent thumbs
+- **Scrollbars**: thin (6px) with transparent tracks and semi-transparent thumbs; sidebar navigation hides scrollbar visually (`scrollbarWidth: "none"` + `&::-webkit-scrollbar: { display: "none" }`) while keeping scroll functional
 - **Selection color**: theme-aware `::selection` via MuiCssBaseline overrides
-- **Helper functions**: `glassLight(opacity)` and `glassDark(opacity)` in ThemeContext.tsx generate rgba values
+- **Helper functions**: `glassLight(opacity)`, `glassDark(opacity)`, `relativeLuminance(hex)`, and `gradientContrastText(colorA, colorB)` in ThemeContext.tsx
 
 Component-level glass conventions:
 - `Layout.tsx` sidebar sections use shared `sectionBoxSx` and `sectionHeaderSx` objects for consistent glass sectioning
-- `PlannerBoard.tsx` uses a shared `plannerCardSx` object with glass props for all section cards
+- `PlannerBoard.tsx` uses a shared `plannerCardSx` object with glass props for all section cards; Quick Capture container uses `overflow: hidden` to clip button glow
 - `EntryForm.tsx` and `PageEditor.tsx` toolbars use frosted glass Paper with reduced blur
 - Board item cards (Goals, Habits, Projects, Tasks) use glass bg + hover lift + subtle shadow on hover
 - All board header Papers use `borderRadius: 3.5` for consistent rounding
@@ -468,3 +470,6 @@ As of 2026-03-11, the app already includes these recent additions:
 - focus session tracking
 - goal milestones
 - glassmorphism full UI redesign (on `redesign/glassmorphism` branch)
+- luminance-based button contrast text for all theme presets
+- hidden sidebar scrollbar with preserved scroll functionality
+- proper button active/focus-visible states to prevent visual artifacts
