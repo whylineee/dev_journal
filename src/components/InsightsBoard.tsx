@@ -3,13 +3,18 @@ import {
   Box,
   Button,
   Chip,
+  Collapse,
   Divider,
-  Paper,
+  IconButton,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import DownloadIcon from "@mui/icons-material/Download";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { useI18n } from "../i18n/I18nContext";
 import { useEntries } from "../hooks/useEntries";
 import { useTasks } from "../hooks/useTasks";
@@ -69,6 +74,8 @@ interface SpeechRecognitionEventLike {
   results: ArrayLike<ArrayLike<{ transcript: string }>>;
 }
 
+type SectionKey = "retro" | "capture" | "adr" | "debug" | "incidents";
+
 const ADR_STORAGE_KEY = "devJournal_insights_adr_records";
 const INCIDENTS_STORAGE_KEY = "devJournal_insights_incident_records";
 const DEBUG_STORAGE_KEY = "devJournal_insights_debug_sessions";
@@ -77,29 +84,17 @@ const QUICK_CAPTURE_STORAGE_KEY = "devJournal_insights_quick_capture";
 const readAdrRecords = (): AdrRecord[] => {
   try {
     const raw = localStorage.getItem(ADR_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as AdrRecord[];
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter(
-      (item) =>
-        typeof item.id === "string" &&
-        typeof item.title === "string" &&
-        typeof item.problem === "string" &&
-        typeof item.decision === "string" &&
-        typeof item.rationale === "string" &&
-        typeof item.consequences === "string" &&
-        typeof item.created_at === "string" &&
-        typeof item.review_date === "string"
-    );
-  } catch {
-    return [];
-  }
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (item) =>
+            typeof item.id === "string" && typeof item.title === "string" && typeof item.problem === "string" &&
+            typeof item.decision === "string" && typeof item.rationale === "string" && typeof item.consequences === "string" &&
+            typeof item.created_at === "string" && typeof item.review_date === "string",
+        )
+      : [];
+  } catch { return []; }
 };
 
 const persistAdrRecords = (records: AdrRecord[]) => {
@@ -109,29 +104,17 @@ const persistAdrRecords = (records: AdrRecord[]) => {
 const readIncidents = (): IncidentRecord[] => {
   try {
     const raw = localStorage.getItem(INCIDENTS_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as IncidentRecord[];
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter(
-      (item) =>
-        typeof item.id === "string" &&
-        typeof item.title === "string" &&
-        typeof item.severity === "string" &&
-        typeof item.symptoms === "string" &&
-        typeof item.root_cause === "string" &&
-        typeof item.fix === "string" &&
-        typeof item.prevention === "string" &&
-        typeof item.created_at === "string"
-    );
-  } catch {
-    return [];
-  }
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (item) =>
+            typeof item.id === "string" && typeof item.title === "string" && typeof item.severity === "string" &&
+            typeof item.symptoms === "string" && typeof item.root_cause === "string" && typeof item.fix === "string" &&
+            typeof item.prevention === "string" && typeof item.created_at === "string",
+        )
+      : [];
+  } catch { return []; }
 };
 
 const persistIncidents = (records: IncidentRecord[]) => {
@@ -141,28 +124,17 @@ const persistIncidents = (records: IncidentRecord[]) => {
 const readDebugSessions = (): DebugSession[] => {
   try {
     const raw = localStorage.getItem(DEBUG_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as DebugSession[];
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter(
-      (item) =>
-        typeof item.id === "string" &&
-        typeof item.title === "string" &&
-        typeof item.symptoms === "string" &&
-        typeof item.hypotheses === "string" &&
-        typeof item.checks === "string" &&
-        typeof item.conclusion === "string" &&
-        typeof item.created_at === "string"
-    );
-  } catch {
-    return [];
-  }
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (item) =>
+            typeof item.id === "string" && typeof item.title === "string" && typeof item.symptoms === "string" &&
+            typeof item.hypotheses === "string" && typeof item.checks === "string" && typeof item.conclusion === "string" &&
+            typeof item.created_at === "string",
+        )
+      : [];
+  } catch { return []; }
 };
 
 const persistDebugSessions = (sessions: DebugSession[]) => {
@@ -172,25 +144,16 @@ const persistDebugSessions = (sessions: DebugSession[]) => {
 const readQuickCaptureRecords = (): QuickCaptureRecord[] => {
   try {
     const raw = localStorage.getItem(QUICK_CAPTURE_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as QuickCaptureRecord[];
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter(
-      (item) =>
-        typeof item.id === "string" &&
-        typeof item.raw_text === "string" &&
-        typeof item.structured_text === "string" &&
-        typeof item.created_at === "string"
-    );
-  } catch {
-    return [];
-  }
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (item) =>
+            typeof item.id === "string" && typeof item.raw_text === "string" &&
+            typeof item.structured_text === "string" && typeof item.created_at === "string",
+        )
+      : [];
+  } catch { return []; }
 };
 
 const persistQuickCaptureRecords = (records: QuickCaptureRecord[]) => {
@@ -199,8 +162,15 @@ const persistQuickCaptureRecords = (records: QuickCaptureRecord[]) => {
 
 export const InsightsBoard = () => {
   const { t } = useI18n();
+  const muiTheme = useTheme();
+  const isDark = muiTheme.palette.mode === "dark";
   const { data: entries = [] } = useEntries();
   const { data: tasks = [] } = useTasks();
+
+  const [expanded, setExpanded] = useState<Partial<Record<SectionKey, boolean>>>({});
+  const toggle = (key: SectionKey) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  const isOpen = (key: SectionKey) => Boolean(expanded[key]);
+
   const [records, setRecords] = useState<AdrRecord[]>(() => readAdrRecords());
   const [title, setTitle] = useState("");
   const [problem, setProblem] = useState("");
@@ -221,13 +191,11 @@ export const InsightsBoard = () => {
   const [debugHypotheses, setDebugHypotheses] = useState("");
   const [debugChecks, setDebugChecks] = useState("");
   const [debugConclusion, setDebugConclusion] = useState("");
-  const [buildLogStatus, setBuildLogStatus] = useState("");
   const [quickCaptureRecords, setQuickCaptureRecords] = useState<QuickCaptureRecord[]>(() => readQuickCaptureRecords());
   const [quickCaptureInput, setQuickCaptureInput] = useState("");
   const [quickCaptureStructured, setQuickCaptureStructured] = useState("");
   const [speechSupported, setSpeechSupported] = useState(false);
   const [speechActive, setSpeechActive] = useState(false);
-  const [retroGeneratedAt, setRetroGeneratedAt] = useState("");
 
   useEffect(() => {
     const host = window as Window & {
@@ -237,939 +205,345 @@ export const InsightsBoard = () => {
     setSpeechSupported(Boolean(host.SpeechRecognition ?? host.webkitSpeechRecognition));
   }, []);
 
-  const sortedRecords = useMemo(() => {
-    return [...records].sort((a, b) => b.created_at.localeCompare(a.created_at));
-  }, [records]);
+  const sortedRecords = useMemo(() => [...records].sort((a, b) => b.created_at.localeCompare(a.created_at)), [records]);
 
-  const canSave =
-    title.trim().length > 0 &&
-    problem.trim().length > 0 &&
-    decision.trim().length > 0 &&
-    rationale.trim().length > 0;
-  const canSaveIncident =
-    incidentTitle.trim().length > 0 &&
-    incidentSymptoms.trim().length > 0 &&
-    incidentRootCause.trim().length > 0 &&
-    incidentFix.trim().length > 0;
-  const canSaveDebug =
-    debugTitle.trim().length > 0 &&
-    debugSymptoms.trim().length > 0 &&
-    debugHypotheses.trim().length > 0 &&
-    debugChecks.trim().length > 0 &&
-    debugConclusion.trim().length > 0;
+  const canSave = title.trim().length > 0 && problem.trim().length > 0 && decision.trim().length > 0 && rationale.trim().length > 0;
+  const canSaveIncident = incidentTitle.trim().length > 0 && incidentSymptoms.trim().length > 0 && incidentRootCause.trim().length > 0 && incidentFix.trim().length > 0;
+  const canSaveDebug = debugTitle.trim().length > 0 && debugSymptoms.trim().length > 0 && debugHypotheses.trim().length > 0 && debugChecks.trim().length > 0 && debugConclusion.trim().length > 0;
 
   const handleSaveAdr = () => {
-    if (!canSave) {
-      return;
-    }
-
-    const next: AdrRecord = {
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      problem: problem.trim(),
-      decision: decision.trim(),
-      rationale: rationale.trim(),
-      consequences: consequences.trim(),
-      created_at: new Date().toISOString(),
-      review_date: reviewDate,
-    };
-
-    const updated = [next, ...records];
-    setRecords(updated);
-    persistAdrRecords(updated);
-
-    setTitle("");
-    setProblem("");
-    setDecision("");
-    setRationale("");
-    setConsequences("");
-    setReviewDate("");
+    if (!canSave) return;
+    const next: AdrRecord = { id: crypto.randomUUID(), title: title.trim(), problem: problem.trim(), decision: decision.trim(), rationale: rationale.trim(), consequences: consequences.trim(), created_at: new Date().toISOString(), review_date: reviewDate };
+    const updated = [next, ...records]; setRecords(updated); persistAdrRecords(updated);
+    setTitle(""); setProblem(""); setDecision(""); setRationale(""); setConsequences(""); setReviewDate("");
   };
-
-  const handleRemoveAdr = (id: string) => {
-    const updated = records.filter((record) => record.id !== id);
-    setRecords(updated);
-    persistAdrRecords(updated);
-  };
+  const handleRemoveAdr = (id: string) => { const updated = records.filter((r) => r.id !== id); setRecords(updated); persistAdrRecords(updated); };
 
   const handleSaveIncident = () => {
-    if (!canSaveIncident) {
-      return;
-    }
-
-    const next: IncidentRecord = {
-      id: crypto.randomUUID(),
-      title: incidentTitle.trim(),
-      severity: incidentSeverity,
-      symptoms: incidentSymptoms.trim(),
-      root_cause: incidentRootCause.trim(),
-      fix: incidentFix.trim(),
-      prevention: incidentPrevention.trim(),
-      created_at: new Date().toISOString(),
-    };
-
-    const updated = [next, ...incidents];
-    setIncidents(updated);
-    persistIncidents(updated);
-
-    setIncidentTitle("");
-    setIncidentSeverity("medium");
-    setIncidentSymptoms("");
-    setIncidentRootCause("");
-    setIncidentFix("");
-    setIncidentPrevention("");
+    if (!canSaveIncident) return;
+    const next: IncidentRecord = { id: crypto.randomUUID(), title: incidentTitle.trim(), severity: incidentSeverity, symptoms: incidentSymptoms.trim(), root_cause: incidentRootCause.trim(), fix: incidentFix.trim(), prevention: incidentPrevention.trim(), created_at: new Date().toISOString() };
+    const updated = [next, ...incidents]; setIncidents(updated); persistIncidents(updated);
+    setIncidentTitle(""); setIncidentSeverity("medium"); setIncidentSymptoms(""); setIncidentRootCause(""); setIncidentFix(""); setIncidentPrevention("");
   };
-
-  const handleRemoveIncident = (id: string) => {
-    const updated = incidents.filter((record) => record.id !== id);
-    setIncidents(updated);
-    persistIncidents(updated);
-  };
+  const handleRemoveIncident = (id: string) => { const updated = incidents.filter((r) => r.id !== id); setIncidents(updated); persistIncidents(updated); };
 
   const applyDebugTemplate = () => {
-    if (debugSymptoms.trim().length === 0) {
-      setDebugSymptoms("- User-visible behavior:\n- Error text:\n- Repro frequency:");
-    }
-    if (debugHypotheses.trim().length === 0) {
-      setDebugHypotheses("- Hypothesis 1:\n- Hypothesis 2:\n- Most likely:");
-    }
-    if (debugChecks.trim().length === 0) {
-      setDebugChecks("- Check 1:\n- Check 2:\n- Logs/metrics observed:");
-    }
-    if (debugConclusion.trim().length === 0) {
-      setDebugConclusion("- Root cause:\n- Fix applied:\n- Follow-up:");
-    }
+    if (debugSymptoms.trim().length === 0) setDebugSymptoms("- User-visible behavior:\n- Error text:\n- Repro frequency:");
+    if (debugHypotheses.trim().length === 0) setDebugHypotheses("- Hypothesis 1:\n- Hypothesis 2:\n- Most likely:");
+    if (debugChecks.trim().length === 0) setDebugChecks("- Check 1:\n- Check 2:\n- Logs/metrics observed:");
+    if (debugConclusion.trim().length === 0) setDebugConclusion("- Root cause:\n- Fix applied:\n- Follow-up:");
   };
-
   const handleSaveDebugSession = () => {
-    if (!canSaveDebug) {
-      return;
-    }
-
-    const next: DebugSession = {
-      id: crypto.randomUUID(),
-      title: debugTitle.trim(),
-      symptoms: debugSymptoms.trim(),
-      hypotheses: debugHypotheses.trim(),
-      checks: debugChecks.trim(),
-      conclusion: debugConclusion.trim(),
-      created_at: new Date().toISOString(),
-    };
-
-    const updated = [next, ...debugSessions];
-    setDebugSessions(updated);
-    persistDebugSessions(updated);
-
-    setDebugTitle("");
-    setDebugSymptoms("");
-    setDebugHypotheses("");
-    setDebugChecks("");
-    setDebugConclusion("");
+    if (!canSaveDebug) return;
+    const next: DebugSession = { id: crypto.randomUUID(), title: debugTitle.trim(), symptoms: debugSymptoms.trim(), hypotheses: debugHypotheses.trim(), checks: debugChecks.trim(), conclusion: debugConclusion.trim(), created_at: new Date().toISOString() };
+    const updated = [next, ...debugSessions]; setDebugSessions(updated); persistDebugSessions(updated);
+    setDebugTitle(""); setDebugSymptoms(""); setDebugHypotheses(""); setDebugChecks(""); setDebugConclusion("");
   };
-
-  const handleRemoveDebugSession = (id: string) => {
-    const updated = debugSessions.filter((session) => session.id !== id);
-    setDebugSessions(updated);
-    persistDebugSessions(updated);
-  };
+  const handleRemoveDebugSession = (id: string) => { const updated = debugSessions.filter((s) => s.id !== id); setDebugSessions(updated); persistDebugSessions(updated); };
 
   const handleExportBuildLog = () => {
-    const lines: string[] = [
-      "# Dev Journal Build Log",
-      "",
-      `Generated: ${new Date().toISOString()}`,
-      "",
-      "## Decisions (Mini ADR)",
-    ];
-
-    if (records.length === 0) {
-      lines.push("- No ADR records yet.");
-    } else {
-      records.forEach((record) => {
-        lines.push(`### ${record.title}`);
-        lines.push(`- Date: ${record.created_at.slice(0, 10)}`);
-        lines.push(`- Problem: ${record.problem}`);
-        lines.push(`- Decision: ${record.decision}`);
-        lines.push(`- Rationale: ${record.rationale}`);
-        if (record.consequences) {
-          lines.push(`- Consequences: ${record.consequences}`);
-        }
-        lines.push("");
-      });
-    }
-
+    const lines: string[] = ["# Dev Journal Build Log", "", `Generated: ${new Date().toISOString()}`, "", "## Decisions (Mini ADR)"];
+    if (records.length === 0) { lines.push("- No ADR records yet."); }
+    else { records.forEach((r) => { lines.push(`### ${r.title}`, `- Date: ${r.created_at.slice(0, 10)}`, `- Problem: ${r.problem}`, `- Decision: ${r.decision}`, `- Rationale: ${r.rationale}`); if (r.consequences) lines.push(`- Consequences: ${r.consequences}`); lines.push(""); }); }
     lines.push("## Incident Learnings");
-    if (incidents.length === 0) {
-      lines.push("- No incidents logged yet.");
-    } else {
-      incidents.forEach((incident) => {
-        lines.push(`### ${incident.title}`);
-        lines.push(`- Date: ${incident.created_at.slice(0, 10)}`);
-        lines.push(`- Severity: ${incident.severity}`);
-        lines.push(`- Symptoms: ${incident.symptoms}`);
-        lines.push(`- Root cause: ${incident.root_cause}`);
-        lines.push(`- Fix: ${incident.fix}`);
-        if (incident.prevention) {
-          lines.push(`- Prevention: ${incident.prevention}`);
-        }
-        lines.push("");
-      });
-    }
-
+    if (incidents.length === 0) { lines.push("- No incidents logged yet."); }
+    else { incidents.forEach((i) => { lines.push(`### ${i.title}`, `- Date: ${i.created_at.slice(0, 10)}`, `- Severity: ${i.severity}`, `- Symptoms: ${i.symptoms}`, `- Root cause: ${i.root_cause}`, `- Fix: ${i.fix}`); if (i.prevention) lines.push(`- Prevention: ${i.prevention}`); lines.push(""); }); }
     lines.push("## Debug Sessions");
-    if (debugSessions.length === 0) {
-      lines.push("- No debug sessions yet.");
-    } else {
-      debugSessions.forEach((session) => {
-        lines.push(`### ${session.title}`);
-        lines.push(`- Date: ${session.created_at.slice(0, 10)}`);
-        lines.push(`- Symptoms: ${session.symptoms}`);
-        lines.push(`- Hypotheses: ${session.hypotheses}`);
-        lines.push(`- Checks: ${session.checks}`);
-        lines.push(`- Conclusion: ${session.conclusion}`);
-        lines.push("");
-      });
-    }
-
+    if (debugSessions.length === 0) { lines.push("- No debug sessions yet."); }
+    else { debugSessions.forEach((s) => { lines.push(`### ${s.title}`, `- Date: ${s.created_at.slice(0, 10)}`, `- Symptoms: ${s.symptoms}`, `- Hypotheses: ${s.hypotheses}`, `- Checks: ${s.checks}`, `- Conclusion: ${s.conclusion}`, ""); }); }
     const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `dev-journal-build-log-${new Date().toISOString().slice(0, 10)}.md`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-
-    setBuildLogStatus(t("Portfolio build log exported."));
+    const a = document.createElement("a"); a.href = url; a.download = `dev-journal-build-log-${new Date().toISOString().slice(0, 10)}.md`; a.click(); URL.revokeObjectURL(url);
   };
 
   const structureQuickCapture = (raw: string) => {
-    const lines = raw
-      .split(/\n+/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-
-    const context = lines.filter((line) => line.toLowerCase().includes("because") || line.toLowerCase().includes("context"));
-    const blockers = lines.filter((line) => line.toLowerCase().includes("block") || line.toLowerCase().includes("risk"));
-    const next = lines.filter((line) => line.toLowerCase().includes("next") || line.toLowerCase().includes("tomorrow"));
-    const actions = lines.filter((line) => !context.includes(line) && !blockers.includes(line) && !next.includes(line));
-
-    return [
-      "Context:",
-      context.length > 0 ? context.map((line) => `- ${line}`).join("\n") : "- n/a",
-      "",
-      "Actions:",
-      actions.length > 0 ? actions.map((line) => `- ${line}`).join("\n") : "- n/a",
-      "",
-      "Blockers:",
-      blockers.length > 0 ? blockers.map((line) => `- ${line}`).join("\n") : "- none",
-      "",
-      "Next:",
-      next.length > 0 ? next.map((line) => `- ${line}`).join("\n") : "- review and schedule next step",
-    ].join("\n");
+    const lines = raw.split(/\n+/).map((l) => l.trim()).filter((l) => l.length > 0);
+    const context = lines.filter((l) => l.toLowerCase().includes("because") || l.toLowerCase().includes("context"));
+    const blockers = lines.filter((l) => l.toLowerCase().includes("block") || l.toLowerCase().includes("risk"));
+    const next = lines.filter((l) => l.toLowerCase().includes("next") || l.toLowerCase().includes("tomorrow"));
+    const actions = lines.filter((l) => !context.includes(l) && !blockers.includes(l) && !next.includes(l));
+    return ["Context:", context.length > 0 ? context.map((l) => `- ${l}`).join("\n") : "- n/a", "", "Actions:", actions.length > 0 ? actions.map((l) => `- ${l}`).join("\n") : "- n/a", "", "Blockers:", blockers.length > 0 ? blockers.map((l) => `- ${l}`).join("\n") : "- none", "", "Next:", next.length > 0 ? next.map((l) => `- ${l}`).join("\n") : "- review and schedule next step"].join("\n");
   };
-
-  const handleGenerateQuickCapture = () => {
-    const raw = quickCaptureInput.trim();
-    if (!raw) {
-      return;
-    }
-    setQuickCaptureStructured(structureQuickCapture(raw));
-  };
-
+  const handleGenerateQuickCapture = () => { const raw = quickCaptureInput.trim(); if (!raw) return; setQuickCaptureStructured(structureQuickCapture(raw)); };
   const handleSaveQuickCapture = () => {
-    const raw = quickCaptureInput.trim();
-    const structured = quickCaptureStructured.trim();
-    if (!raw || !structured) {
-      return;
-    }
-
-    const nextRecord: QuickCaptureRecord = {
-      id: crypto.randomUUID(),
-      raw_text: raw,
-      structured_text: structured,
-      created_at: new Date().toISOString(),
-    };
-
-    const updated = [nextRecord, ...quickCaptureRecords];
-    setQuickCaptureRecords(updated);
-    persistQuickCaptureRecords(updated);
-
-    setQuickCaptureInput("");
-    setQuickCaptureStructured("");
+    const raw = quickCaptureInput.trim(); const structured = quickCaptureStructured.trim(); if (!raw || !structured) return;
+    const nextRecord: QuickCaptureRecord = { id: crypto.randomUUID(), raw_text: raw, structured_text: structured, created_at: new Date().toISOString() };
+    const updated = [nextRecord, ...quickCaptureRecords]; setQuickCaptureRecords(updated); persistQuickCaptureRecords(updated);
+    setQuickCaptureInput(""); setQuickCaptureStructured("");
   };
-
-  const handleDeleteQuickCapture = (id: string) => {
-    const updated = quickCaptureRecords.filter((record) => record.id !== id);
-    setQuickCaptureRecords(updated);
-    persistQuickCaptureRecords(updated);
-  };
-
+  const handleDeleteQuickCapture = (id: string) => { const updated = quickCaptureRecords.filter((r) => r.id !== id); setQuickCaptureRecords(updated); persistQuickCaptureRecords(updated); };
   const handleToggleSpeech = () => {
-    const host = window as Window & {
-      webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-      SpeechRecognition?: new () => SpeechRecognitionLike;
-    };
-    const RecognitionCtor = host.SpeechRecognition ?? host.webkitSpeechRecognition;
-    if (!RecognitionCtor) {
-      setSpeechSupported(false);
-      return;
-    }
-
+    const host = window as Window & { webkitSpeechRecognition?: new () => SpeechRecognitionLike; SpeechRecognition?: new () => SpeechRecognitionLike; };
+    const Ctor = host.SpeechRecognition ?? host.webkitSpeechRecognition;
+    if (!Ctor) { setSpeechSupported(false); return; }
     setSpeechSupported(true);
-    const recognition = new RecognitionCtor();
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map((result) => result[0]?.transcript ?? "")
-        .join(" ")
-        .trim();
-
-      if (transcript) {
-        setQuickCaptureInput((prev) => (prev.trim().length > 0 ? `${prev}\n${transcript}` : transcript));
-      }
-    };
-    recognition.onerror = () => {
-      setSpeechActive(false);
-    };
-    recognition.onend = () => {
-      setSpeechActive(false);
-    };
-
-    if (speechActive) {
-      recognition.stop();
-      setSpeechActive(false);
-      return;
-    }
-
-    recognition.start();
-    setSpeechActive(true);
+    const rec = new Ctor(); rec.lang = "en-US"; rec.continuous = false; rec.interimResults = false;
+    rec.onresult = (e) => { const transcript = Array.from(e.results).map((r) => r[0]?.transcript ?? "").join(" ").trim(); if (transcript) setQuickCaptureInput((p) => (p.trim().length > 0 ? `${p}\n${transcript}` : transcript)); };
+    rec.onerror = () => setSpeechActive(false); rec.onend = () => setSpeechActive(false);
+    if (speechActive) { rec.stop(); setSpeechActive(false); return; }
+    rec.start(); setSpeechActive(true);
   };
 
   const weeklyRetro = useMemo(() => {
     const startDate = subDays(new Date(), 6);
     const startDateIso = parseISO(format(startDate, "yyyy-MM-dd"));
-
-    const weeklyEntries = entries.filter((entry) =>
-      isAfter(parseISO(entry.date), subDays(startDateIso, 1))
-    );
-
-    const totalWords = weeklyEntries.reduce((sum, entry) => {
-      const words = `${entry.yesterday} ${entry.today}`
-        .split(/\s+/)
-        .filter((word) => word.trim().length > 0).length;
-      return sum + words;
-    }, 0);
-
-    const blockers = weeklyEntries.flatMap((entry) => {
-      const allLines = `${entry.yesterday}\n${entry.today}`
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-
-      return allLines.filter(
-        (line) =>
-          line.toLowerCase().includes("block") ||
-          line.toLowerCase().includes("risk") ||
-          line.toLowerCase().includes("stuck") ||
-          line.toLowerCase().includes("issue")
-      );
-    });
-
-    const blockerCount = blockers.length;
-    const topBlockers = blockers.slice(0, 4);
+    const weeklyEntries = entries.filter((entry) => isAfter(parseISO(entry.date), subDays(startDateIso, 1)));
+    const totalWords = weeklyEntries.reduce((sum, entry) => sum + `${entry.yesterday} ${entry.today}`.split(/\s+/).filter((w) => w.trim().length > 0).length, 0);
+    const blockers = weeklyEntries.flatMap((entry) => `${entry.yesterday}\n${entry.today}`.split("\n").map((l) => l.trim()).filter((l) => l.length > 0).filter((l) => l.toLowerCase().includes("block") || l.toLowerCase().includes("risk") || l.toLowerCase().includes("stuck") || l.toLowerCase().includes("issue")));
     const doneTasks = tasks.filter((task) => task.status === "done").length;
     const totalTasks = tasks.length;
     const completionRate = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
-
     const consistency = weeklyEntries.length >= 5 ? t("strong") : weeklyEntries.length >= 3 ? t("moderate") : t("weak");
-    const recommendation =
-      blockerCount >= 4
-        ? t("Reduce WIP and define explicit unblocker owner for each stalled task.")
-        : completionRate < 50
-          ? t("Break tasks into smaller chunks and close one every day before adding new work.")
-          : t("Keep current pace and capture one key learning per completed task.");
-
-    return {
-      journalDays: weeklyEntries.length,
-      totalWords,
-      avgWords: weeklyEntries.length === 0 ? 0 : Math.round(totalWords / weeklyEntries.length),
-      blockerCount,
-      topBlockers,
-      completionRate,
-      consistency,
-      recommendation,
-    };
+    const recommendation = blockers.length >= 4 ? t("Reduce WIP and define explicit unblocker owner for each stalled task.") : completionRate < 50 ? t("Break tasks into smaller chunks and close one every day before adding new work.") : t("Keep current pace and capture one key learning per completed task.");
+    return { journalDays: weeklyEntries.length, totalWords, avgWords: weeklyEntries.length === 0 ? 0 : Math.round(totalWords / weeklyEntries.length), blockerCount: blockers.length, topBlockers: blockers.slice(0, 4), completionRate, consistency, recommendation };
   }, [entries, tasks, t]);
 
-  const handleGenerateRetro = () => {
-    setRetroGeneratedAt(new Date().toISOString());
+  const glassSx = {
+    borderRadius: 3.5,
+    border: "1px solid",
+    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
+    bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
+    backdropFilter: "blur(20px) saturate(1.4)",
+    WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+    boxShadow: isDark
+      ? "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)"
+      : "0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.60)",
+  };
+
+  const sectionHeader = (key: SectionKey, label: string, count: number, subtitle: string) => (
+    <Box
+      onClick={() => toggle(key)}
+      sx={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        cursor: "pointer", userSelect: "none",
+      }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{label}</Typography>
+          {count > 0 && <Chip size="small" label={count} variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
+        </Stack>
+        <Typography variant="caption" color="text.secondary">{subtitle}</Typography>
+      </Box>
+      <IconButton size="small" sx={{ transition: "transform 0.2s ease", transform: isOpen(key) ? "rotate(180deg)" : "rotate(0deg)" }}>
+        <ExpandMoreIcon fontSize="small" />
+      </IconButton>
+    </Box>
+  );
+
+  const recordCardSx = {
+    p: 1.5,
+    borderRadius: 2.5,
+    border: "1px solid",
+    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
+    transition: "all 0.2s ease",
+    "&:hover": {
+      borderColor: alpha(muiTheme.palette.primary.main, 0.15),
+    },
   };
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: "auto", mt: 1, display: "grid", gap: 2 }}>
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-          <LibraryBooksIcon color="primary" />
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            {t("Insights")}
-          </Typography>
-        </Stack>
-        <Typography variant="body2" color="text.secondary">
-          {t("Track engineering decisions, incidents, retros, and developer intelligence.")}
-        </Typography>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
-          <Button variant="outlined" onClick={handleExportBuildLog}>
-            {t("Export Portfolio Build Log")}
-          </Button>
-          {buildLogStatus ? (
-            <Typography variant="body2" color="success.main" sx={{ alignSelf: "center" }}>
-              {buildLogStatus}
-            </Typography>
-          ) : null}
-        </Stack>
-      </Paper>
-
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          {t("Weekly Retro Report")}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t("Automatic weekly summary of writing patterns, blockers, and execution focus.")}
-        </Typography>
-
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ mb: 1, flexWrap: "wrap" }}>
-          <Chip size="small" variant="outlined" label={`${t("Journal days")}: ${weeklyRetro.journalDays}/7`} />
-          <Chip size="small" variant="outlined" label={`${t("Average words")}: ${weeklyRetro.avgWords}`} />
-          <Chip size="small" variant="outlined" color={weeklyRetro.blockerCount > 0 ? "warning" : "success"} label={`${t("Blockers logged")}: ${weeklyRetro.blockerCount}`} />
-          <Chip size="small" variant="outlined" color={weeklyRetro.completionRate >= 60 ? "success" : "warning"} label={`${t("Task completion")}: ${weeklyRetro.completionRate}%`} />
-          <Chip size="small" variant="outlined" label={`${t("Consistency")}: ${weeklyRetro.consistency}`} />
-        </Stack>
-
-        <Button variant="outlined" onClick={handleGenerateRetro}>
-          {t("Regenerate retro report")}
-        </Button>
-
-        <Typography variant="body2" sx={{ mt: 2 }}>
-          <strong>{t("Top blockers")}:</strong>
-        </Typography>
-        {weeklyRetro.topBlockers.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            {t("No blocker patterns detected this week.")}
-          </Typography>
-        ) : (
-          <Stack spacing={0.5} sx={{ mt: 0.5 }}>
-            {weeklyRetro.topBlockers.map((blocker, index) => (
-              <Typography key={`${blocker}-${index}`} variant="body2" color="text.secondary">
-                - {blocker}
+    <Box sx={{ maxWidth: 1000, mx: "auto", mt: { xs: 1, md: 1.5 }, pb: 4, display: "grid", gap: { xs: 2, md: 2.5 } }}>
+      {/* Header */}
+      <Box sx={{ ...glassSx, p: { xs: 2.5, sm: 3 } }}>
+        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+          <Stack direction="row" spacing={1} alignItems="center">
+            <LibraryBooksIcon color="primary" />
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>{t("Insights")}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {t("Track engineering decisions, incidents, retros, and developer intelligence.")}
               </Typography>
+            </Box>
+          </Stack>
+          <Button variant="outlined" size="small" startIcon={<DownloadIcon />} onClick={handleExportBuildLog}>
+            {t("Export")}
+          </Button>
+        </Stack>
+      </Box>
+
+      {/* Weekly Retro */}
+      <Box sx={{ ...glassSx, p: { xs: 2.5, sm: 3 } }}>
+        {sectionHeader("retro", t("Weekly Retro Report"), 0, t("Automatic weekly summary of writing patterns, blockers, and execution focus."))}
+        <Collapse in={isOpen("retro")} timeout="auto" unmountOnExit>
+          <Box sx={{ mt: 2 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)" }, gap: 1.5, mb: 2 }}>
+              {[
+                { label: t("Journal days"), value: `${weeklyRetro.journalDays}/7` },
+                { label: t("Average words"), value: weeklyRetro.avgWords },
+                { label: t("Task completion"), value: `${weeklyRetro.completionRate}%` },
+                { label: t("Blockers logged"), value: weeklyRetro.blockerCount },
+                { label: t("Consistency"), value: weeklyRetro.consistency },
+              ].map((stat) => (
+                <Box key={stat.label} sx={{ ...recordCardSx, textAlign: "center", p: 1.5 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, fontSize: "1.1rem" }}>{stat.value}</Typography>
+                  <Typography variant="caption" color="text.secondary">{stat.label}</Typography>
+                </Box>
+              ))}
+            </Box>
+            {weeklyRetro.topBlockers.length > 0 && (
+              <Box sx={{ mb: 1.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "text.secondary" }}>
+                  {t("Top blockers")}
+                </Typography>
+                {weeklyRetro.topBlockers.map((b, i) => (
+                  <Typography key={`${b}-${i}`} variant="body2" color="text.secondary" sx={{ ml: 1 }}>• {b}</Typography>
+                ))}
+              </Box>
+            )}
+            <Typography variant="body2"><strong>{t("Recommendation")}:</strong> {weeklyRetro.recommendation}</Typography>
+          </Box>
+        </Collapse>
+      </Box>
+
+      {/* Quick Capture */}
+      <Box sx={{ ...glassSx, p: { xs: 2.5, sm: 3 } }}>
+        {sectionHeader("capture", t("Quick Capture"), quickCaptureRecords.length, t("Capture thoughts quickly with text or voice and structure them automatically."))}
+        <Collapse in={isOpen("capture")} timeout="auto" unmountOnExit>
+          <Stack spacing={1.5} sx={{ mt: 2 }}>
+            <TextField label={t("Raw capture")} value={quickCaptureInput} onChange={(e) => setQuickCaptureInput(e.target.value)} multiline minRows={2} placeholder={t("Write fast notes, blockers, ideas, or use voice input.")} fullWidth size="small" />
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+              {speechSupported && (
+                <Button variant="outlined" size="small" onClick={handleToggleSpeech}>
+                  {speechActive ? t("Stop voice capture") : t("Voice")}
+                </Button>
+              )}
+              <Button variant="outlined" size="small" onClick={handleGenerateQuickCapture} disabled={quickCaptureInput.trim().length === 0}>{t("Structure")}</Button>
+              <Button variant="contained" size="small" onClick={handleSaveQuickCapture} disabled={quickCaptureInput.trim().length === 0 || quickCaptureStructured.trim().length === 0}>{t("Save")}</Button>
+            </Stack>
+            {quickCaptureStructured && (
+              <TextField label={t("Structured output")} value={quickCaptureStructured} onChange={(e) => setQuickCaptureStructured(e.target.value)} multiline minRows={4} fullWidth size="small" />
+            )}
+            {quickCaptureRecords.length > 0 && <Divider />}
+            {quickCaptureRecords.map((r) => (
+              <Box key={r.id} sx={recordCardSx}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Chip size="small" label={r.created_at.slice(0, 10)} variant="outlined" sx={{ height: 20, fontSize: "0.62rem" }} />
+                  <IconButton size="small" color="error" onClick={() => handleDeleteQuickCapture(r.id)}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton>
+                </Stack>
+                <Typography variant="body2" sx={{ mt: 0.75 }} noWrap>{r.raw_text}</Typography>
+              </Box>
             ))}
           </Stack>
-        )}
+        </Collapse>
+      </Box>
 
-        <Typography variant="body2" sx={{ mt: 2 }}>
-          <strong>{t("Recommendation")}:</strong> {weeklyRetro.recommendation}
-        </Typography>
-
-        {retroGeneratedAt ? (
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-            {t("Last generated at")}: {retroGeneratedAt.slice(0, 16).replace("T", " ")}
-          </Typography>
-        ) : null}
-      </Paper>
-
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          {t("Quick Capture")}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t("Capture thoughts quickly with text or voice and structure them automatically.")}
-        </Typography>
-
-        <Stack spacing={1.5}>
-          <TextField
-            label={t("Raw capture")}
-            value={quickCaptureInput}
-            onChange={(event) => setQuickCaptureInput(event.target.value)}
-            multiline
-            minRows={3}
-            placeholder={t("Write fast notes, blockers, ideas, or use voice input.")}
-            fullWidth
-          />
-          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-            <Button variant="outlined" onClick={handleToggleSpeech}>
-              {speechActive ? t("Stop voice capture") : t("Start voice capture")}
-            </Button>
-            <Button variant="outlined" onClick={handleGenerateQuickCapture} disabled={quickCaptureInput.trim().length === 0}>
-              {t("Structure capture")}
-            </Button>
-            <Button variant="contained" onClick={handleSaveQuickCapture} disabled={quickCaptureInput.trim().length === 0 || quickCaptureStructured.trim().length === 0}>
-              {t("Save capture")}
-            </Button>
-          </Stack>
-          {!speechSupported ? (
-            <Typography variant="caption" color="text.secondary">
-              {t("Voice capture is available only in browsers with Speech Recognition support.")}
-            </Typography>
-          ) : null}
-          {quickCaptureStructured ? (
-            <TextField
-              label={t("Structured output")}
-              value={quickCaptureStructured}
-              onChange={(event) => setQuickCaptureStructured(event.target.value)}
-              multiline
-              minRows={7}
-              fullWidth
-            />
-          ) : null}
-        </Stack>
-
-        <Divider sx={{ my: 2 }} />
-
-        <Stack spacing={1.5}>
-          {quickCaptureRecords.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              {t("No quick captures yet.")}
-            </Typography>
-          ) : (
-            quickCaptureRecords.map((record) => (
-              <Paper
-                key={record.id}
-                sx={{
-                  p: 2,
-                  borderRadius: 2.5,
-                  border: "1px solid",
-                  borderColor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(255,255,255,0.08)"
-                      : "rgba(0,0,0,0.06)",
-                  bgcolor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(255,255,255,0.03)"
-                      : "rgba(255,255,255,0.40)",
-                  backdropFilter: "blur(12px) saturate(1.4)",
-                  WebkitBackdropFilter: "blur(12px) saturate(1.4)",
-                  transition: "all 0.2s ease",
-                  "&:hover": {
-                    transform: "translateY(-1px)",
-                    boxShadow: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? "0 8px 24px rgba(0,0,0,0.30)"
-                        : "0 8px 24px rgba(0,0,0,0.06)",
-                  },
-                }}
-              >
-                <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
-                  <Chip size="small" label={`${t("Created")}: ${record.created_at.slice(0, 10)}`} variant="outlined" />
-                  <Button color="error" onClick={() => handleDeleteQuickCapture(record.id)}>
-                    {t("Delete")}
-                  </Button>
-                </Stack>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  <strong>{t("Raw capture")}:</strong> {record.raw_text}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
-                  <strong>{t("Structured output")}:</strong>
-                  {"\n"}
-                  {record.structured_text}
-                </Typography>
-              </Paper>
-            ))
-          )}
-        </Stack>
-      </Paper>
-
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          {t("Mini ADR Log")}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t("Capture architecture and implementation decisions with context and consequences.")}
-        </Typography>
-
-        <Stack spacing={1.5}>
-          <TextField
-            label={t("Decision title")}
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            fullWidth
-          />
-          <TextField
-            label={t("Problem")}
-            value={problem}
-            onChange={(event) => setProblem(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            label={t("Decision")}
-            value={decision}
-            onChange={(event) => setDecision(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            label={t("Rationale")}
-            value={rationale}
-            onChange={(event) => setRationale(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            label={t("Consequences")}
-            value={consequences}
-            onChange={(event) => setConsequences(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            type="date"
-            label={t("Review date")}
-            value={reviewDate}
-            onChange={(event) => setReviewDate(event.target.value)}
-            InputLabelProps={{ shrink: true }}
-            sx={{ maxWidth: 260 }}
-          />
-          <Box>
-            <Button variant="contained" onClick={handleSaveAdr} disabled={!canSave}>
-              {t("Save ADR")}
-            </Button>
-          </Box>
-        </Stack>
-
-        <Divider sx={{ my: 2 }} />
-
-        <Stack spacing={1.5}>
-          {sortedRecords.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              {t("No ADR records yet.")}
-            </Typography>
-          ) : (
-            sortedRecords.map((record) => (
-              <Paper
-                key={record.id}
-                sx={{
-                  p: 2,
-                  borderRadius: 2.5,
-                  border: "1px solid",
-                  borderColor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(255,255,255,0.08)"
-                      : "rgba(0,0,0,0.06)",
-                  bgcolor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(255,255,255,0.03)"
-                      : "rgba(255,255,255,0.40)",
-                  backdropFilter: "blur(12px) saturate(1.4)",
-                  WebkitBackdropFilter: "blur(12px) saturate(1.4)",
-                  transition: "all 0.2s ease",
-                  "&:hover": {
-                    transform: "translateY(-1px)",
-                    boxShadow: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? "0 8px 24px rgba(0,0,0,0.30)"
-                        : "0 8px 24px rgba(0,0,0,0.06)",
-                  },
-                }}
-              >
-                <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      {record.title}
-                    </Typography>
-                    <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: "wrap" }}>
-                      <Chip size="small" label={`${t("Created")}: ${record.created_at.slice(0, 10)}`} variant="outlined" />
-                      {record.review_date ? (
-                        <Chip size="small" label={`${t("Review")}: ${record.review_date}`} color="warning" variant="outlined" />
-                      ) : null}
+      {/* ADR */}
+      <Box sx={{ ...glassSx, p: { xs: 2.5, sm: 3 } }}>
+        {sectionHeader("adr", t("Mini ADR Log"), records.length, t("Capture architecture and implementation decisions with context and consequences."))}
+        <Collapse in={isOpen("adr")} timeout="auto" unmountOnExit>
+          <Stack spacing={1.5} sx={{ mt: 2 }}>
+            <TextField label={t("Decision title")} value={title} onChange={(e) => setTitle(e.target.value)} fullWidth size="small" />
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+              <TextField label={t("Problem")} value={problem} onChange={(e) => setProblem(e.target.value)} multiline minRows={2} fullWidth size="small" />
+              <TextField label={t("Decision")} value={decision} onChange={(e) => setDecision(e.target.value)} multiline minRows={2} fullWidth size="small" />
+              <TextField label={t("Rationale")} value={rationale} onChange={(e) => setRationale(e.target.value)} multiline minRows={2} fullWidth size="small" />
+              <TextField label={t("Consequences")} value={consequences} onChange={(e) => setConsequences(e.target.value)} multiline minRows={2} fullWidth size="small" />
+            </Box>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <TextField type="date" label={t("Review date")} value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} InputLabelProps={{ shrink: true }} size="small" sx={{ maxWidth: 200 }} />
+              <Button variant="contained" size="small" onClick={handleSaveAdr} disabled={!canSave}>{t("Save")}</Button>
+            </Stack>
+            {sortedRecords.length > 0 && <Divider />}
+            {sortedRecords.map((r) => (
+              <Box key={r.id} sx={recordCardSx}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{r.title}</Typography>
+                    <Stack direction="row" spacing={0} sx={{ gap: 0.5, mt: 0.25 }}>
+                      <Chip size="small" label={r.created_at.slice(0, 10)} variant="outlined" sx={{ height: 18, fontSize: "0.60rem" }} />
+                      {r.review_date && <Chip size="small" label={`${t("Review")}: ${r.review_date}`} color="warning" variant="outlined" sx={{ height: 18, fontSize: "0.60rem" }} />}
                     </Stack>
                   </Box>
-                  <Button color="error" onClick={() => handleRemoveAdr(record.id)}>
-                    {t("Delete")}
-                  </Button>
+                  <IconButton size="small" color="error" onClick={() => handleRemoveAdr(r.id)}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton>
                 </Stack>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  <strong>{t("Problem")}:</strong> {record.problem}
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                  {r.decision.slice(0, 150)}{r.decision.length > 150 ? "..." : ""}
                 </Typography>
-                <Typography variant="body2" sx={{ mt: 0.75 }}>
-                  <strong>{t("Decision")}:</strong> {record.decision}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 0.75 }}>
-                  <strong>{t("Rationale")}:</strong> {record.rationale}
-                </Typography>
-                {record.consequences ? (
-                  <Typography variant="body2" sx={{ mt: 0.75 }}>
-                    <strong>{t("Consequences")}:</strong> {record.consequences}
-                  </Typography>
-                ) : null}
-              </Paper>
-            ))
-          )}
-        </Stack>
-      </Paper>
-
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          {t("Debug Mode")}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t("Use a guided rubber-duck flow to debug with structure and confidence.")}
-        </Typography>
-
-        <Stack spacing={1.5}>
-          <TextField
-            label={t("Debug session title")}
-            value={debugTitle}
-            onChange={(event) => setDebugTitle(event.target.value)}
-            fullWidth
-          />
-          <TextField
-            label={t("Symptoms")}
-            value={debugSymptoms}
-            onChange={(event) => setDebugSymptoms(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            label={t("Hypotheses")}
-            value={debugHypotheses}
-            onChange={(event) => setDebugHypotheses(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            label={t("Checks")}
-            value={debugChecks}
-            onChange={(event) => setDebugChecks(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            label={t("Conclusion")}
-            value={debugConclusion}
-            onChange={(event) => setDebugConclusion(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={applyDebugTemplate}>
-              {t("Insert template")}
-            </Button>
-            <Button variant="contained" onClick={handleSaveDebugSession} disabled={!canSaveDebug}>
-              {t("Save debug session")}
-            </Button>
+              </Box>
+            ))}
           </Stack>
-        </Stack>
+        </Collapse>
+      </Box>
 
-        <Divider sx={{ my: 2 }} />
-
-        <Stack spacing={1.5}>
-          {debugSessions.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              {t("No debug sessions yet.")}
-            </Typography>
-          ) : (
-            debugSessions.map((session) => (
-              <Paper
-                key={session.id}
-                sx={{
-                  p: 2,
-                  borderRadius: 2.5,
-                  border: "1px solid",
-                  borderColor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(255,255,255,0.08)"
-                      : "rgba(0,0,0,0.06)",
-                  bgcolor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(255,255,255,0.03)"
-                      : "rgba(255,255,255,0.40)",
-                  backdropFilter: "blur(12px) saturate(1.4)",
-                  WebkitBackdropFilter: "blur(12px) saturate(1.4)",
-                  transition: "all 0.2s ease",
-                  "&:hover": {
-                    transform: "translateY(-1px)",
-                    boxShadow: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? "0 8px 24px rgba(0,0,0,0.30)"
-                        : "0 8px 24px rgba(0,0,0,0.06)",
-                  },
-                }}
-              >
-                <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      {session.title}
-                    </Typography>
-                    <Chip size="small" label={`${t("Created")}: ${session.created_at.slice(0, 10)}`} variant="outlined" sx={{ mt: 0.5 }} />
+      {/* Debug Mode */}
+      <Box sx={{ ...glassSx, p: { xs: 2.5, sm: 3 } }}>
+        {sectionHeader("debug", t("Debug Mode"), debugSessions.length, t("Use a guided rubber-duck flow to debug with structure and confidence."))}
+        <Collapse in={isOpen("debug")} timeout="auto" unmountOnExit>
+          <Stack spacing={1.5} sx={{ mt: 2 }}>
+            <TextField label={t("Debug session title")} value={debugTitle} onChange={(e) => setDebugTitle(e.target.value)} fullWidth size="small" />
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+              <TextField label={t("Symptoms")} value={debugSymptoms} onChange={(e) => setDebugSymptoms(e.target.value)} multiline minRows={2} fullWidth size="small" />
+              <TextField label={t("Hypotheses")} value={debugHypotheses} onChange={(e) => setDebugHypotheses(e.target.value)} multiline minRows={2} fullWidth size="small" />
+              <TextField label={t("Checks")} value={debugChecks} onChange={(e) => setDebugChecks(e.target.value)} multiline minRows={2} fullWidth size="small" />
+              <TextField label={t("Conclusion")} value={debugConclusion} onChange={(e) => setDebugConclusion(e.target.value)} multiline minRows={2} fullWidth size="small" />
+            </Box>
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" size="small" onClick={applyDebugTemplate}>{t("Insert template")}</Button>
+              <Button variant="contained" size="small" onClick={handleSaveDebugSession} disabled={!canSaveDebug}>{t("Save")}</Button>
+            </Stack>
+            {debugSessions.length > 0 && <Divider />}
+            {debugSessions.map((s) => (
+              <Box key={s.id} sx={recordCardSx}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{s.title}</Typography>
+                    <Chip size="small" label={s.created_at.slice(0, 10)} variant="outlined" sx={{ height: 18, fontSize: "0.60rem", mt: 0.25 }} />
                   </Box>
-                  <Button color="error" onClick={() => handleRemoveDebugSession(session.id)}>
-                    {t("Delete")}
-                  </Button>
+                  <IconButton size="small" color="error" onClick={() => handleRemoveDebugSession(s.id)}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton>
                 </Stack>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  <strong>{t("Symptoms")}:</strong> {session.symptoms}
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                  {s.conclusion.slice(0, 150)}{s.conclusion.length > 150 ? "..." : ""}
                 </Typography>
-                <Typography variant="body2" sx={{ mt: 0.75 }}>
-                  <strong>{t("Hypotheses")}:</strong> {session.hypotheses}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 0.75 }}>
-                  <strong>{t("Checks")}:</strong> {session.checks}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 0.75 }}>
-                  <strong>{t("Conclusion")}:</strong> {session.conclusion}
-                </Typography>
-              </Paper>
-            ))
-          )}
-        </Stack>
-      </Paper>
+              </Box>
+            ))}
+          </Stack>
+        </Collapse>
+      </Box>
 
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          {t("What Broke Log")}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t("Capture incidents and how you fixed them to build a practical bug knowledge base.")}
-        </Typography>
-
-        <Stack spacing={1.5}>
-          <TextField
-            label={t("Incident title")}
-            value={incidentTitle}
-            onChange={(event) => setIncidentTitle(event.target.value)}
-            fullWidth
-          />
-          <TextField
-            select
-            label={t("Severity")}
-            value={incidentSeverity}
-            onChange={(event) => setIncidentSeverity(event.target.value as IncidentRecord["severity"])}
-            SelectProps={{ native: true }}
-            sx={{ maxWidth: 220 }}
-          >
-            <option value="low">{t("Low")}</option>
-            <option value="medium">{t("Medium")}</option>
-            <option value="high">{t("High")}</option>
-            <option value="critical">{t("Critical")}</option>
-          </TextField>
-          <TextField
-            label={t("Symptoms")}
-            value={incidentSymptoms}
-            onChange={(event) => setIncidentSymptoms(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            label={t("Root cause")}
-            value={incidentRootCause}
-            onChange={(event) => setIncidentRootCause(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            label={t("Fix")}
-            value={incidentFix}
-            onChange={(event) => setIncidentFix(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            label={t("How to prevent next time")}
-            value={incidentPrevention}
-            onChange={(event) => setIncidentPrevention(event.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <Box>
-            <Button variant="contained" onClick={handleSaveIncident} disabled={!canSaveIncident}>
-              {t("Save incident")}
-            </Button>
-          </Box>
-        </Stack>
-
-        <Divider sx={{ my: 2 }} />
-
-        <Stack spacing={1.5}>
-          {incidents.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              {t("No incidents logged yet.")}
-            </Typography>
-          ) : (
-            incidents.map((incident) => (
-              <Paper
-                key={incident.id}
-                sx={{
-                  p: 2,
-                  borderRadius: 2.5,
-                  border: "1px solid",
-                  borderColor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(255,255,255,0.08)"
-                      : "rgba(0,0,0,0.06)",
-                  bgcolor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(255,255,255,0.03)"
-                      : "rgba(255,255,255,0.40)",
-                  backdropFilter: "blur(12px) saturate(1.4)",
-                  WebkitBackdropFilter: "blur(12px) saturate(1.4)",
-                  transition: "all 0.2s ease",
-                  "&:hover": {
-                    transform: "translateY(-1px)",
-                    boxShadow: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? "0 8px 24px rgba(0,0,0,0.30)"
-                        : "0 8px 24px rgba(0,0,0,0.06)",
-                  },
-                }}
-              >
-                <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      {incident.title}
-                    </Typography>
-                    <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: "wrap" }}>
-                      <Chip size="small" color="warning" label={`${t("Severity")}: ${incident.severity}`} variant="outlined" />
-                      <Chip size="small" label={`${t("Created")}: ${incident.created_at.slice(0, 10)}`} variant="outlined" />
+      {/* Incidents */}
+      <Box sx={{ ...glassSx, p: { xs: 2.5, sm: 3 } }}>
+        {sectionHeader("incidents", t("What Broke Log"), incidents.length, t("Capture incidents and how you fixed them to build a practical bug knowledge base."))}
+        <Collapse in={isOpen("incidents")} timeout="auto" unmountOnExit>
+          <Stack spacing={1.5} sx={{ mt: 2 }}>
+            <Stack direction="row" spacing={1.5}>
+              <TextField label={t("Incident title")} value={incidentTitle} onChange={(e) => setIncidentTitle(e.target.value)} fullWidth size="small" />
+              <TextField select label={t("Severity")} value={incidentSeverity} onChange={(e) => setIncidentSeverity(e.target.value as IncidentRecord["severity"])} SelectProps={{ native: true }} size="small" sx={{ minWidth: 130 }}>
+                <option value="low">{t("Low")}</option>
+                <option value="medium">{t("Medium")}</option>
+                <option value="high">{t("High")}</option>
+                <option value="critical">{t("Critical")}</option>
+              </TextField>
+            </Stack>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+              <TextField label={t("Symptoms")} value={incidentSymptoms} onChange={(e) => setIncidentSymptoms(e.target.value)} multiline minRows={2} fullWidth size="small" />
+              <TextField label={t("Root cause")} value={incidentRootCause} onChange={(e) => setIncidentRootCause(e.target.value)} multiline minRows={2} fullWidth size="small" />
+              <TextField label={t("Fix")} value={incidentFix} onChange={(e) => setIncidentFix(e.target.value)} multiline minRows={2} fullWidth size="small" />
+              <TextField label={t("How to prevent next time")} value={incidentPrevention} onChange={(e) => setIncidentPrevention(e.target.value)} multiline minRows={2} fullWidth size="small" />
+            </Box>
+            <Box><Button variant="contained" size="small" onClick={handleSaveIncident} disabled={!canSaveIncident}>{t("Save")}</Button></Box>
+            {incidents.length > 0 && <Divider />}
+            {incidents.map((inc) => (
+              <Box key={inc.id} sx={recordCardSx}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{inc.title}</Typography>
+                    <Stack direction="row" spacing={0} sx={{ gap: 0.5, mt: 0.25 }}>
+                      <Chip size="small" label={inc.severity} color={inc.severity === "critical" || inc.severity === "high" ? "error" : "warning"} variant="outlined" sx={{ height: 18, fontSize: "0.60rem" }} />
+                      <Chip size="small" label={inc.created_at.slice(0, 10)} variant="outlined" sx={{ height: 18, fontSize: "0.60rem" }} />
                     </Stack>
                   </Box>
-                  <Button color="error" onClick={() => handleRemoveIncident(incident.id)}>
-                    {t("Delete")}
-                  </Button>
+                  <IconButton size="small" color="error" onClick={() => handleRemoveIncident(inc.id)}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton>
                 </Stack>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  <strong>{t("Symptoms")}:</strong> {incident.symptoms}
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                  {inc.fix.slice(0, 150)}{inc.fix.length > 150 ? "..." : ""}
                 </Typography>
-                <Typography variant="body2" sx={{ mt: 0.75 }}>
-                  <strong>{t("Root cause")}:</strong> {incident.root_cause}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 0.75 }}>
-                  <strong>{t("Fix")}:</strong> {incident.fix}
-                </Typography>
-                {incident.prevention ? (
-                  <Typography variant="body2" sx={{ mt: 0.75 }}>
-                    <strong>{t("How to prevent next time")}:</strong> {incident.prevention}
-                  </Typography>
-                ) : null}
-              </Paper>
-            ))
-          )}
-        </Stack>
-      </Paper>
+              </Box>
+            ))}
+          </Stack>
+        </Collapse>
+      </Box>
     </Box>
   );
 };
