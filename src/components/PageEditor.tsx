@@ -527,8 +527,8 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                             border: "1px solid",
                             borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
                             bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
-                            backdropFilter: "blur(16px)",
-                            WebkitBackdropFilter: "blur(16px)",
+                            backdropFilter: "blur(16px) saturate(1.4)",
+                            WebkitBackdropFilter: "blur(16px) saturate(1.4)",
                             alignSelf: { xs: "flex-end", md: "auto" },
                         }}
                     >

@@ -715,7 +715,7 @@ export const TasksBoard = () => {
           </Button>
         </Stack>
 
-        <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
+        <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
           <Chip label={`Total: ${stats.total}`} variant="outlined" size="small" />
           <Chip label={`Done: ${stats.done}`} color="success" variant="outlined" size="small" />
           <Chip label={`${t("Due today")}: ${stats.dueToday}`} color="info" variant="outlined" size="small" />
@@ -907,7 +907,7 @@ export const TasksBoard = () => {
                           </Typography>
                         ) : null}
 
-                        <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap", gap: 0.75 }}>
+                        <Stack direction="row" spacing={0} sx={{ mt: 1, flexWrap: "wrap", gap: 0.75 }}>
                           <Chip
                             size="small"
                             label={priorityLabel[task.priority]}
@@ -974,7 +974,7 @@ export const TasksBoard = () => {
                           ) : null}
                         </Stack>
 
-                        <Stack direction="row" spacing={0.75} sx={{ mt: 1.2, flexWrap: "wrap", gap: 0.75 }}>
+                        <Stack direction="row" spacing={0} sx={{ mt: 1.2, flexWrap: "wrap", gap: 0.75 }}>
                           <Tooltip title={isRunning ? "Pause timer" : "Start timer"}>
                             <span>
                               <IconButton
@@ -1163,7 +1163,7 @@ export const TasksBoard = () => {
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
                     {activeTask.title}
                   </Typography>
-                  <Stack direction="row" spacing={0.75} sx={{ mt: 0.8, flexWrap: "wrap", gap: 0.75 }}>
+                  <Stack direction="row" spacing={0} sx={{ mt: 0.8, flexWrap: "wrap", gap: 0.75 }}>
                     <Chip label={statusLabel[activeTask.status]} size="small" />
                     <Chip
                       label={priorityLabel[activeTask.priority]}

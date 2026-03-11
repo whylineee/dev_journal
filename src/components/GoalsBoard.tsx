@@ -330,7 +330,7 @@ export const GoalsBoard = () => {
           </Button>
         </Stack>
 
-        <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
+        <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
           <Chip label={`Total: ${stats.total}`} variant="outlined" size="small" />
           <Chip label={`Active: ${stats.active}`} color="info" variant="outlined" size="small" />
           <Chip label={`Completed: ${stats.completed}`} color="success" variant="outlined" size="small" />
@@ -431,7 +431,7 @@ export const GoalsBoard = () => {
             >
               <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", gap: 1 }}>
+                  <Stack direction="row" spacing={0} alignItems="center" sx={{ flexWrap: "wrap", gap: 1 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       {goal.title}
                     </Typography>
@@ -473,7 +473,7 @@ export const GoalsBoard = () => {
                   ) : null}
 
                   {linkedTasks.length > 0 ? (
-                    <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap", gap: 0.75 }}>
+                    <Stack direction="row" spacing={0} sx={{ mt: 1, flexWrap: "wrap", gap: 0.75 }}>
                       {linkedTasks.slice(0, 4).map((task) => (
                         <Chip
                           key={task.id}
@@ -626,7 +626,7 @@ export const GoalsBoard = () => {
                     </Stack>
                   </Box>
 
-                  <Stack direction="row" spacing={0.75} sx={{ mt: 1.5, flexWrap: "wrap", gap: 0.75 }}>
+                  <Stack direction="row" spacing={0} sx={{ mt: 1.5, flexWrap: "wrap", gap: 0.75 }}>
                     {goalMilestones.length === 0 ? (
                       <>
                         <Chip

@@ -200,7 +200,7 @@ export const HabitsBoard = () => {
           </Button>
         </Stack>
 
-        <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
+        <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
           <Chip label={`Total: ${stats.total}`} variant="outlined" size="small" />
           <Chip label={`Targets met: ${stats.targetReached}`} color="success" variant="outlined" size="small" />
           <Chip label={`Avg streak: ${stats.avgStreak}d`} color="info" variant="outlined" size="small" />
@@ -259,7 +259,7 @@ export const HabitsBoard = () => {
             }}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", gap: 1 }}>
+                  <Stack direction="row" spacing={0} alignItems="center" sx={{ flexWrap: "wrap", gap: 1 }}>
                     <Box
                       sx={{
                         width: 10,
@@ -300,7 +300,7 @@ export const HabitsBoard = () => {
                     />
                   </Box>
 
-                  <Stack direction="row" spacing={0.75} sx={{ mt: 1.5, flexWrap: "wrap", gap: 0.75 }}>
+                  <Stack direction="row" spacing={0} sx={{ mt: 1.5, flexWrap: "wrap", gap: 0.75 }}>
                     {weekDates.map((date) => {
                       const completed = habit.completed_dates.includes(date);
 
