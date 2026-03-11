@@ -111,7 +111,11 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           APP_BUNDLE="src-tauri/target/release/bundle/macos/Dev Journal.app"
-          npm run tauri build -- --bundles app
+          TAURI_SIGNING_IDENTITY="$APPLE_SIGNING_IDENTITY"
+          if [ -z "$TAURI_SIGNING_IDENTITY" ]; then
+            TAURI_SIGNING_IDENTITY="-"
+          fi
+          APPLE_SIGNING_IDENTITY="$TAURI_SIGNING_IDENTITY" npm run tauri build -- --bundles app
 
           if [ ! -d "$APP_BUNDLE" ]; then
             echo "macOS app bundle was not found."
