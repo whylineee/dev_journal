@@ -12,6 +12,7 @@ import { PlannerBoard } from "./components/PlannerBoard";
 import { WeeklySummary } from "./components/WeeklySummary";
 import { CommandAction, CommandPalette } from "./components/CommandPalette";
 import { InsightsBoard } from "./components/InsightsBoard";
+import { FocusBoard } from "./components/FocusBoard";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { format } from "date-fns";
 import { Box, Container } from "@mui/material";
@@ -31,7 +32,7 @@ const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
 const MEETING_REMINDER_STORAGE_KEY = "devJournal_meeting_reminders_sent";
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'planner' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'projects' | 'insights' | 'settings'>('planner');
+  const [activeTab, setActiveTab] = useState<'planner' | 'focus' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'projects' | 'insights' | 'settings'>('planner');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState<boolean>(() => {
@@ -316,6 +317,16 @@ function App() {
         },
       },
       {
+        id: "open-focus",
+        title: t("Open Focus Session"),
+        subtitle: t("Pomodoro timer and deep work"),
+        section: t("Quick Actions"),
+        keywords: ["focus", "pomodoro", "timer", "session"],
+        onSelect: () => {
+          setActiveTab("focus");
+        },
+      },
+      {
         id: "open-tasks",
         title: t("Open Tasks Board"),
         subtitle: t("Switch to tasks management view"),
@@ -528,7 +539,10 @@ function App() {
               onOpenGoals={() => setActiveTab("goals")}
               onOpenHabits={() => setActiveTab("habits")}
               onOpenProjects={() => setActiveTab("projects")}
+              onOpenFocus={() => setActiveTab("focus")}
             />
+          ) : activeTab === 'focus' ? (
+            <FocusBoard />
           ) : activeTab === 'tasks' ? (
             <TasksBoard />
           ) : activeTab === 'goals' ? (

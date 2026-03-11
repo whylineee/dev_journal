@@ -38,13 +38,31 @@ import { expandMeetingOccurrences } from "../utils/meetingUtils";
 import { isTaskDueToday, isTaskOverdue } from "../utils/taskUtils";
 import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
-import { sendNotification } from "@tauri-apps/plugin-notification";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Meeting, MeetingRecurrence, MeetingStatus } from "../types";
 
 const DAILY_WINS_STORAGE_KEY = "devJournal_daily_wins";
 const PLANNER_COLLAPSE_STORAGE_KEY = "devJournal_planner_collapsed_sections";
 const FOCUS_SESSIONS_STORAGE_KEY = "devJournal_focus_sessions";
+const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
+
+const readUsageMap = (): Record<string, number> => {
+  try {
+    const raw = localStorage.getItem(APP_USAGE_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, number>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const formatUsageDuration = (totalSeconds: number): string => {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
 
 const toLocalDatetimeInputValue = (value: Date) => {
   const year = value.getFullYear();
@@ -102,6 +120,7 @@ interface PlannerBoardProps {
   onOpenGoals: () => void;
   onOpenHabits: () => void;
   onOpenProjects: () => void;
+  onOpenFocus: () => void;
 }
 
 export const PlannerBoard = ({
@@ -109,6 +128,7 @@ export const PlannerBoard = ({
   onOpenGoals,
   onOpenHabits,
   onOpenProjects,
+  onOpenFocus,
 }: PlannerBoardProps) => {
   const { t } = useI18n();
   const { notify } = useAppNotifications();
@@ -163,16 +183,10 @@ export const PlannerBoard = ({
     return toLocalDatetimeInputValue(addMinutes(now, 90));
   });
   const [meetingFeedback, setMeetingFeedback] = useState("");
-  const [focusSecondsLeft, setFocusSecondsLeft] = useState(25 * 60);
-  const [focusRunning, setFocusRunning] = useState(false);
-  const [focusDurationMinutes, setFocusDurationMinutes] = useState(25);
-  const [focusTaskId, setFocusTaskId] = useState<number | "">("");
-  const [focusSessionsMap, setFocusSessionsMap] = useState<Record<string, number>>(() => {
+  const [focusSessionsMap] = useState<Record<string, number>>(() => {
     try {
       const raw = localStorage.getItem(FOCUS_SESSIONS_STORAGE_KEY);
-      if (!raw) {
-        return {};
-      }
+      if (!raw) return {};
       const parsed = JSON.parse(raw) as Record<string, number>;
       return parsed && typeof parsed === "object" ? parsed : {};
     } catch {
@@ -196,7 +210,7 @@ export const PlannerBoard = ({
     try {
       const raw = localStorage.getItem(PLANNER_COLLAPSE_STORAGE_KEY);
       if (!raw) {
-        return {};
+        return { meetings: true, tomorrowPlan: true, dailyWins: true };
       }
       const parsed = JSON.parse(raw) as Partial<Record<PlannerSectionKey, boolean>>;
       return parsed && typeof parsed === "object" ? parsed : {};
@@ -205,7 +219,13 @@ export const PlannerBoard = ({
     }
   });
 
+  const [appUsageMap, setAppUsageMap] = useState<Record<string, number>>(readUsageMap);
 
+  useEffect(() => {
+    const handler = () => setAppUsageMap(readUsageMap());
+    window.addEventListener("devJournal:usageUpdated", handler);
+    return () => window.removeEventListener("devJournal:usageUpdated", handler);
+  }, []);
 
   const overdueTasks = useMemo(
     () => tasks.filter((task) => isTaskOverdue(task)).slice(0, 6),
@@ -300,6 +320,38 @@ export const PlannerBoard = ({
     }));
   }, [weeklyMeetingOccurrences]);
 
+  const usageToday = appUsageMap[today] ?? 0;
+  const focusSessionsTodayCount = focusSessionsMap[today] ?? 0;
+
+  const journalStreak = useMemo(() => {
+    let streak = 0;
+    const sortedDates = entries
+      .map((e) => e.date)
+      .sort()
+      .reverse();
+    const dateSet = new Set(sortedDates);
+    const current = new Date();
+    if (!dateSet.has(today)) {
+      current.setDate(current.getDate() - 1);
+    }
+    while (dateSet.has(format(current, "yyyy-MM-dd"))) {
+      streak++;
+      current.setDate(current.getDate() - 1);
+    }
+    return streak;
+  }, [entries, today]);
+
+  const tasksCompletedThisWeek = useMemo(() => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+    return tasks.filter(
+      (task) =>
+        task.status === "done" &&
+        task.updated_at &&
+        isWithinInterval(parseISO(task.updated_at), { start: weekStart, end: weekEnd })
+    ).length;
+  }, [tasks]);
+
   const todayDashboardCards = useMemo(
     () => [
       { label: t("Due today"), value: dueTodayTasks.length, tone: "info" as const },
@@ -314,35 +366,30 @@ export const PlannerBoard = ({
     [dueTodayTasks.length, overdueTasks.length, todayMeetings.length, habitsWithTodayState, t]
   );
 
-  const focusCandidates = useMemo(
+  const usageStatsCards = useMemo(
+    () => [
+      { label: t("Time in app"), value: formatUsageDuration(usageToday), tone: "primary" as const },
+      { label: t("Focus sessions"), value: focusSessionsTodayCount, tone: "info" as const },
+      { label: t("Journal streak"), value: `${journalStreak}d`, tone: "success" as const },
+      { label: t("Done this week"), value: tasksCompletedThisWeek, tone: "secondary" as const },
+    ],
+    [usageToday, focusSessionsTodayCount, journalStreak, tasksCompletedThisWeek, t]
+  );
+
+  const priorityTasks = useMemo(
     () =>
       tasks
         .filter((task) => task.status !== "done")
         .sort((a, b) => {
-          if (a.status === "in_progress" && b.status !== "in_progress") {
-            return -1;
-          }
-          if (a.status !== "in_progress" && b.status === "in_progress") {
-            return 1;
-          }
-          if (a.due_date && b.due_date) {
-            return a.due_date.localeCompare(b.due_date);
-          }
-          if (a.due_date && !b.due_date) {
-            return -1;
-          }
-          if (!a.due_date && b.due_date) {
-            return 1;
-          }
+          if (a.status === "in_progress" && b.status !== "in_progress") return -1;
+          if (a.status !== "in_progress" && b.status === "in_progress") return 1;
+          if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
+          if (a.due_date && !b.due_date) return -1;
+          if (!a.due_date && b.due_date) return 1;
           return b.updated_at.localeCompare(a.updated_at);
         })
-        .slice(0, 10),
-    [tasks]
-  );
-
-  const selectedFocusTask = useMemo(
-    () => focusCandidates.find((task) => task.id === focusTaskId) ?? null,
-    [focusCandidates, focusTaskId]
+        .slice(0, 5),
+    [tasks],
   );
 
   const currentWeekInterval = useMemo(
@@ -636,17 +683,6 @@ export const PlannerBoard = ({
     });
   };
 
-  const formatFocusTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
-    const sec = Math.floor(seconds % 60).toString().padStart(2, "0");
-    return `${minutes}:${sec}`;
-  };
-
-  const persistFocusSessions = (nextMap: Record<string, number>) => {
-    setFocusSessionsMap(nextMap);
-    localStorage.setItem(FOCUS_SESSIONS_STORAGE_KEY, JSON.stringify(nextMap));
-  };
-
   const persistDailyWins = (nextMap: Record<string, string[]>) => {
     setDailyWinsMap(nextMap);
     localStorage.setItem(DAILY_WINS_STORAGE_KEY, JSON.stringify(nextMap));
@@ -666,31 +702,6 @@ export const PlannerBoard = ({
     const nextWins = dailyWins.filter((_, itemIndex) => itemIndex !== index);
     const nextMap = { ...dailyWinsMap, [today]: nextWins };
     persistDailyWins(nextMap);
-  };
-
-  const handleToggleFocus = () => {
-    if (focusRunning) {
-      setFocusRunning(false);
-      return;
-    }
-
-    if (focusSecondsLeft === 0) {
-      setFocusSecondsLeft(focusDurationMinutes * 60);
-    }
-
-    if (selectedFocusTask && selectedFocusTask.status === "todo") {
-      updateTaskStatus.mutate({
-        id: selectedFocusTask.id,
-        status: "in_progress",
-      });
-    }
-
-    setFocusRunning(true);
-  };
-
-  const handleResetFocus = () => {
-    setFocusRunning(false);
-    setFocusSecondsLeft(focusDurationMinutes * 60);
   };
 
   const isSectionCollapsed = (section: PlannerSectionKey) => Boolean(collapsedSections[section]);
@@ -715,50 +726,11 @@ export const PlannerBoard = ({
     </IconButton>
   );
 
-  useEffect(() => {
-    let timer: number | undefined;
-    if (focusRunning) {
-      timer = window.setInterval(() => {
-        setFocusSecondsLeft((prev) => {
-          if (prev <= 1) {
-            if (timer) {
-              window.clearInterval(timer);
-            }
-            setFocusRunning(false);
-            const nextMap = {
-              ...focusSessionsMap,
-              [today]: (focusSessionsMap[today] ?? 0) + 1,
-            };
-            persistFocusSessions(nextMap);
-            notify("Focus session completed.", "success");
-            sendNotification({
-              title: "Dev Journal",
-              body: "Focus session completed.",
-            });
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (timer) {
-        window.clearInterval(timer);
-      }
-    };
-  }, [focusRunning, focusSessionsMap, notify, today]);
-
-  useEffect(() => {
-    if (!focusRunning) {
-      setFocusSecondsLeft(focusDurationMinutes * 60);
-    }
-  }, [focusDurationMinutes, focusRunning]);
-
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: { xs: 1, md: 1.5 }, pb: 4 }}>
       {/* ── Header ── */}
-      <Box sx={{ mb: { xs: 3, md: 4 } }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+      <Box sx={{ mb: { xs: 2, md: 2.5 } }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.25 }}>
           {t("Planner")}
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -766,22 +738,11 @@ export const PlannerBoard = ({
         </Typography>
       </Box>
 
-      <Box sx={{ ...plannerCardSx, mb: { xs: 3, md: 4 } }}>
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          justifyContent="space-between"
-          alignItems={{ xs: "flex-start", md: "center" }}
-          spacing={1.5}
-          sx={{ mb: 2 }}
-        >
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t("Today Dashboard")}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t("See today's load, next meeting, and focus priorities in one place.")}
-            </Typography>
-          </Box>
+      <Box sx={{ ...plannerCardSx, mb: { xs: 2, md: 2.5 } }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            {t("Today Dashboard")}
+          </Typography>
           <Chip
             size="small"
             color={entries.some((entry) => entry.date === today) ? "success" : "warning"}
@@ -793,32 +754,25 @@ export const PlannerBoard = ({
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" },
-            gap: 1.25,
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(4, minmax(0, 1fr))", xl: "repeat(8, minmax(0, 1fr))" },
+            gap: 1,
           }}
         >
-          {todayDashboardCards.map((card) => (
+          {[...todayDashboardCards, ...usageStatsCards].map((card) => (
             <Box
               key={card.label}
               sx={{
-                p: 1.5,
-                borderRadius: 2.5,
+                p: 1,
+                borderRadius: 2,
                 border: "1px solid",
-                borderColor: isDark ? alpha(muiTheme.palette[card.tone].main, 0.25) : alpha(muiTheme.palette[card.tone].main, 0.20),
-                bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.45)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  transform: "translateY(-1px)",
-                  boxShadow: `0 4px 16px ${alpha(muiTheme.palette[card.tone].main, 0.12)}`,
-                },
+                borderColor: isDark ? alpha(muiTheme.palette[card.tone].main, 0.20) : alpha(muiTheme.palette[card.tone].main, 0.15),
+                bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.40)",
               }}
             >
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.65rem", lineHeight: 1.2 }}>
                 {card.label}
               </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 700, mt: 0.35 }}>
+              <Typography variant="body1" sx={{ fontWeight: 700, mt: 0.2, lineHeight: 1.2 }}>
                 {card.value}
               </Typography>
             </Box>
@@ -827,76 +781,65 @@ export const PlannerBoard = ({
 
         <Box
           sx={{
-            mt: 2,
+            mt: 1.5,
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", xl: "1.2fr 1fr" },
-            gap: 2,
+            gridTemplateColumns: { xs: "1fr", lg: "1.2fr 1fr" },
+            gap: 1.5,
           }}
         >
           <Box
             sx={{
-              p: 1.5,
-              borderRadius: 2.5,
+              p: 1.25,
+              borderRadius: 2,
               border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.40)",
-              bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.35)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
+              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.35)",
+              bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
             }}
           >
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.75, display: "block" }}>
               {t("Priority Stack")}
             </Typography>
-            <Stack spacing={1}>
-              {focusCandidates.slice(0, 3).map((task) => (
+            <Stack spacing={0.5}>
+              {priorityTasks.slice(0, 3).map((task) => (
                 <Stack key={task.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
-                      {task.title}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {task.due_date ? `${t("Due date")}: ${task.due_date}` : t("No due date")}
-                    </Typography>
-                  </Box>
-                  <Chip size="small" variant="outlined" label={task.status === "in_progress" ? "In Progress" : "To Do"} />
+                  <Typography variant="body2" noWrap sx={{ fontWeight: 600, minWidth: 0 }}>
+                    {task.title}
+                  </Typography>
+                  <Chip size="small" variant="outlined" label={task.status === "in_progress" ? "IP" : "TD"} sx={{ height: 20, fontSize: "0.6rem" }} />
                 </Stack>
               ))}
-              {focusCandidates.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
+              {priorityTasks.length === 0 && (
+                <Typography variant="caption" color="text.secondary">
                   {t("No open tasks to focus on right now.")}
                 </Typography>
-              ) : null}
+              )}
             </Stack>
           </Box>
 
           <Box
             sx={{
-              p: 1.5,
-              borderRadius: 2.5,
+              p: 1.25,
+              borderRadius: 2,
               border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.40)",
-              bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.35)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
+              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.35)",
+              bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
             }}
           >
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.75, display: "block" }}>
               {t("Next Meeting")}
             </Typography>
             {todayMeetings[0] ? (
-              <Stack spacing={0.8}>
+              <Box>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
                   {todayMeetings[0].title}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {format(todayMeetings[0].start, "HH:mm")} - {format(todayMeetings[0].end, "HH:mm")}
+                  {format(todayMeetings[0].start, "HH:mm")} – {format(todayMeetings[0].end, "HH:mm")}
+                  {todayMeetings[0].meeting.participants.length > 0 && ` · ${todayMeetings[0].meeting.participants.slice(0, 2).join(", ")}`}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {todayMeetings[0].meeting.participants.slice(0, 3).join(", ") || t("No participants")}
-                </Typography>
-              </Stack>
+              </Box>
             ) : (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" color="text.secondary">
                 {t("No meetings scheduled for today.")}
               </Typography>
             )}
@@ -907,18 +850,20 @@ export const PlannerBoard = ({
       {/* ── Quick Capture (compact, inline) ── */}
       <Box
         sx={{
-          mb: { xs: 3, md: 4 },
-          p: { xs: 2, md: 2.5 },
-          borderRadius: 3.5,
+          mb: { xs: 2, md: 2.5 },
+          p: { xs: 1.5, md: 2 },
+          borderRadius: 3,
           border: "1px solid",
-          borderColor: alpha(muiTheme.palette.primary.main, 0.15),
-          bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
-          backdropFilter: "blur(20px) saturate(1.3)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.3)",
-          boxShadow: `0 0 24px ${alpha(muiTheme.palette.primary.main, 0.06)}, inset 0 1px 0 ${isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.50)"}`,
+          borderColor: alpha(muiTheme.palette.primary.main, 0.12),
+          bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.35)",
+          backdropFilter: "blur(16px) saturate(1.3)",
+          WebkitBackdropFilter: "blur(16px) saturate(1.3)",
+          overflow: "hidden",
+          contain: "layout paint",
+          position: "relative" as const,
         }}
       >
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, mb: 1, display: "block", textTransform: "uppercase", letterSpacing: 0.5 }}>
           {t("Quick Capture")}
         </Typography>
         <Stack
@@ -960,26 +905,26 @@ export const PlannerBoard = ({
               </option>
             ))}
           </TextField>
-          <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: "wrap" }}>
-            {(["today", "tomorrow", "none"] as const).map((mode) => (
-              <Chip
-                key={mode}
-                label={mode === "today" ? t("Today") : mode === "tomorrow" ? t("Tomorrow") : t("No date")}
-                size="small"
-                color={quickDueMode === mode ? "primary" : "default"}
-                variant={quickDueMode === mode ? "filled" : "outlined"}
-                onClick={() => setQuickDueMode(mode)}
-                sx={{ cursor: "pointer" }}
-              />
-            ))}
-          </Stack>
+          <TextField
+            select
+            size="small"
+            label={t("Due")}
+            value={quickDueMode}
+            onChange={(event) => setQuickDueMode(event.target.value as "today" | "tomorrow" | "none")}
+            SelectProps={{ native: true }}
+            sx={{ minWidth: { xs: "100%", md: 130 }, flex: { md: 0.6 } }}
+          >
+            <option value="today">{t("Today")}</option>
+            <option value="tomorrow">{t("Tomorrow")}</option>
+            <option value="none">{t("No date")}</option>
+          </TextField>
           <Button
             variant="contained"
             size="small"
             startIcon={<AddTaskIcon />}
             disabled={busy || quickTaskTitle.trim().length === 0}
             onClick={handleQuickAddTask}
-            sx={{ minWidth: 120, whiteSpace: "nowrap", ml: { md: "auto" } }}
+            sx={{ minWidth: 120, whiteSpace: "nowrap", ml: { md: "auto" }, contain: "layout" }}
           >
             {t("Add Task")}
           </Button>
@@ -993,8 +938,8 @@ export const PlannerBoard = ({
 
       {/* ── Project Hub (only if projects exist) ── */}
       {projectHubItems.length > 0 && (
-        <Box sx={{ mb: { xs: 3, md: 4 } }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+        <Box sx={{ mb: { xs: 2, md: 2.5 } }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("Project Hub")}
             </Typography>
@@ -1042,7 +987,7 @@ export const PlannerBoard = ({
       )}
 
       {/* ── Meetings Planner ── */}
-      <Box sx={{ ...plannerCardSx, mb: { xs: 3, md: 4 } }}>
+      <Box sx={{ ...plannerCardSx, mb: { xs: 2, md: 2.5 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {t("Meetings")}
@@ -1559,7 +1504,7 @@ export const PlannerBoard = ({
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
-          gap: { xs: 2.5, md: 3 },
+          gap: { xs: 1.5, md: 2 },
         }}
       >
         {/* Tasks Due Today */}
@@ -1736,7 +1681,7 @@ export const PlannerBoard = ({
       </Box>
 
       {/* ── Tomorrow Plan ── */}
-      <Box sx={{ ...plannerCardSx, mt: { xs: 2.5, md: 3 } }}>
+      <Box sx={{ ...plannerCardSx, mt: { xs: 1.5, md: 2 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {t("Tomorrow Plan")}
@@ -1768,7 +1713,7 @@ export const PlannerBoard = ({
         </Collapse>
       </Box>
 
-      <Box sx={{ ...plannerCardSx, mt: { xs: 2.5, md: 3 } }}>
+      <Box sx={{ ...plannerCardSx, mt: { xs: 1.5, md: 2 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {t("Weekly Review")}
@@ -1870,76 +1815,40 @@ export const PlannerBoard = ({
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
-          gap: { xs: 2.5, md: 3 },
-          mt: { xs: 2.5, md: 3 },
+          gap: { xs: 1.5, md: 2 },
+          mt: { xs: 1.5, md: 2 },
         }}
       >
-        {/* Focus Session */}
-        <Box sx={{ ...plannerCardSx }}>
+        {/* Focus Session — compact widget */}
+        <Box
+          sx={{
+            ...plannerCardSx,
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            "&:hover": {
+              borderColor: isDark
+                ? `${muiTheme.palette.primary.main}30`
+                : `${muiTheme.palette.primary.main}25`,
+              boxShadow: isDark
+                ? `0 8px 32px rgba(0,0,0,0.30), 0 0 0 1px ${muiTheme.palette.primary.main}15`
+                : `0 8px 32px rgba(0,0,0,0.08), 0 0 0 1px ${muiTheme.palette.primary.main}12`,
+            },
+          }}
+          onClick={onOpenFocus}
+        >
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("Focus Session")}
             </Typography>
-            {renderSectionToggle("focusSession")}
+            <Chip
+              size="small"
+              variant="outlined"
+              label={`${t("Today")}: ${focusSessionsToday}`}
+            />
           </Stack>
-          <Collapse in={!isSectionCollapsed("focusSession")} timeout="auto" unmountOnExit>
-            <Stack spacing={1.5} sx={{ mt: 2 }}>
-              <TextField
-                select
-                size="small"
-                label={t("Focus task")}
-                value={focusTaskId === "" ? "" : String(focusTaskId)}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-                  setFocusTaskId(nextValue === "" ? "" : Number(nextValue));
-                }}
-                SelectProps={{ native: true }}
-                fullWidth
-              >
-                <option value="">{t("No task selected")}</option>
-                {focusCandidates.map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}
-                  </option>
-                ))}
-              </TextField>
-
-              <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-                {[25, 50, 90].map((minutes) => (
-                  <Chip
-                    key={minutes}
-                    size="small"
-                    color={focusDurationMinutes === minutes ? "primary" : "default"}
-                    variant={focusDurationMinutes === minutes ? "filled" : "outlined"}
-                    label={`${minutes}m`}
-                    onClick={() => setFocusDurationMinutes(minutes)}
-                    sx={{ cursor: "pointer" }}
-                  />
-                ))}
-                <Chip size="small" variant="outlined" label={`${t("Today")}: ${focusSessionsToday}`} />
-              </Stack>
-
-              {selectedFocusTask ? (
-                <Typography variant="body2" color="text.secondary">
-                  {t("Working on")}: {selectedFocusTask.title}
-                </Typography>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  {t("Pick a task or run a free-focus session.")}
-                </Typography>
-              )}
-
-              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: "wrap" }}>
-                <Chip size="medium" color={focusRunning ? "warning" : "default"} label={formatFocusTime(focusSecondsLeft)} />
-                <Button size="small" variant={focusRunning ? "outlined" : "contained"} onClick={handleToggleFocus}>
-                  {focusRunning ? t("Pause") : t("Start Focus")}
-                </Button>
-                <Button size="small" variant="outlined" onClick={handleResetFocus}>
-                  {t("Reset")}
-                </Button>
-              </Stack>
-            </Stack>
-          </Collapse>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+            {t("Open full focus view →")}
+          </Typography>
         </Box>
 
         {/* Daily Wins */}

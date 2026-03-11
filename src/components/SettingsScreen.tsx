@@ -199,8 +199,8 @@ export const SettingsScreen = ({
                       : theme.palette.mode === "dark"
                         ? "rgba(255,255,255,0.02)"
                         : "rgba(255,255,255,0.35)",
-                  backdropFilter: "blur(8px)",
-                  WebkitBackdropFilter: "blur(8px)",
+                  backdropFilter: "blur(8px) saturate(1.4)",
+                  WebkitBackdropFilter: "blur(8px) saturate(1.4)",
                   cursor: "pointer",
                   transition: "all 0.25s ease",
                   "&:hover": {

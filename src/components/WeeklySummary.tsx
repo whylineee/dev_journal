@@ -138,7 +138,7 @@ export const WeeklySummary = () => {
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
           Frequent topics this week
         </Typography>
-        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+        <Stack direction="row" spacing={0} sx={{ flexWrap: "wrap", gap: 1 }}>
           {summary.topKeywords.length > 0 ? (
             summary.topKeywords.map((keyword) => (
               <Chip key={keyword} label={keyword} size="small" variant="outlined" />

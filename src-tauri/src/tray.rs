@@ -1,8 +1,11 @@
+use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager,
 };
+
+pub struct TrayState(pub Mutex<Option<TrayIcon>>);
 
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
@@ -51,7 +54,19 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         tray_builder = tray_builder.icon(icon.clone());
     }
 
-    tray_builder.build(app)?;
+    let tray_icon = tray_builder.build(app)?;
+    app.manage(TrayState(Mutex::new(Some(tray_icon))));
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn set_tray_timer(app: AppHandle, text: Option<String>) {
+    if let Some(state) = app.try_state::<TrayState>() {
+        if let Ok(guard) = state.0.lock() {
+            if let Some(tray) = guard.as_ref() {
+                let _ = tray.set_title(text.as_deref());
+            }
+        }
+    }
 }

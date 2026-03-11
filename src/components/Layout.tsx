@@ -37,10 +37,11 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import InsightsIcon from "@mui/icons-material/Insights";
 import MenuIcon from "@mui/icons-material/Menu";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 
 const drawerWidth = 290;
 
-type LayoutTab = "planner" | "journal" | "page" | "tasks" | "goals" | "habits" | "projects" | "insights" | "settings";
+type LayoutTab = "planner" | "focus" | "journal" | "page" | "tasks" | "goals" | "habits" | "projects" | "insights" | "settings";
 
 interface LayoutProps {
   children: ReactNode;
@@ -85,8 +86,8 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
           backgroundColor: selected
             ? alpha(theme.palette.primary.main, 0.10)
             : "transparent",
-          backdropFilter: selected ? "blur(8px)" : "none",
-          WebkitBackdropFilter: selected ? "blur(8px)" : "none",
+          backdropFilter: selected ? "blur(8px) saturate(1.4)" : "none",
+          WebkitBackdropFilter: selected ? "blur(8px) saturate(1.4)" : "none",
           transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
           "&.Mui-selected": {
             backgroundColor: alpha(theme.palette.primary.main, 0.12),
@@ -188,6 +189,7 @@ export const Layout = ({
   const activeTabLabel = useMemo<Record<LayoutTab, string>>(
     () => ({
       planner: t("Planner"),
+      focus: t("Focus Session"),
       journal: t("Journal"),
       page: t("Pages"),
       tasks: t("Tasks"),
@@ -213,8 +215,8 @@ export const Layout = ({
     mb: 1.5,
     overflow: "hidden",
     bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
+    backdropFilter: "blur(8px) saturate(1.4)",
+    WebkitBackdropFilter: "blur(8px) saturate(1.4)",
   };
 
   const sectionHeaderSx = {
@@ -226,7 +228,12 @@ export const Layout = ({
 
   const drawerContent = (
     <>
-      <Box sx={{ px: 1.5, pt: 1.5, pb: 1.5, overflowY: "auto", overflowX: "hidden", flex: 1 }}>
+      <Box sx={{
+          px: 1.5, pt: 1.5, pb: 1.5,
+          overflowY: "auto", overflowX: "hidden", flex: 1,
+          scrollbarWidth: "none",
+          "&::-webkit-scrollbar": { display: "none" },
+        }}>
         {/* Overview stats card */}
         <Box
           sx={{
@@ -237,8 +244,8 @@ export const Layout = ({
             border: "1px solid",
             borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.60)",
             backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.35)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
+            backdropFilter: "blur(12px) saturate(1.4)",
+            WebkitBackdropFilter: "blur(12px) saturate(1.4)",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
@@ -252,7 +259,7 @@ export const Layout = ({
                 background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
               }}
             >
-              <EditNoteIcon sx={{ color: isDark ? "#0a0a0a" : "#ffffff", fontSize: 16 }} />
+              <EditNoteIcon sx={{ color: muiTheme.palette.primary.contrastText, fontSize: 16 }} />
             </Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: "0.9rem" }}>
               {t("Dev Journal")}
@@ -281,8 +288,8 @@ export const Layout = ({
                   py: 0.7,
                   minWidth: 0,
                   backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
-                  backdropFilter: "blur(8px)",
-                  WebkitBackdropFilter: "blur(8px)",
+                  backdropFilter: "blur(8px) saturate(1.4)",
+                  WebkitBackdropFilter: "blur(8px) saturate(1.4)",
                 }}
               >
                 <Typography
@@ -317,6 +324,16 @@ export const Layout = ({
               icon={<DashboardIcon fontSize="small" />}
               primary={t("Planner")}
               secondary={t("Daily overview")}
+            />
+            <SideNavButton
+              selected={activeTab === "focus"}
+              onClick={() => {
+                onTabChange("focus");
+                closeMobileDrawer();
+              }}
+              icon={<TimerOutlinedIcon fontSize="small" />}
+              primary={t("Focus")}
+              secondary={t("Deep work timer")}
             />
           </List>
         </Box>
@@ -548,8 +565,8 @@ export const Layout = ({
           BackdropProps: {
             sx: {
               backgroundColor: isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.20)",
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(4px)",
+              backdropFilter: "blur(4px) saturate(1.4)",
+              WebkitBackdropFilter: "blur(4px) saturate(1.4)",
             },
           },
         }}

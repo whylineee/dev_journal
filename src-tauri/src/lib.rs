@@ -105,7 +105,8 @@ pub fn run() {
             commands::update_habit,
             commands::delete_habit,
             commands::toggle_habit_completion,
-            commands::import_backup
+            commands::import_backup,
+            tray::set_tray_timer
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
