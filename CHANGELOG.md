@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.4] - 2026-03-11
+
+### Added
+- Planner upgrades: Today Dashboard, Weekly Review, focus sessions, daily wins tracker, and tomorrow planning workflow.
+- Meetings system with recurrence, reminders, participants, notes, decisions, and action-item materialization into tasks.
+- Task stack upgrades: drag-and-drop board flow, recurring tasks, subtasks, goal linking, and gantt timeline.
+- Pages workspace upgrades: single-column Notion-like markdown experience with checklists, code blocks, tables, and embedded task table token.
+
+### Improved
+- Glassmorphism UI refresh across the app shell and top navigation.
+- Updated desktop app icon.
+
+### Fixed
+- Quick Capture overflow and clipped action button on narrow layouts.
+- Additional UI spacing and interaction polish across planner/tasks screens.
+
 ## [1.0.3] - 2026-03-02
 
 ### Added

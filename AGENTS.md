@@ -25,7 +25,7 @@ The app is desktop-first. Data is stored locally in SQLite inside the Tauri app 
 
 ## Current Product State
 
-Version in `package.json`: `1.0.3`
+Version in `package.json`: `1.0.4`
 
 Important current behavior:
 - The app defaults to the OS color scheme on first launch.

@@ -62,11 +62,11 @@ npm run tauri:build
    ```
 2. Перевірити артефакт:
    ```bash
-   ls -lah "src-tauri/target/release/bundle/dmg/Dev Journal_1.0.3_aarch64.dmg"
+   ls -lah "src-tauri/target/release/bundle/dmg/Dev Journal_1.0.4_aarch64.dmg"
    ```
 3. Згенерувати checksum:
    ```bash
-   shasum -a 256 "src-tauri/target/release/bundle/dmg/Dev Journal_1.0.3_aarch64.dmg"
+   shasum -a 256 "src-tauri/target/release/bundle/dmg/Dev Journal_1.0.4_aarch64.dmg"
    ```
 
 ### Release (Windows x64)
@@ -82,7 +82,7 @@ Windows-версію потрібно збирати на Windows-хості (а
    dir "src-tauri\\target\\x86_64-pc-windows-msvc\\release\\bundle\\nsis"
    ```
 3. Або запустити GitHub Actions workflow `Build Desktop Release` (`.github/workflows/build-desktop-release.yml`) і забрати артефакти з розділу Artifacts.
-4. Для production-релізу створіть git tag формату `v*` (наприклад, `v1.0.3`) - workflow автоматично прикріпить `.msi`, `.exe`, `.dmg` та checksum-файли до GitHub Release.
+4. Для production-релізу створіть git tag формату `v*` (наприклад, `v1.0.4`) - workflow автоматично прикріпить `.msi`, `.exe`, `.dmg` та checksum-файли до GitHub Release.
 
 ## 📂 Архітектура та структура проєкту
 
