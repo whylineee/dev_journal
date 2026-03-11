@@ -184,6 +184,8 @@ const buildMuiTheme = ({
             fontFeatureSettings: '"cv02" 1, "cv03" 1, "cv04" 1, "cv11" 1',
             WebkitFontSmoothing: "antialiased",
             MozOsxFontSmoothing: "grayscale",
+            scrollbarWidth: "thin",
+            scrollbarColor: `${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"} transparent`,
           },
           "::selection": {
             backgroundColor: `${palette.primary}30`,
@@ -289,10 +291,21 @@ const buildMuiTheme = ({
               color: palette.primary,
             },
             "& .MuiInputLabel-root.MuiInputLabel-shrink": {
-              backgroundColor: isDark ? "rgba(15, 15, 15, 0.9)" : "rgba(255, 255, 255, 0.92)",
+              backgroundColor: `${palette.backgroundDefault}e8`,
               paddingLeft: 6,
               paddingRight: 6,
               borderRadius: 6,
+            },
+            "&:has(select.MuiNativeSelect-select) .MuiInputLabel-root": {
+              transform: "translate(14px, -9px) scale(0.75)",
+              maxWidth: "calc(133% - 32px)",
+              backgroundColor: `${palette.backgroundDefault}e8`,
+              paddingLeft: 6,
+              paddingRight: 6,
+              borderRadius: 6,
+            },
+            "&:has(select.MuiNativeSelect-select) .MuiOutlinedInput-notchedOutline legend": {
+              maxWidth: "100%",
             },
             "& .MuiOutlinedInput-root": {
               backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
@@ -310,7 +323,7 @@ const buildMuiTheme = ({
                 borderWidth: "1.5px",
               },
               "&.Mui-focused": {
-                boxShadow: `0 0 0 3px ${palette.primary}18`,
+                boxShadow: `0 0 0 3px ${palette.primary}30`,
                 backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.70)",
               },
             },
@@ -338,6 +351,7 @@ const buildMuiTheme = ({
       MuiDrawer: {
         styleOverrides: {
           paper: {
+            borderRadius: 0,
             backgroundColor: isDark ? "rgba(8, 8, 12, 0.70)" : "rgba(255, 255, 255, 0.65)",
             backdropFilter: "blur(40px) saturate(1.6)",
             WebkitBackdropFilter: "blur(40px) saturate(1.6)",
@@ -390,7 +404,7 @@ const buildMuiTheme = ({
         styleOverrides: {
           tooltip: {
             backgroundColor: isDark ? "rgba(20, 20, 24, 0.85)" : "rgba(255, 255, 255, 0.90)",
-            color: isDark ? "#f4f4f5" : "#18181b",
+            color: palette.textPrimary,
             backdropFilter: "blur(16px)",
             WebkitBackdropFilter: "blur(16px)",
             border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.06)",
@@ -418,7 +432,7 @@ const buildMuiTheme = ({
             "&.Mui-selected": {
               backgroundColor: `${palette.primary}15`,
               borderColor: `${palette.primary}30`,
-              boxShadow: `0 0 0 1px ${palette.primary}10, 0 2px 8px ${palette.primary}10`,
+              boxShadow: `0 0 0 1px ${palette.primary}20, 0 2px 8px ${palette.primary}18`,
               "&:hover": { backgroundColor: `${palette.primary}20` },
             },
           },
@@ -451,6 +465,16 @@ const buildMuiTheme = ({
         styleOverrides: {
           root: {
             borderRadius: btnRadius,
+          },
+        },
+      },
+      MuiNativeSelect: {
+        styleOverrides: {
+          select: {
+            "& option": {
+              backgroundColor: palette.backgroundDefault,
+              color: palette.textPrimary,
+            },
           },
         },
       },

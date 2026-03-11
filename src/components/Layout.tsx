@@ -1,6 +1,5 @@
 import {
   alpha,
-  AppBar,
   Box,
   Chip,
   Drawer,
@@ -11,11 +10,10 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Toolbar,
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@mui/material/styles";
 import { useEntries, useSearchEntries } from "../hooks/useEntries";
 import { usePages } from "../hooks/usePages";
@@ -88,6 +86,7 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
             ? alpha(theme.palette.primary.main, 0.10)
             : "transparent",
           backdropFilter: selected ? "blur(8px)" : "none",
+          WebkitBackdropFilter: selected ? "blur(8px)" : "none",
           transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
           "&.Mui-selected": {
             backgroundColor: alpha(theme.palette.primary.main, 0.12),
@@ -149,6 +148,16 @@ export const Layout = ({
   const isDark = muiTheme.palette.mode === "dark";
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const mainRef = useRef<HTMLElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const onScroll = () => setScrolled(el.scrollTop > 8);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
 
   const { data: allEntries } = useEntries();
   const { data: searchResults } = useSearchEntries(searchQuery);
@@ -205,6 +214,7 @@ export const Layout = ({
     overflow: "hidden",
     bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
     backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
   };
 
   const sectionHeaderSx = {
@@ -216,8 +226,7 @@ export const Layout = ({
 
   const drawerContent = (
     <>
-      <Toolbar sx={{ minHeight: { xs: 52, md: 56 } }} />
-      <Box sx={{ px: 1.5, pb: 1.5, overflowY: "auto", overflowX: "hidden", flex: 1 }}>
+      <Box sx={{ px: 1.5, pt: 1.5, pb: 1.5, overflowY: "auto", overflowX: "hidden", flex: 1 }}>
         {/* Overview stats card */}
         <Box
           sx={{
@@ -229,6 +238,7 @@ export const Layout = ({
             borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.60)",
             backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.35)",
             backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
@@ -272,6 +282,7 @@ export const Layout = ({
                   minWidth: 0,
                   backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
                   backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
                 }}
               >
                 <Typography
@@ -480,7 +491,7 @@ export const Layout = ({
                   closeMobileDrawer();
                 }}
                 icon={<ArticleIcon fontSize="small" />}
-                primary={page.title || "Untitled"}
+                primary={page.title || t("Untitled")}
                 secondary={t("Knowledge page")}
               />
             ))}
@@ -528,95 +539,114 @@ export const Layout = ({
 
   return (
     <Box sx={{ display: "flex", height: "100dvh", overflow: "hidden", bgcolor: "background.default" }}>
-      <AppBar
-        position="fixed"
-        elevation={0}
+      <Drawer
+        variant={isMobile ? "temporary" : "permanent"}
+        open={isMobile ? mobileDrawerOpen : true}
+        onClose={() => setMobileDrawerOpen(false)}
+        ModalProps={{
+          keepMounted: true,
+          BackdropProps: {
+            sx: {
+              backgroundColor: isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.20)",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
+            },
+          },
+        }}
         sx={{
-          zIndex: (theme) => theme.zIndex.drawer + 1,
+          width: { md: drawerWidth },
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: drawerWidth,
+            boxSizing: "border-box",
+            backgroundImage: "none",
+            display: "flex",
+            flexDirection: "column",
+          },
         }}
       >
-        <Toolbar
+        {drawerContent}
+      </Drawer>
+
+      <Box
+        component="main"
+        ref={mainRef}
+        sx={{
+          flexGrow: 1,
+          overflowY: "auto",
+          overflowX: "hidden",
+          position: "relative",
+        }}
+      >
+        <Box
           sx={{
-            minHeight: { xs: 52, md: 56 },
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            background: isDark
+              ? "radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.02), transparent 40%), radial-gradient(ellipse at 90% 5%, rgba(255,255,255,0.015), transparent 35%)"
+              : "radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.30), transparent 40%), radial-gradient(ellipse at 90% 5%, rgba(255,255,255,0.20), transparent 35%)",
+          }}
+        />
+
+        {/* Sticky content header — appears glassy on scroll */}
+        <Box
+          sx={{
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
             gap: 1,
-            px: { xs: 1.5, md: 2 },
+            px: { xs: 1.5, sm: 2, md: 3.5 },
+            minHeight: { xs: 48, md: 52 },
+            transition: "background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
+            backgroundColor: scrolled
+              ? isDark
+                ? "rgba(10, 10, 18, 0.75)"
+                : "rgba(255, 255, 255, 0.70)"
+              : "transparent",
+            backdropFilter: scrolled ? "blur(20px) saturate(1.4)" : "none",
+            WebkitBackdropFilter: scrolled ? "blur(20px) saturate(1.4)" : "none",
+            borderBottom: "1px solid",
+            borderColor: scrolled
+              ? isDark
+                ? "rgba(255,255,255,0.06)"
+                : "rgba(255,255,255,0.50)"
+              : "transparent",
+            boxShadow: scrolled
+              ? isDark
+                ? "0 4px 24px rgba(0,0,0,0.30)"
+                : "0 4px 24px rgba(0,0,0,0.05)"
+              : "none",
           }}
         >
-          {isMobile ? (
-            <IconButton color="inherit" onClick={() => setMobileDrawerOpen(true)} edge="start" size="small">
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              onClick={() => setMobileDrawerOpen(true)}
+              edge="start"
+              size="small"
+            >
               <MenuIcon fontSize="small" />
             </IconButton>
-          ) : null}
+          )}
 
-          <Box
+          <Typography
+            variant="h6"
+            noWrap
             sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.8,
-              minWidth: 0,
-              flexShrink: 1,
-              pl: { md: 0.5 },
+              fontWeight: 700,
+              fontSize: { xs: "1rem", md: "1.1rem" },
+              letterSpacing: "-0.02em",
+              color: "text.primary",
+              flexShrink: 0,
             }}
           >
-            <Box
-              sx={{
-                width: 30,
-                height: 30,
-                display: "grid",
-                placeItems: "center",
-                borderRadius: 1.5,
-                background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
-                boxShadow: `0 2px 8px ${alpha(muiTheme.palette.primary.main, 0.25)}`,
-                flexShrink: 0,
-              }}
-            >
-              <EditNoteIcon sx={{ color: isDark ? "#0a0a0a" : "#ffffff", fontSize: 17 }} />
-            </Box>
-            <Typography
-              variant="subtitle1"
-              noWrap
-              sx={{
-                fontWeight: 700,
-                letterSpacing: "-0.02em",
-                color: "text.primary",
-                fontSize: "0.92rem",
-              }}
-            >
-              {t("Dev Journal")}
-            </Typography>
+            {activeTabLabel[activeTab]}
+          </Typography>
 
-            <Box
-              sx={{
-                display: { xs: "none", md: "flex" },
-                alignItems: "center",
-                ml: 0.5,
-              }}
-            >
-              <Box
-                sx={{
-                  width: 4,
-                  height: 4,
-                  borderRadius: "50%",
-                  bgcolor: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.15)",
-                  mx: 0.8,
-                  flexShrink: 0,
-                }}
-              />
-              <Typography
-                variant="caption"
-                noWrap
-                sx={{
-                  color: "text.secondary",
-                  fontSize: "0.74rem",
-                  fontWeight: 500,
-                }}
-              >
-                {activeTabLabel[activeTab]}
-              </Typography>
-            </Box>
-          </Box>
-
-          <Box sx={{ flexGrow: 1 }} />
+          <Box sx={{ flexGrow: 1, minWidth: 16 }} />
 
           <Box
             sx={{
@@ -626,15 +656,16 @@ export const Layout = ({
               "&:hover": {
                 backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
               },
-              width: { xs: 140, sm: 240, md: 280 },
+              flexShrink: 1,
+              maxWidth: { xs: 180, sm: 260, md: 320 },
+              width: "100%",
               border: "1px solid",
               borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-              transition: "all 0.2s ease",
+              transition: "border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease",
               "&:focus-within": {
                 borderColor: alpha(muiTheme.palette.primary.main, 0.35),
                 boxShadow: `0 0 0 2px ${alpha(muiTheme.palette.primary.main, 0.08)}`,
                 backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
-                width: { xs: 180, sm: 300, md: 340 },
               },
             }}
           >
@@ -676,9 +707,9 @@ export const Layout = ({
             size="small"
             onClick={() => setLanguage(language === "en" ? "uk" : "en")}
             sx={{
-              display: { xs: "none", sm: "inline-flex" },
               width: 32,
               height: 32,
+              flexShrink: 0,
               color: "text.secondary",
               fontSize: "0.72rem",
               fontWeight: 600,
@@ -695,59 +726,18 @@ export const Layout = ({
               {language === "en" ? "EN" : "UK"}
             </Typography>
           </IconButton>
-        </Toolbar>
-      </AppBar>
+        </Box>
 
-      <Drawer
-        variant={isMobile ? "temporary" : "permanent"}
-        open={isMobile ? mobileDrawerOpen : true}
-        onClose={() => setMobileDrawerOpen(false)}
-        ModalProps={{
-          keepMounted: true,
-          BackdropProps: {
-            sx: {
-              backgroundColor: isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.20)",
-              backdropFilter: "blur(4px)",
-            },
-          },
-        }}
-        sx={{
-          width: { md: drawerWidth },
-          flexShrink: 0,
-          ["& .MuiDrawer-paper"]: {
-            width: drawerWidth,
-            boxSizing: "border-box",
-            backgroundImage: "none",
-            display: "flex",
-            flexDirection: "column",
-          },
-        }}
-      >
-        {drawerContent}
-      </Drawer>
-
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: { xs: 1.5, sm: 2, md: 3.5 },
-          pt: { xs: 8.5, md: 9.5 },
-          overflowY: "auto",
-          overflowX: "hidden",
-          position: "relative",
-        }}
-      >
         <Box
           sx={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            background: isDark
-              ? "radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.02), transparent 40%), radial-gradient(ellipse at 90% 5%, rgba(255,255,255,0.015), transparent 35%)"
-              : "radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.30), transparent 40%), radial-gradient(ellipse at 90% 5%, rgba(255,255,255,0.20), transparent 35%)",
+            p: { xs: 1.5, sm: 2, md: 3.5 },
+            pt: { xs: 1, sm: 1.5, md: 2 },
+            position: "relative",
+            zIndex: 1,
           }}
-        />
-        <Box sx={{ position: "relative", zIndex: 1 }}>{children}</Box>
+        >
+          {children}
+        </Box>
       </Box>
     </Box>
   );

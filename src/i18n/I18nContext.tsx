@@ -37,6 +37,7 @@ const ukTranslations: Record<string, string> = {
   "New Page": "Нова сторінка",
   "Create note or doc": "Створи нотатку або документ",
   "Knowledge page": "Сторінка знань",
+  "Untitled": "Без назви",
   "Settings & Theme": "Налаштування і тема",
   "Settings": "Налаштування",
   "Customize Theme": "Налаштування теми",

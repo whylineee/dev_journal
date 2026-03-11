@@ -274,6 +274,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                             borderRadius: 3,
                             bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
                             backdropFilter: "blur(16px)",
+                            WebkitBackdropFilter: "blur(16px)",
                             border: '1px solid',
                             borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
                             flexWrap: 'wrap',
@@ -382,6 +383,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                             borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
                             bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.40)",
                             backdropFilter: "blur(16px)",
+                            WebkitBackdropFilter: "blur(16px)",
                         }}
                     >
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
@@ -421,6 +423,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                             borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
                             bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.40)",
                             backdropFilter: "blur(16px)",
+                            WebkitBackdropFilter: "blur(16px)",
                         }}
                     >
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>

@@ -1,5 +1,6 @@
 import { ChangeEvent, useRef, useState } from "react";
 import {
+  alpha,
   Box,
   Button,
   Divider,
@@ -194,18 +195,19 @@ export const SettingsScreen = ({
                         : "rgba(255,255,255,0.45)",
                   bgcolor: (theme) =>
                     active
-                      ? `${theme.palette.primary.main}10`
+                      ? alpha(theme.palette.primary.main, 0.06)
                       : theme.palette.mode === "dark"
                         ? "rgba(255,255,255,0.02)"
                         : "rgba(255,255,255,0.35)",
                   backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
                   cursor: "pointer",
                   transition: "all 0.25s ease",
                   "&:hover": {
                     borderColor: "primary.main",
                     transform: "translateY(-1px)",
                     boxShadow: (theme) =>
-                      `0 4px 16px ${theme.palette.primary.main}15`,
+                      `0 4px 16px ${alpha(theme.palette.primary.main, 0.08)}`,
                   },
                 }}
               >

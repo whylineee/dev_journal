@@ -393,7 +393,7 @@ export const ProjectsBoard = () => {
           </Button>
         </Stack>
 
-        <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
+        <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
           <Chip label={`Total: ${dashboardStats.total}`} variant="outlined" size="small" />
           <Chip label={`Active: ${dashboardStats.active}`} color="info" variant="outlined" size="small" />
           <Chip label={`Paused: ${dashboardStats.paused}`} color="warning" variant="outlined" size="small" />
@@ -458,7 +458,8 @@ export const ProjectsBoard = () => {
                 theme.palette.mode === "dark"
                   ? "rgba(255,255,255,0.02)"
                   : "rgba(255,255,255,0.40)",
-              backdropFilter: "blur(12px)",
+              backdropFilter: "blur(12px) saturate(1.4)",
+              WebkitBackdropFilter: "blur(12px) saturate(1.4)",
               transition: "all 0.2s ease",
               "&:hover": {
                 transform: "translateY(-1px)",
@@ -470,7 +471,7 @@ export const ProjectsBoard = () => {
             }}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", gap: 1 }}>
+                  <Stack direction="row" spacing={0} alignItems="center" sx={{ flexWrap: "wrap", gap: 1 }}>
                     <FolderOpenIcon sx={{ color: project.color }} />
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       {project.name}
@@ -495,7 +496,7 @@ export const ProjectsBoard = () => {
                     </Typography>
                   ) : null}
 
-                  <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: "wrap", gap: 1 }}>
+                  <Stack direction="row" spacing={0} sx={{ mt: 1.5, flexWrap: "wrap", gap: 1 }}>
                     <Chip size="small" variant="outlined" label={`${t("Journal")}: ${stats.entries}`} />
                     <Chip size="small" variant="outlined" label={`${t("Tasks")}: ${stats.tasks}`} />
                     <Chip size="small" variant="outlined" label={`${t("Goals")}: ${stats.goals}`} />

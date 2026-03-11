@@ -528,6 +528,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                             borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
                             bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
                             backdropFilter: "blur(16px)",
+                            WebkitBackdropFilter: "blur(16px)",
                             alignSelf: { xs: "flex-end", md: "auto" },
                         }}
                     >
@@ -592,6 +593,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                         overflow: "hidden",
                         bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.45)",
                         backdropFilter: "blur(24px) saturate(1.3)",
+                        WebkitBackdropFilter: "blur(24px) saturate(1.3)",
                         boxShadow: isDark
                             ? "0 24px 64px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.03)"
                             : "0 24px 64px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.70)",

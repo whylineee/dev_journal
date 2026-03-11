@@ -632,7 +632,7 @@ export const InsightsBoard = () => {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3, borderRadius: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
           {t("Weekly Retro Report")}
         </Typography>
@@ -680,7 +680,7 @@ export const InsightsBoard = () => {
         ) : null}
       </Paper>
 
-      <Paper sx={{ p: 3, borderRadius: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
           {t("Quick Capture")}
         </Typography>
@@ -735,7 +735,32 @@ export const InsightsBoard = () => {
             </Typography>
           ) : (
             quickCaptureRecords.map((record) => (
-              <Paper key={record.id} variant="outlined" sx={{ p: 2 }}>
+              <Paper
+                key={record.id}
+                sx={{
+                  p: 2,
+                  borderRadius: 2.5,
+                  border: "1px solid",
+                  borderColor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.08)"
+                      : "rgba(0,0,0,0.06)",
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.03)"
+                      : "rgba(255,255,255,0.40)",
+                  backdropFilter: "blur(12px) saturate(1.4)",
+                  WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+                  transition: "all 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-1px)",
+                    boxShadow: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "0 8px 24px rgba(0,0,0,0.30)"
+                        : "0 8px 24px rgba(0,0,0,0.06)",
+                  },
+                }}
+              >
                 <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
                   <Chip size="small" label={`${t("Created")}: ${record.created_at.slice(0, 10)}`} variant="outlined" />
                   <Button color="error" onClick={() => handleDeleteQuickCapture(record.id)}>
@@ -756,7 +781,7 @@ export const InsightsBoard = () => {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3, borderRadius: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
           {t("Mini ADR Log")}
         </Typography>
@@ -827,7 +852,32 @@ export const InsightsBoard = () => {
             </Typography>
           ) : (
             sortedRecords.map((record) => (
-              <Paper key={record.id} variant="outlined" sx={{ p: 2 }}>
+              <Paper
+                key={record.id}
+                sx={{
+                  p: 2,
+                  borderRadius: 2.5,
+                  border: "1px solid",
+                  borderColor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.08)"
+                      : "rgba(0,0,0,0.06)",
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.03)"
+                      : "rgba(255,255,255,0.40)",
+                  backdropFilter: "blur(12px) saturate(1.4)",
+                  WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+                  transition: "all 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-1px)",
+                    boxShadow: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "0 8px 24px rgba(0,0,0,0.30)"
+                        : "0 8px 24px rgba(0,0,0,0.06)",
+                  },
+                }}
+              >
                 <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
                   <Box>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -864,7 +914,7 @@ export const InsightsBoard = () => {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3, borderRadius: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
           {t("Debug Mode")}
         </Typography>
@@ -930,7 +980,32 @@ export const InsightsBoard = () => {
             </Typography>
           ) : (
             debugSessions.map((session) => (
-              <Paper key={session.id} variant="outlined" sx={{ p: 2 }}>
+              <Paper
+                key={session.id}
+                sx={{
+                  p: 2,
+                  borderRadius: 2.5,
+                  border: "1px solid",
+                  borderColor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.08)"
+                      : "rgba(0,0,0,0.06)",
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.03)"
+                      : "rgba(255,255,255,0.40)",
+                  backdropFilter: "blur(12px) saturate(1.4)",
+                  WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+                  transition: "all 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-1px)",
+                    boxShadow: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "0 8px 24px rgba(0,0,0,0.30)"
+                        : "0 8px 24px rgba(0,0,0,0.06)",
+                  },
+                }}
+              >
                 <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
                   <Box>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -960,7 +1035,7 @@ export const InsightsBoard = () => {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3, borderRadius: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
           {t("What Broke Log")}
         </Typography>
@@ -1036,7 +1111,32 @@ export const InsightsBoard = () => {
             </Typography>
           ) : (
             incidents.map((incident) => (
-              <Paper key={incident.id} variant="outlined" sx={{ p: 2 }}>
+              <Paper
+                key={incident.id}
+                sx={{
+                  p: 2,
+                  borderRadius: 2.5,
+                  border: "1px solid",
+                  borderColor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.08)"
+                      : "rgba(0,0,0,0.06)",
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.03)"
+                      : "rgba(255,255,255,0.40)",
+                  backdropFilter: "blur(12px) saturate(1.4)",
+                  WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+                  transition: "all 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-1px)",
+                    boxShadow: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "0 8px 24px rgba(0,0,0,0.30)"
+                        : "0 8px 24px rgba(0,0,0,0.06)",
+                  },
+                }}
+              >
                 <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
                   <Box>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>

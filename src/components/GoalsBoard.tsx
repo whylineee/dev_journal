@@ -417,7 +417,8 @@ export const GoalsBoard = () => {
                   theme.palette.mode === "dark"
                     ? "rgba(255,255,255,0.02)"
                     : "rgba(255,255,255,0.40)",
-                backdropFilter: "blur(12px)",
+                backdropFilter: "blur(12px) saturate(1.4)",
+                WebkitBackdropFilter: "blur(12px) saturate(1.4)",
                 transition: "all 0.2s ease",
                 "&:hover": {
                   transform: "translateY(-1px)",
@@ -515,8 +516,14 @@ export const GoalsBoard = () => {
                       p: 1.25,
                       borderRadius: 2,
                       border: "1px solid",
-                      borderColor: "divider",
-                      bgcolor: "background.default",
+                      borderColor: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "rgba(255,255,255,0.08)"
+                          : "rgba(0,0,0,0.06)",
+                      bgcolor: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "rgba(255,255,255,0.03)"
+                          : "rgba(0,0,0,0.02)",
                     }}
                   >
                     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>

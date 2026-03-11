@@ -30,9 +30,10 @@ import {
 import { HabitWithLogs } from "../types";
 import { useI18n } from "../i18n/I18nContext";
 
-const weekDates = Array.from({ length: 7 }, (_, index) =>
-  format(subDays(new Date(), 6 - index), "yyyy-MM-dd")
-);
+const computeWeekDates = () =>
+  Array.from({ length: 7 }, (_, index) =>
+    format(subDays(new Date(), 6 - index), "yyyy-MM-dd")
+  );
 
 const toDayLabel = (value: string) => {
   const date = new Date(value);
@@ -61,6 +62,7 @@ const compareHabits = (a: HabitWithLogs, b: HabitWithLogs) => {
 
 export const HabitsBoard = () => {
   const { t } = useI18n();
+  const weekDates = useMemo(computeWeekDates, []);
   const { data: habits = [], isLoading } = useHabits();
   const createHabit = useCreateHabit();
   const updateHabit = useUpdateHabit();
@@ -244,7 +246,8 @@ export const HabitsBoard = () => {
                 theme.palette.mode === "dark"
                   ? "rgba(255,255,255,0.02)"
                   : "rgba(255,255,255,0.40)",
-              backdropFilter: "blur(12px)",
+              backdropFilter: "blur(12px) saturate(1.4)",
+              WebkitBackdropFilter: "blur(12px) saturate(1.4)",
               transition: "all 0.2s ease",
               "&:hover": {
                 transform: "translateY(-1px)",
@@ -263,6 +266,11 @@ export const HabitsBoard = () => {
                         height: 10,
                         borderRadius: "50%",
                         bgcolor: habit.color,
+                        border: "1px solid",
+                        borderColor: (theme) =>
+                          theme.palette.mode === "dark"
+                            ? "rgba(255,255,255,0.15)"
+                            : "rgba(0,0,0,0.10)",
                       }}
                     />
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>

@@ -435,6 +435,7 @@ export const PlannerBoard = ({
     borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
     bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
     backdropFilter: "blur(20px) saturate(1.3)",
+    WebkitBackdropFilter: "blur(20px) saturate(1.3)",
     boxShadow: isDark
       ? "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)"
       : "0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.60)",
@@ -806,6 +807,7 @@ export const PlannerBoard = ({
                 borderColor: isDark ? alpha(muiTheme.palette[card.tone].main, 0.25) : alpha(muiTheme.palette[card.tone].main, 0.20),
                 bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.45)",
                 backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
                 transition: "all 0.2s ease",
                 "&:hover": {
                   transform: "translateY(-1px)",
@@ -839,6 +841,7 @@ export const PlannerBoard = ({
               borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.40)",
               bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.35)",
               backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
             }}
           >
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
@@ -874,6 +877,7 @@ export const PlannerBoard = ({
               borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.40)",
               bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.35)",
               backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
             }}
           >
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
@@ -910,6 +914,7 @@ export const PlannerBoard = ({
           borderColor: alpha(muiTheme.palette.primary.main, 0.15),
           bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
           backdropFilter: "blur(20px) saturate(1.3)",
+          WebkitBackdropFilter: "blur(20px) saturate(1.3)",
           boxShadow: `0 0 24px ${alpha(muiTheme.palette.primary.main, 0.06)}, inset 0 1px 0 ${isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.50)"}`,
         }}
       >

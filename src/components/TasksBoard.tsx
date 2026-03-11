@@ -171,7 +171,8 @@ const DroppableColumn = ({ status, children }: DroppableColumnProps) => {
           isOver
             ? theme.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)"
             : "transparent",
-        backdropFilter: "blur(16px)",
+        backdropFilter: "blur(16px) saturate(1.4)",
+        WebkitBackdropFilter: "blur(16px) saturate(1.4)",
         boxShadow: isOver
           ? (theme) => `0 0 24px ${theme.palette.primary.main}15`
           : "none",
@@ -855,7 +856,8 @@ export const TasksBoard = () => {
                           theme.palette.mode === "dark"
                             ? "rgba(255,255,255,0.02)"
                             : "rgba(255,255,255,0.40)",
-                        backdropFilter: "blur(12px)",
+                        backdropFilter: "blur(12px) saturate(1.4)",
+                        WebkitBackdropFilter: "blur(12px) saturate(1.4)",
                         transition: "all 0.2s ease",
                         "&:hover": {
                           transform: "translateY(-1px)",
