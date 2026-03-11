@@ -1,4 +1,21 @@
-import { Box, TextField, Typography, Button, Paper, IconButton, Tooltip, Chip, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
+import {
+    Box,
+    TextField,
+    Typography,
+    Button,
+    Paper,
+    IconButton,
+    Tooltip,
+    Chip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Menu,
+    MenuItem,
+    ListItemIcon,
+    ListItemText,
+} from "@mui/material";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Markdown from "react-markdown";
 import { useDeleteEntry, useEntry, useSaveEntry } from "../hooks/useEntries";
@@ -7,14 +24,16 @@ import { useI18n } from "../i18n/I18nContext";
 import { format, parseISO } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@mui/material/styles";
-import FormatBoldIcon from '@mui/icons-material/FormatBold';
-import FormatItalicIcon from '@mui/icons-material/FormatItalic';
-import CodeIcon from '@mui/icons-material/Code';
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import SaveIcon from '@mui/icons-material/Save';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import FormatBoldIcon from "@mui/icons-material/FormatBold";
+import FormatItalicIcon from "@mui/icons-material/FormatItalic";
+import CodeIcon from "@mui/icons-material/Code";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
+import SaveIcon from "@mui/icons-material/Save";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import { useAppNotifications } from "../notifications/AppNotifications";
 
 interface EntryFormProps {
@@ -23,17 +42,24 @@ interface EntryFormProps {
     autosaveEnabled: boolean;
 }
 
-type EnergyTag = 'focused' | 'deep_work' | 'tired' | 'distracted';
+type EnergyTag = "focused" | "deep_work" | "tired" | "distracted";
 
 const countWords = (value: string) => value.split(/\s+/).filter((word) => word.length > 0).length;
 const ENERGY_STORAGE_KEY = "devJournal_entry_energy_tags";
 const formatDraftTime = (value: string) => {
     try {
-        return format(parseISO(value), 'HH:mm');
+        return format(parseISO(value), "HH:mm");
     } catch {
-        return 'recently';
+        return "recently";
     }
 };
+
+const ENERGY_OPTIONS: { value: EnergyTag; label: string; color: "success" | "primary" | "warning" | "error" }[] = [
+    { value: "focused", label: "Focused", color: "success" },
+    { value: "deep_work", label: "Deep Work", color: "primary" },
+    { value: "tired", label: "Tired", color: "warning" },
+    { value: "distracted", label: "Distracted", color: "error" },
+];
 
 export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormProps) => {
     const muiTheme = useTheme();
@@ -51,9 +77,8 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
     const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
     const [energyTag, setEnergyTag] = useState<EnergyTag | null>(null);
     const [projectId, setProjectId] = useState<number | "">("");
-
-    // Track which textarea was focused last
-    const [lastFocused, setLastFocused] = useState<'yesterday' | 'today'>('yesterday');
+    const [lastFocused, setLastFocused] = useState<"yesterday" | "today">("yesterday");
+    const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
 
     const draftKey = useMemo(() => `devJournal_entry_draft_${date}`, [date]);
 
@@ -116,7 +141,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                     yesterday,
                     today,
                     updatedAt: new Date().toISOString(),
-                })
+                }),
             );
         }, 700);
 
@@ -130,15 +155,15 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                 onSuccess: () => {
                     localStorage.removeItem(draftKey);
                     setDraftRestoredAt(null);
-                    notify("Journal entry saved.", "success");
+                    notify(t("Journal entry saved."), "success");
                 },
-            }
+            },
         );
-    }, [date, draftKey, projectId, saveMutation, today, yesterday]);
+    }, [date, draftKey, notify, projectId, saveMutation, t, today, yesterday]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
                 event.preventDefault();
                 if (!saveMutation.isPending) {
                     handleSave();
@@ -146,24 +171,24 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
     }, [handleSave, saveMutation.isPending]);
 
     const insertFormat = (prefix: string, suffix: string) => {
-        const isYest = lastFocused === 'yesterday';
+        const isYest = lastFocused === "yesterday";
         const currentValue = isYest ? yesterday : today;
         const setter = isYest ? setYesterday : setToday;
 
-        if (currentValue.endsWith('\n') || currentValue.length === 0) {
+        if (currentValue.endsWith("\n") || currentValue.length === 0) {
             setter(currentValue + `${prefix}text${suffix}`);
         } else {
             setter(currentValue + `\n${prefix}text${suffix}`);
         }
     };
 
-    const insertTemplate = (target: 'yesterday' | 'today') => {
-        if (target === 'yesterday') {
+    const insertTemplate = (target: "yesterday" | "today") => {
+        if (target === "yesterday") {
             setYesterday((prev) => {
                 const template = "- Completed:\n- Blockers:\n- Notes:";
                 return prev.trim().length === 0 ? template : `${prev}\n\n${template}`;
@@ -177,9 +202,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
     };
 
     const copyYesterdayToToday = () => {
-        if (!yesterday.trim()) {
-            return;
-        }
+        if (!yesterday.trim()) return;
         setToday((prev) => (prev.trim().length > 0 ? `${prev}\n\n${yesterday}` : yesterday));
     };
 
@@ -206,7 +229,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
             localStorage.setItem(ENERGY_STORAGE_KEY, JSON.stringify(parsed));
             window.dispatchEvent(new CustomEvent("devJournal:energyTagUpdated"));
         } catch {
-            // ignore malformed local storage and continue
+            // ignore
         }
     };
 
@@ -218,7 +241,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                 setYesterday("");
                 setToday("");
                 setConfirmDeleteOpen(false);
-                notify("Journal entry deleted.", "info");
+                notify(t("Journal entry deleted."), "info");
             },
         });
     };
@@ -228,295 +251,235 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
     const totalWords = yesterdayWords + todayWords;
 
     const isToday = format(new Date(), "yyyy-MM-dd") === date;
-    const displayDate = isToday ? "Today" : format(parseISO(date), "MMMM d, yyyy");
+    const displayDate = isToday ? t("Today") : format(parseISO(date), "MMMM d, yyyy");
     const isDark = muiTheme.palette.mode === "dark";
-    const toolbarButtonSx = {
+
+    const glassSx = {
+        borderRadius: 3.5,
+        border: "1px solid",
+        borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
+        bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
+        backdropFilter: "blur(20px) saturate(1.4)",
+        WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+        boxShadow: isDark
+            ? "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)"
+            : "0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.60)",
+    };
+
+    const toolbarBtnSx = {
         color: "text.secondary",
-        borderRadius: 2,
+        borderRadius: 1.5,
+        width: 32,
+        height: 32,
+        transition: "all 0.2s ease",
         "&:hover": {
             color: "text.primary",
             bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
         },
     };
 
-    if (isLoading) return (
-        <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
-            <Typography variant="h6" color="text.secondary">Loading journal entry...</Typography>
-        </Box>
-    );
+    if (isLoading)
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
+                <Typography variant="h6" color="text.secondary">
+                    {t("Loading...")}
+                </Typography>
+            </Box>
+        );
+
+    const statusParts: string[] = [];
+    if (entry) statusParts.push(t("Saved"));
+    if (draftRestoredAt) statusParts.push(`${t("Draft")} ${formatDraftTime(draftRestoredAt)}`);
+    if (autosaveEnabled) statusParts.push(t("Autosave on"));
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-        >
-            <Box sx={{ maxWidth: 900, mx: "auto" }}>
-                <Box display="flex" justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} mb={2} flexDirection={{ xs: "column", md: "row" }} gap={2}>
-                    <Typography
-                        variant="h4"
-                        sx={{
-                            color: "text.primary",
-                            fontWeight: 700,
-                            letterSpacing: "-0.02em",
-                            fontSize: { xs: "2rem", md: "2.35rem" },
-                        }}
-                    >
-                        {displayDate}
-                    </Typography>
-
-                    <Paper
-                        elevation={0}
-                        sx={{
-                            display: 'flex',
-                            gap: 0.5,
-                            p: 0.5,
-                            borderRadius: 3,
-                            bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
-                            backdropFilter: "blur(16px)",
-                            WebkitBackdropFilter: "blur(16px)",
-                            border: '1px solid',
-                            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
-                            flexWrap: 'wrap',
-                        }}
-                    >
-                        <Tooltip title="Bold">
-                            <IconButton size="small" onClick={() => insertFormat('**', '**')} sx={toolbarButtonSx}>
-                                <FormatBoldIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Italic">
-                            <IconButton size="small" onClick={() => insertFormat('*', '*')} sx={toolbarButtonSx}>
-                                <FormatItalicIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Code">
-                            <IconButton size="small" onClick={() => insertFormat('`', '`')} sx={toolbarButtonSx}>
-                                <CodeIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Bullet List">
-                            <IconButton size="small" onClick={() => insertFormat('- ', '')} sx={toolbarButtonSx}>
-                                <FormatListBulletedIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Copy yesterday to today">
-                            <IconButton size="small" onClick={copyYesterdayToToday} sx={toolbarButtonSx}>
-                                <ContentCopyIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                    </Paper>
-                </Box>
-
-                <Box sx={{ mb: 2, maxWidth: 360 }}>
-                    <TextField
-                        select
-                        size="small"
-                        label={t("Project")}
-                        value={projectId === "" ? "" : String(projectId)}
-                        onChange={(event) => {
-                            const nextValue = event.target.value;
-                            setProjectId(nextValue === "" ? "" : Number(nextValue));
-                        }}
-                        fullWidth
-                        SelectProps={{ native: true }}
-                    >
-                        <option value="">{t("No project")}</option>
-                        {projects.map((project) => (
-                            <option key={project.id} value={project.id}>
-                                {project.name}
-                            </option>
-                        ))}
-                    </TextField>
-                </Box>
-
-                <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                    <Chip label={`Words: ${totalWords}`} size="small" variant="outlined" />
-                    <Chip label={`Yesterday: ${yesterdayWords}`} size="small" variant="outlined" />
-                    <Chip label={`Today: ${todayWords}`} size="small" variant="outlined" />
-                    <Chip label={autosaveEnabled ? 'Autosave on' : 'Autosave off'} size="small" color={autosaveEnabled ? 'success' : 'default'} variant="outlined" />
-                    <Chip label="Ctrl/Cmd+S to save" size="small" variant="outlined" />
-                    {entry ? <Chip label="Saved in DB" size="small" color="success" variant="outlined" /> : null}
-                    {draftRestoredAt ? (
-                        <Chip label={`Draft restored: ${formatDraftTime(draftRestoredAt)}`} size="small" color="info" variant="outlined" />
-                    ) : null}
-                </Box>
-
-                <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
-                    <Chip
-                        label="Focused"
-                        clickable
-                        color={energyTag === "focused" ? "success" : "default"}
-                        variant={energyTag === "focused" ? "filled" : "outlined"}
-                        onClick={() => handleEnergyTagToggle("focused")}
-                    />
-                    <Chip
-                        label="Deep Work"
-                        clickable
-                        color={energyTag === "deep_work" ? "primary" : "default"}
-                        variant={energyTag === "deep_work" ? "filled" : "outlined"}
-                        onClick={() => handleEnergyTagToggle("deep_work")}
-                    />
-                    <Chip
-                        label="Tired"
-                        clickable
-                        color={energyTag === "tired" ? "warning" : "default"}
-                        variant={energyTag === "tired" ? "filled" : "outlined"}
-                        onClick={() => handleEnergyTagToggle("tired")}
-                    />
-                    <Chip
-                        label="Distracted"
-                        clickable
-                        color={energyTag === "distracted" ? "error" : "default"}
-                        variant={energyTag === "distracted" ? "filled" : "outlined"}
-                        onClick={() => handleEnergyTagToggle("distracted")}
-                    />
-                </Box>
-
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
-                    <Paper
-                        variant="outlined"
-                        sx={{
-                            flex: 1,
-                            p: { xs: 2, md: 2.5 },
-                            borderRadius: 3,
-                            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
-                            bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.40)",
-                            backdropFilter: "blur(16px)",
-                            WebkitBackdropFilter: "blur(16px)",
-                        }}
-                    >
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.primary' }}>
-                                <span style={{ fontSize: '1.2em' }}>⏮</span> Yesterday
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }}>
+            <Box sx={{ maxWidth: 860, mx: "auto", mt: { xs: 0.5, md: 1 }, pb: 3 }}>
+                {/* ── Header card ── */}
+                <Box sx={{ ...glassSx, p: { xs: 2, sm: 2.5 }, mb: { xs: 1.5, md: 2 } }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+                        <Box>
+                            <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: "-0.02em" }}>
+                                {displayDate}
                             </Typography>
-                            <Button size="small" variant="text" onClick={() => insertTemplate('yesterday')}>Template</Button>
-                        </Box>
-                        <TextField
-                            multiline
-                            rows={10}
-                            fullWidth
-                            value={yesterday}
-                            onFocus={() => setLastFocused('yesterday')}
-                            onChange={(e) => setYesterday(e.target.value)}
-                            placeholder="What did you achieve? Any blockers?"
-                            sx={{ mt: 1 }}
-                        />
-                        <AnimatePresence>
-                            {previewEnabled && yesterday.length > 0 && (
-                                <Box component={motion.div} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                                    <Paper sx={{ mt: 2, p: 2, minHeight: 60, bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", borderRadius: 2.5 }} variant="outlined">
-                                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, mb: 1, display: 'block' }}>Preview</Typography>
-                                        <Markdown>{yesterday}</Markdown>
-                                    </Paper>
-                                </Box>
-                            )}
-                        </AnimatePresence>
-                    </Paper>
-
-                    <Paper
-                        variant="outlined"
-                        sx={{
-                            flex: 1,
-                            p: { xs: 2, md: 2.5 },
-                            borderRadius: 3,
-                            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
-                            bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.40)",
-                            backdropFilter: "blur(16px)",
-                            WebkitBackdropFilter: "blur(16px)",
-                        }}
-                    >
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.primary' }}>
-                                <span style={{ fontSize: '1.2em' }}>🎯</span> Today
+                            <Typography variant="caption" color="text.secondary">
+                                {totalWords} {t("words")} · {statusParts.join(" · ")}
                             </Typography>
-                            <Button size="small" variant="text" onClick={() => insertTemplate('today')}>Template</Button>
                         </Box>
-                        <TextField
-                            multiline
-                            rows={10}
-                            fullWidth
-                            value={today}
-                            onFocus={() => setLastFocused('today')}
-                            onChange={(e) => setToday(e.target.value)}
-                            placeholder="What's the main focus for today?"
-                            sx={{ mt: 1 }}
-                        />
-                        <AnimatePresence>
-                            {previewEnabled && today.length > 0 && (
-                                <Box component={motion.div} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                                    <Paper sx={{ mt: 2, p: 2, minHeight: 60, bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", borderRadius: 2.5 }} variant="outlined">
-                                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, mb: 1, display: 'block' }}>Preview</Typography>
-                                        <Markdown>{today}</Markdown>
-                                    </Paper>
-                                </Box>
-                            )}
-                        </AnimatePresence>
-                    </Paper>
-                </Box>
-
-                <Box
-                    sx={{
-                        mt: 3,
-                        display: 'flex',
-                        flexDirection: { xs: 'column', md: 'row' },
-                        justifyContent: 'space-between',
-                        alignItems: { xs: 'stretch', md: 'center' },
-                        gap: 1.5,
-                    }}
-                >
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', order: { xs: 2, md: 1 } }}>
-                        <Button
-                            variant="text"
-                            color="inherit"
-                            size="small"
-                            startIcon={<RestartAltIcon />}
-                            onClick={clearDraft}
-                        >
-                            Reset Draft
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            color="error"
-                            size="small"
-                            startIcon={<DeleteOutlineIcon />}
-                            disabled={!entry || deleteMutation.isPending}
-                            onClick={() => setConfirmDeleteOpen(true)}
-                        >
-                            Delete Day Entry
-                        </Button>
+                        <Box sx={{ display: "flex", gap: 0.75, alignItems: "center" }}>
+                            {/* Formatting toolbar inline */}
+                            <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 0.25, mr: 0.5 }}>
+                                <Tooltip title={t("Bold")}>
+                                    <IconButton size="small" onClick={() => insertFormat("**", "**")} sx={toolbarBtnSx}>
+                                        <FormatBoldIcon sx={{ fontSize: 16 }} />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title={t("Italic")}>
+                                    <IconButton size="small" onClick={() => insertFormat("*", "*")} sx={toolbarBtnSx}>
+                                        <FormatItalicIcon sx={{ fontSize: 16 }} />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title={t("Code")}>
+                                    <IconButton size="small" onClick={() => insertFormat("`", "`")} sx={toolbarBtnSx}>
+                                        <CodeIcon sx={{ fontSize: 16 }} />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title={t("Bullet list")}>
+                                    <IconButton size="small" onClick={() => insertFormat("- ", "")} sx={toolbarBtnSx}>
+                                        <FormatListBulletedIcon sx={{ fontSize: 16 }} />
+                                    </IconButton>
+                                </Tooltip>
+                            </Box>
+                            <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<SaveIcon />}
+                                onClick={handleSave}
+                                disabled={saveMutation.isPending}
+                                sx={{ px: 2 }}
+                            >
+                                {saveMutation.isPending ? t("Saving...") : t("Save")}
+                            </Button>
+                            <IconButton
+                                size="small"
+                                onClick={(e) => setMoreAnchor(e.currentTarget)}
+                                sx={{
+                                    border: "1px solid",
+                                    borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                                    borderRadius: 1.5,
+                                    width: 32,
+                                    height: 32,
+                                }}
+                            >
+                                <MoreHorizIcon fontSize="small" />
+                            </IconButton>
+                            <Menu
+                                anchorEl={moreAnchor}
+                                open={Boolean(moreAnchor)}
+                                onClose={() => setMoreAnchor(null)}
+                                transformOrigin={{ horizontal: "right", vertical: "top" }}
+                                anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+                            >
+                                <MenuItem onClick={() => { copyYesterdayToToday(); setMoreAnchor(null); }}>
+                                    <ListItemIcon><ContentCopyIcon fontSize="small" /></ListItemIcon>
+                                    <ListItemText>{t("Copy yesterday → today")}</ListItemText>
+                                </MenuItem>
+                                <MenuItem onClick={() => { clearDraft(); setMoreAnchor(null); }}>
+                                    <ListItemIcon><RestartAltIcon fontSize="small" /></ListItemIcon>
+                                    <ListItemText>{t("Reset draft")}</ListItemText>
+                                </MenuItem>
+                                <MenuItem disabled={!entry || deleteMutation.isPending} onClick={() => { setMoreAnchor(null); setConfirmDeleteOpen(true); }} sx={{ color: "error.main" }}>
+                                    <ListItemIcon><DeleteOutlineIcon fontSize="small" color="error" /></ListItemIcon>
+                                    <ListItemText>{t("Delete entry")}</ListItemText>
+                                </MenuItem>
+                            </Menu>
+                        </Box>
                     </Box>
 
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        size="large"
-                        startIcon={<SaveIcon />}
-                        onClick={handleSave}
-                        disabled={saveMutation.isPending}
-                        sx={{ px: 4, py: 1.5, minWidth: { xs: '100%', md: 220 }, order: { xs: 1, md: 2 } }}
-                    >
-                        {saveMutation.isPending ? "Saving..." : "Save Journal"}
-                    </Button>
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+                        <TextField
+                            select size="small" label={t("Project")}
+                            value={projectId === "" ? "" : String(projectId)}
+                            onChange={(e) => { const v = e.target.value; setProjectId(v === "" ? "" : Number(v)); }}
+                            fullWidth SelectProps={{ native: true }}
+                        >
+                            <option value="">{t("No project")}</option>
+                            {projects.map((project) => (
+                                <option key={project.id} value={project.id}>{project.name}</option>
+                            ))}
+                        </TextField>
+                        <TextField
+                            select size="small" label={t("Energy")}
+                            value={energyTag ?? ""}
+                            onChange={(e) => { const v = e.target.value as EnergyTag | ""; handleEnergyTagToggle(v === "" ? (energyTag ?? "focused") : v); }}
+                            fullWidth SelectProps={{ native: true }}
+                        >
+                            <option value="">{t("No tag")}</option>
+                            {ENERGY_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{t(opt.label)}</option>
+                            ))}
+                        </TextField>
+                    </Box>
+                </Box>
+
+                {/* ── Yesterday card ── */}
+                <Box sx={{ ...glassSx, p: { xs: 2, sm: 2.5 }, mb: { xs: 1.5, md: 2 } }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 0.75 }}>
+                            ⏮ {t("Yesterday")}
+                            <Chip label={`${yesterdayWords}`} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.62rem" }} />
+                        </Typography>
+                        <Tooltip title={t("Insert template")}>
+                            <IconButton size="small" onClick={() => insertTemplate("yesterday")} sx={toolbarBtnSx}>
+                                <DescriptionOutlinedIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
+                    <TextField
+                        multiline rows={5} fullWidth value={yesterday}
+                        onFocus={() => setLastFocused("yesterday")}
+                        onChange={(e) => setYesterday(e.target.value)}
+                        placeholder={t("What did you achieve? Any blockers?")}
+                    />
+                    <AnimatePresence>
+                        {previewEnabled && yesterday.length > 0 && (
+                            <Box component={motion.div} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                                <Paper sx={{ mt: 1.5, p: 1.5, minHeight: 40, bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", borderRadius: 2 }} variant="outlined">
+                                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1, mb: 0.5, display: "block", fontSize: "0.6rem" }}>
+                                        {t("Preview")}
+                                    </Typography>
+                                    <Markdown>{yesterday}</Markdown>
+                                </Paper>
+                            </Box>
+                        )}
+                    </AnimatePresence>
+                </Box>
+
+                {/* ── Today card ── */}
+                <Box sx={{ ...glassSx, p: { xs: 2, sm: 2.5 } }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 0.75 }}>
+                            🎯 {t("Today")}
+                            <Chip label={`${todayWords}`} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.62rem" }} />
+                        </Typography>
+                        <Tooltip title={t("Insert template")}>
+                            <IconButton size="small" onClick={() => insertTemplate("today")} sx={toolbarBtnSx}>
+                                <DescriptionOutlinedIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
+                    <TextField
+                        multiline rows={5} fullWidth value={today}
+                        onFocus={() => setLastFocused("today")}
+                        onChange={(e) => setToday(e.target.value)}
+                        placeholder={t("What's the main focus for today?")}
+                    />
+                    <AnimatePresence>
+                        {previewEnabled && today.length > 0 && (
+                            <Box component={motion.div} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                                <Paper sx={{ mt: 1.5, p: 1.5, minHeight: 40, bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", borderRadius: 2 }} variant="outlined">
+                                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1, mb: 0.5, display: "block", fontSize: "0.6rem" }}>
+                                        {t("Preview")}
+                                    </Typography>
+                                    <Markdown>{today}</Markdown>
+                                </Paper>
+                            </Box>
+                        )}
+                    </AnimatePresence>
                 </Box>
             </Box>
 
             <Dialog open={confirmDeleteOpen} onClose={() => setConfirmDeleteOpen(false)}>
-                <DialogTitle>Delete day entry?</DialogTitle>
+                <DialogTitle>{t("Delete entry")}</DialogTitle>
                 <DialogContent>
                     <Typography variant="body2" color="text.secondary">
-                        This will permanently delete the saved journal entry for {displayDate}.
+                        {t("This will permanently delete the saved journal entry for")} {displayDate}.
                     </Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirmDeleteOpen(false)}>Cancel</Button>
-                    <Button
-                        color="error"
-                        variant="contained"
-                        onClick={handleDeleteEntry}
-                        disabled={deleteMutation.isPending}
-                    >
-                        {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                    <Button onClick={() => setConfirmDeleteOpen(false)}>{t("Cancel")}</Button>
+                    <Button color="error" variant="contained" onClick={handleDeleteEntry} disabled={deleteMutation.isPending}>
+                        {deleteMutation.isPending ? t("Deleting...") : t("Delete")}
                     </Button>
                 </DialogActions>
             </Dialog>
