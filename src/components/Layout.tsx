@@ -41,7 +41,7 @@ import InsightsIcon from "@mui/icons-material/Insights";
 import MenuIcon from "@mui/icons-material/Menu";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
-const drawerWidth = 320;
+const drawerWidth = 290;
 
 type LayoutTab = "planner" | "journal" | "page" | "tasks" | "goals" | "habits" | "projects" | "insights" | "settings";
 
@@ -65,41 +65,50 @@ interface NavButtonProps {
 }
 
 const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: NavButtonProps) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   return (
     <ListItem disablePadding>
       <ListItemButton
         selected={selected}
         onClick={onClick}
         sx={{
-          borderRadius: 2,
+          borderRadius: 2.5,
           alignItems: "center",
-          minHeight: 54,
-          px: 1.25,
-          py: 0.75,
-          my: 0.35,
-          mx: 0.6,
+          minHeight: 48,
+          px: 1.5,
+          py: 0.65,
+          my: 0.25,
+          mx: 0.5,
           border: "1px solid",
-          borderColor: selected ? "primary.main" : "transparent",
-          backgroundColor: selected ? (theme) => alpha(theme.palette.primary.main, 0.13) : "transparent",
-          transition: "all 0.2s ease",
+          borderColor: selected
+            ? alpha(theme.palette.primary.main, 0.30)
+            : "transparent",
+          backgroundColor: selected
+            ? alpha(theme.palette.primary.main, 0.10)
+            : "transparent",
+          backdropFilter: selected ? "blur(8px)" : "none",
+          transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
           "&.Mui-selected": {
-            backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.16),
+            backgroundColor: alpha(theme.palette.primary.main, 0.12),
+            boxShadow: `0 0 16px ${alpha(theme.palette.primary.main, 0.10)}, inset 0 1px 0 ${alpha(theme.palette.primary.main, 0.08)}`,
             "&:hover": {
-              backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.22),
+              backgroundColor: alpha(theme.palette.primary.main, 0.18),
             },
           },
           "&.Mui-selected::before": {
             display: "none",
           },
           "&:hover": {
-            borderColor: "divider",
-            backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.04),
+            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
           },
         }}
       >
         <ListItemIcon
           sx={{
-            minWidth: 36,
+            minWidth: 34,
             color: selected ? "primary.main" : "text.secondary",
             transition: "color 0.2s ease",
           }}
@@ -110,13 +119,14 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
           primary={primary}
           secondary={secondary}
           primaryTypographyProps={{
-            fontWeight: selected ? 700 : 600,
-            fontSize: "0.9rem",
+            fontWeight: selected ? 650 : 500,
+            fontSize: "0.86rem",
             lineHeight: 1.2,
           }}
           secondaryTypographyProps={{
-            fontSize: "0.72rem",
+            fontSize: "0.68rem",
             color: "text.secondary",
+            lineHeight: 1.2,
           }}
         />
         {badge}
@@ -137,6 +147,7 @@ export const Layout = ({
   const muiTheme = useTheme();
   const { language, setLanguage, t } = useI18n();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const isDark = muiTheme.palette.mode === "dark";
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -187,28 +198,58 @@ export const Layout = ({
     }
   };
 
+  const sectionBoxSx = {
+    borderRadius: 3,
+    border: "1px solid",
+    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.60)",
+    mb: 1.5,
+    overflow: "hidden",
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
+    backdropFilter: "blur(8px)",
+  };
+
+  const sectionHeaderSx = {
+    px: 1.5,
+    py: 0.9,
+    borderBottom: "1px solid",
+    borderColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+  };
+
   const drawerContent = (
     <>
       <Toolbar sx={{ minHeight: { xs: 68, md: 72 } }} />
-      <Box sx={{ px: 2, pb: 1.5, overflowY: "auto", overflowX: "hidden" }}>
+      <Box sx={{ px: 1.5, pb: 1.5, overflowY: "auto", overflowX: "hidden", flex: 1 }}>
+        {/* Overview stats card */}
         <Box
           sx={{
             px: 2,
             py: 1.5,
             mb: 1.5,
-            borderRadius: 2.5,
+            borderRadius: 3,
             border: "1px solid",
-            borderColor: "divider",
-            backgroundColor: (theme) => alpha(theme.palette.background.paper, 0.45),
+            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.60)",
+            backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.35)",
+            backdropFilter: "blur(12px)",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-            <EditNoteIcon sx={{ color: "primary.main", fontSize: 20 }} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                display: "grid",
+                placeItems: "center",
+                borderRadius: 1.5,
+                background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
+              }}
+            >
+              <EditNoteIcon sx={{ color: isDark ? "#0a0a0a" : "#ffffff", fontSize: 16 }} />
+            </Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: "0.9rem" }}>
               {t("Dev Journal")}
             </Typography>
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.78rem" }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.75rem", lineHeight: 1.4 }}>
             {t("Daily command center for journal, tasks, goals, and habits.")}
           </Typography>
 
@@ -216,7 +257,7 @@ export const Layout = ({
             sx={{
               display: "grid",
               gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 1,
+              gap: 0.8,
               mt: 1.25,
             }}
           >
@@ -224,23 +265,24 @@ export const Layout = ({
               <Box
                 key={stat.label}
                 sx={{
-                  borderRadius: 1.5,
+                  borderRadius: 2,
                   border: "1px solid",
-                  borderColor: "divider",
+                  borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
                   px: 1,
-                  py: 0.8,
+                  py: 0.7,
                   minWidth: 0,
-                  backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.03),
+                  backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
+                  backdropFilter: "blur(8px)",
                 }}
               >
                 <Typography
                   variant="caption"
                   color="text.secondary"
-                  sx={{ display: "block", lineHeight: 1.1, fontSize: "0.66rem", letterSpacing: "0.04em" }}
+                  sx={{ display: "block", lineHeight: 1.1, fontSize: "0.64rem", letterSpacing: "0.04em" }}
                 >
                   {stat.label}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.35, fontSize: "0.88rem" }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.3, fontSize: "0.88rem" }}>
                   {stat.value}
                 </Typography>
               </Box>
@@ -248,17 +290,10 @@ export const Layout = ({
           </Box>
         </Box>
 
-        <Box
-          sx={{
-            borderRadius: 2.5,
-            border: "1px solid",
-            borderColor: "divider",
-            mb: 1.5,
-            overflow: "hidden",
-          }}
-        >
-          <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
-            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.12em", fontSize: "0.62rem" }}>
+        {/* Overview */}
+        <Box sx={sectionBoxSx}>
+          <Box sx={sectionHeaderSx}>
+            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.12em", fontSize: "0.60rem" }}>
               {t("Overview")}
             </Typography>
           </Box>
@@ -276,17 +311,10 @@ export const Layout = ({
           </List>
         </Box>
 
-        <Box
-          sx={{
-            borderRadius: 2.5,
-            border: "1px solid",
-            borderColor: "divider",
-            mb: 1.5,
-            overflow: "hidden",
-          }}
-        >
-          <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
-            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.12em", fontSize: "0.62rem" }}>
+        {/* Daily Journal */}
+        <Box sx={sectionBoxSx}>
+          <Box sx={sectionHeaderSx}>
+            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.12em", fontSize: "0.60rem" }}>
               {t("Daily Journal")}
             </Typography>
           </Box>
@@ -304,9 +332,9 @@ export const Layout = ({
               secondary={t("Current daily report")}
               badge={
                 todayEntryExists ? (
-                  <Chip label={t("Done")} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: "0.65rem" }} />
+                  <Chip label={t("Done")} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: "0.63rem" }} />
                 ) : (
-                  <Chip label={t("Missing")} size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: "0.65rem" }} />
+                  <Chip label={t("Missing")} size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: "0.63rem" }} />
                 )
               }
             />
@@ -328,17 +356,10 @@ export const Layout = ({
           </List>
         </Box>
 
-        <Box
-          sx={{
-            borderRadius: 2.5,
-            border: "1px solid",
-            borderColor: "divider",
-            mb: 1.5,
-            overflow: "hidden",
-          }}
-        >
-          <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
-            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.12em", fontSize: "0.62rem" }}>
+        {/* Management */}
+        <Box sx={sectionBoxSx}>
+          <Box sx={sectionHeaderSx}>
+            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.12em", fontSize: "0.60rem" }}>
               {t("Management")}
             </Typography>
           </Box>
@@ -352,7 +373,7 @@ export const Layout = ({
               icon={<TaskAltIcon fontSize="small" />}
               primary={t("Tasks")}
               secondary={t("Execution board")}
-              badge={<Chip label={openTasksCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.68rem" }} />}
+              badge={<Chip label={openTasksCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
               selected={activeTab === "goals"}
@@ -363,7 +384,7 @@ export const Layout = ({
               icon={<FlagIcon fontSize="small" />}
               primary={t("Goals")}
               secondary={t("Milestones")}
-              badge={<Chip label={activeGoalsCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.68rem" }} />}
+              badge={<Chip label={activeGoalsCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
               selected={activeTab === "habits"}
@@ -374,7 +395,7 @@ export const Layout = ({
               icon={<RepeatIcon fontSize="small" />}
               primary={t("Habits")}
               secondary={t("Daily consistency")}
-              badge={<Chip label={`${completedHabitsToday}/${totalHabits}`} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.68rem" }} />}
+              badge={<Chip label={`${completedHabitsToday}/${totalHabits}`} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
               selected={activeTab === "projects"}
@@ -385,7 +406,7 @@ export const Layout = ({
               icon={<FolderOpenIcon fontSize="small" />}
               primary={t("Projects")}
               secondary={t("Cross-functional scope")}
-              badge={<Chip label={activeProjectsCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.68rem" }} />}
+              badge={<Chip label={activeProjectsCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
               selected={activeTab === "insights"}
@@ -400,26 +421,17 @@ export const Layout = ({
           </List>
         </Box>
 
-        <Box
-          sx={{
-            borderRadius: 2.5,
-            border: "1px solid",
-            borderColor: "divider",
-            overflow: "hidden",
-          }}
-        >
+        {/* Pages */}
+        <Box sx={sectionBoxSx}>
           <Box
             sx={{
-              px: 1.5,
-              py: 1,
-              borderBottom: "1px solid",
-              borderColor: "divider",
+              ...sectionHeaderSx,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
             }}
           >
-            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.12em", fontSize: "0.62rem" }}>
+            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.12em", fontSize: "0.60rem" }}>
               {t("Pages")}
             </Typography>
             <IconButton
@@ -431,13 +443,19 @@ export const Layout = ({
               }}
               sx={{
                 color: "text.secondary",
+                width: 26,
+                height: 26,
                 border: "1px solid",
-                borderColor: "divider",
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
                 borderRadius: 1.5,
-                "&:hover": { color: "primary.main", bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12) },
+                "&:hover": {
+                  color: "primary.main",
+                  bgcolor: alpha(muiTheme.palette.primary.main, 0.10),
+                  borderColor: alpha(muiTheme.palette.primary.main, 0.25),
+                },
               }}
             >
-              <AddIcon fontSize="small" />
+              <AddIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Box>
           <List disablePadding sx={{ py: 0.5 }}>
@@ -475,13 +493,13 @@ export const Layout = ({
         sx={{
           p: 1.5,
           borderTop: "1px solid",
-          borderColor: "divider",
+          borderColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.72rem" }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.70rem" }}>
           {t("Settings & Theme")}
         </Typography>
         <IconButton
@@ -489,9 +507,21 @@ export const Layout = ({
             onTabChange("settings");
             closeMobileDrawer();
           }}
-          sx={{ color: "text.secondary", border: "1px solid", borderColor: "divider" }}
+          size="small"
+          sx={{
+            color: "text.secondary",
+            border: "1px solid",
+            borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            borderRadius: 2,
+            width: 32,
+            height: 32,
+            "&:hover": {
+              borderColor: alpha(muiTheme.palette.primary.main, 0.25),
+              bgcolor: alpha(muiTheme.palette.primary.main, 0.08),
+            },
+          }}
         >
-          <SettingsIcon fontSize="small" />
+          <SettingsIcon sx={{ fontSize: 18 }} />
         </IconButton>
       </Box>
     </>
@@ -503,8 +533,6 @@ export const Layout = ({
         position="fixed"
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          borderBottom: "1px solid",
-          borderColor: "divider",
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 68, md: 72 }, gap: 1 }}>
@@ -517,17 +545,16 @@ export const Layout = ({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, minWidth: 0, flexShrink: 1 }}>
             <Box
               sx={{
-                width: 34,
-                height: 34,
+                width: 36,
+                height: 36,
                 display: "grid",
                 placeItems: "center",
                 borderRadius: 2,
-                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.2),
-                border: "1px solid",
-                borderColor: (theme) => alpha(theme.palette.primary.main, 0.45),
+                background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
+                boxShadow: `0 4px 12px ${alpha(muiTheme.palette.primary.main, 0.30)}`,
               }}
             >
-              <EditNoteIcon sx={{ color: "primary.main", fontSize: 19 }} />
+              <EditNoteIcon sx={{ color: isDark ? "#0a0a0a" : "#ffffff", fontSize: 20 }} />
             </Box>
             <Box sx={{ minWidth: 0 }}>
               <Typography
@@ -542,7 +569,7 @@ export const Layout = ({
               >
                 {t("Dev Journal")}
               </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: "0.7rem" }}>
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: "0.68rem" }}>
                 {t("View: {tab}", { tab: activeTabLabel[activeTab] })}
               </Typography>
             </Box>
@@ -553,16 +580,22 @@ export const Layout = ({
           <Box
             sx={{
               position: "relative",
-              borderRadius: 2,
-              backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.05),
+              borderRadius: 2.5,
+              backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+              backdropFilter: "blur(8px)",
               "&:hover": {
-                backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.09),
+                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
               },
               width: { xs: "100%", sm: 320, md: 360 },
               maxWidth: { xs: 180, sm: 360 },
               border: "1px solid",
-              borderColor: "divider",
+              borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
               mr: 1,
+              transition: "all 0.2s ease",
+              "&:focus-within": {
+                borderColor: alpha(muiTheme.palette.primary.main, 0.40),
+                boxShadow: `0 0 0 3px ${alpha(muiTheme.palette.primary.main, 0.10)}`,
+              },
             }}
           >
             <Box sx={{ px: 1.5, height: "100%", position: "absolute", pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -576,11 +609,11 @@ export const Layout = ({
                 color: "text.primary",
                 width: "100%",
                 "& .MuiInputBase-input": {
-                  py: 1,
+                  py: 0.9,
                   px: 1,
                   pl: "38px",
                   width: "100%",
-                  fontSize: "0.88rem",
+                  fontSize: "0.86rem",
                   "&::placeholder": {
                     color: muiTheme.palette.text.secondary,
                     opacity: 1,
@@ -619,7 +652,8 @@ export const Layout = ({
           keepMounted: true,
           BackdropProps: {
             sx: {
-              backgroundColor: alpha(muiTheme.palette.common.black, 0.35),
+              backgroundColor: isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.20)",
+              backdropFilter: "blur(4px)",
             },
           },
         }}
@@ -629,11 +663,7 @@ export const Layout = ({
           ["& .MuiDrawer-paper"]: {
             width: drawerWidth,
             boxSizing: "border-box",
-            borderRight: "1px solid",
-            borderColor: "divider",
-            backgroundColor: "background.paper",
             backgroundImage: "none",
-            backdropFilter: "blur(14px)",
             display: "flex",
             flexDirection: "column",
           },
@@ -658,8 +688,9 @@ export const Layout = ({
             position: "absolute",
             inset: 0,
             pointerEvents: "none",
-            background:
-              "radial-gradient(circle at 12% 10%, rgba(255,255,255,0.04), transparent 28%), radial-gradient(circle at 95% 0%, rgba(255,255,255,0.03), transparent 22%)",
+            background: isDark
+              ? "radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.02), transparent 40%), radial-gradient(ellipse at 90% 5%, rgba(255,255,255,0.015), transparent 35%)"
+              : "radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.30), transparent 40%), radial-gradient(ellipse at 90% 5%, rgba(255,255,255,0.20), transparent 35%)",
           }}
         />
         <Box sx={{ position: "relative", zIndex: 1 }}>{children}</Box>

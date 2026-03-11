@@ -24,7 +24,7 @@ import { useGoals } from "../hooks/useGoals";
 import { useProjects } from "../hooks/useProjects";
 import { useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
 import { motion } from "framer-motion";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import CodeIcon from '@mui/icons-material/Code';
@@ -404,11 +404,13 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         return map;
     }, [goals]);
     const pagePreviewBlocks = useMemo(() => splitPageContent(content), [content]);
+    const isDark = muiTheme.palette.mode === "dark";
     const toolbarButtonSx = {
         color: "text.secondary",
+        borderRadius: 2,
         "&:hover": {
             color: "text.primary",
-            bgcolor: alpha(muiTheme.palette.primary.main, 0.12),
+            bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
         },
     };
 
@@ -523,8 +525,9 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                             p: 0.5,
                             borderRadius: 3,
                             border: "1px solid",
-                            borderColor: "divider",
-                            bgcolor: alpha(muiTheme.palette.background.paper, 0.94),
+                            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
+                            bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+                            backdropFilter: "blur(16px)",
                             alignSelf: { xs: "flex-end", md: "auto" },
                         }}
                     >
@@ -585,10 +588,13 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                     sx={{
                         flex: 1,
                         borderRadius: 4,
-                        borderColor: "divider",
+                        borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
                         overflow: "hidden",
-                        bgcolor: alpha(muiTheme.palette.background.paper, 0.9),
-                        boxShadow: `0 24px 64px ${alpha(muiTheme.palette.common.black, 0.08)}`,
+                        bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.45)",
+                        backdropFilter: "blur(24px) saturate(1.3)",
+                        boxShadow: isDark
+                            ? "0 24px 64px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.03)"
+                            : "0 24px 64px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.70)",
                     }}
                 >
                     <Box

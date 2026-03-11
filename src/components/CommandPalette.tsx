@@ -107,7 +107,7 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogContent sx={{ p: 2 }} onKeyDown={handleKeyDown}>
+      <DialogContent sx={{ p: 2.5 }} onKeyDown={handleKeyDown}>
         <TextField
           autoFocus
           fullWidth
@@ -136,7 +136,17 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
               key={action.id}
               selected={index === selectedIndex}
               onClick={() => executeAction(index)}
-              sx={{ borderRadius: 1.5, mb: 0.5 }}
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                transition: "all 0.15s ease",
+                "&.Mui-selected": {
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.06)"
+                      : "rgba(0,0,0,0.04)",
+                },
+              }}
             >
               <ListItemText
                 primary={action.title}

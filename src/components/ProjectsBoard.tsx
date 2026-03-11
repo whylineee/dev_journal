@@ -367,7 +367,7 @@ export const ProjectsBoard = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 1 }}>
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
@@ -447,7 +447,27 @@ export const ProjectsBoard = () => {
           const workspaceMeetings = projectMeetingsMap.get(project.id) ?? [];
 
           return (
-            <Paper key={project.id} variant="outlined" sx={{ p: 2 }}>
+            <Paper key={project.id} variant="outlined" sx={{
+              p: 2,
+              borderRadius: 3,
+              borderColor: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "rgba(255,255,255,0.06)"
+                  : "rgba(255,255,255,0.45)",
+              bgcolor: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "rgba(255,255,255,0.02)"
+                  : "rgba(255,255,255,0.40)",
+              backdropFilter: "blur(12px)",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                transform: "translateY(-1px)",
+                boxShadow: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "0 4px 16px rgba(0,0,0,0.30)"
+                    : "0 4px 16px rgba(0,0,0,0.06)",
+              },
+            }}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", gap: 1 }}>

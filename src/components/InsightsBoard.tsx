@@ -610,7 +610,7 @@ export const InsightsBoard = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 1, display: "grid", gap: 2 }}>
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
           <LibraryBooksIcon color="primary" />
           <Typography variant="h5" sx={{ fontWeight: 700 }}>
@@ -632,7 +632,7 @@ export const InsightsBoard = () => {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
           {t("Weekly Retro Report")}
         </Typography>
@@ -680,7 +680,7 @@ export const InsightsBoard = () => {
         ) : null}
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
           {t("Quick Capture")}
         </Typography>
@@ -756,7 +756,7 @@ export const InsightsBoard = () => {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
           {t("Mini ADR Log")}
         </Typography>
@@ -864,7 +864,7 @@ export const InsightsBoard = () => {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
           {t("Debug Mode")}
         </Typography>
@@ -960,7 +960,7 @@ export const InsightsBoard = () => {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
           {t("What Broke Log")}
         </Typography>

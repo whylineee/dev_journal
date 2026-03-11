@@ -151,7 +151,7 @@ export const SettingsScreen = ({
 
   return (
     <Box sx={{ maxWidth: 980, mx: "auto", mt: 1 }}>
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>
           {t("Settings")}
         </Typography>
@@ -183,13 +183,30 @@ export const SettingsScreen = ({
                 key={preset.id}
                 onClick={() => setThemePreset(preset.id)}
                 sx={{
-                  borderRadius: 2,
+                  borderRadius: 2.5,
                   p: 1.25,
                   border: active ? "2px solid" : "1px solid",
-                  borderColor: active ? "primary.main" : "divider",
+                  borderColor: (theme) =>
+                    active
+                      ? "primary.main"
+                      : theme.palette.mode === "dark"
+                        ? "rgba(255,255,255,0.06)"
+                        : "rgba(255,255,255,0.45)",
+                  bgcolor: (theme) =>
+                    active
+                      ? `${theme.palette.primary.main}10`
+                      : theme.palette.mode === "dark"
+                        ? "rgba(255,255,255,0.02)"
+                        : "rgba(255,255,255,0.35)",
+                  backdropFilter: "blur(8px)",
                   cursor: "pointer",
-                  transition: "all 0.2s",
-                  "&:hover": { borderColor: "primary.main" },
+                  transition: "all 0.25s ease",
+                  "&:hover": {
+                    borderColor: "primary.main",
+                    transform: "translateY(-1px)",
+                    boxShadow: (theme) =>
+                      `0 4px 16px ${theme.palette.primary.main}15`,
+                  },
                 }}
               >
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>

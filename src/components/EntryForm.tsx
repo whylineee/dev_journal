@@ -6,7 +6,7 @@ import { useProjects } from "../hooks/useProjects";
 import { useI18n } from "../i18n/I18nContext";
 import { format, parseISO } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import CodeIcon from '@mui/icons-material/Code';
@@ -229,11 +229,13 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
 
     const isToday = format(new Date(), "yyyy-MM-dd") === date;
     const displayDate = isToday ? "Today" : format(parseISO(date), "MMMM d, yyyy");
+    const isDark = muiTheme.palette.mode === "dark";
     const toolbarButtonSx = {
         color: "text.secondary",
+        borderRadius: 2,
         "&:hover": {
             color: "text.primary",
-            bgcolor: alpha(muiTheme.palette.primary.main, 0.12),
+            bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
         },
     };
 
@@ -270,9 +272,10 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                             gap: 0.5,
                             p: 0.5,
                             borderRadius: 3,
-                            bgcolor: alpha(muiTheme.palette.background.paper, 0.94),
+                            bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+                            backdropFilter: "blur(16px)",
                             border: '1px solid',
-                            borderColor: 'divider',
+                            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
                             flexWrap: 'wrap',
                         }}
                     >
@@ -375,8 +378,10 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                         sx={{
                             flex: 1,
                             p: { xs: 2, md: 2.5 },
-                            borderColor: 'divider',
-                            bgcolor: alpha(muiTheme.palette.background.paper, 0.72),
+                            borderRadius: 3,
+                            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
+                            bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.40)",
+                            backdropFilter: "blur(16px)",
                         }}
                     >
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
@@ -398,7 +403,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                         <AnimatePresence>
                             {previewEnabled && yesterday.length > 0 && (
                                 <Box component={motion.div} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                                    <Paper sx={{ mt: 2, p: 2, minHeight: 60, bgcolor: 'action.hover', borderRadius: 2 }} variant="outlined">
+                                    <Paper sx={{ mt: 2, p: 2, minHeight: 60, bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", borderRadius: 2.5 }} variant="outlined">
                                         <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, mb: 1, display: 'block' }}>Preview</Typography>
                                         <Markdown>{yesterday}</Markdown>
                                     </Paper>
@@ -412,8 +417,10 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                         sx={{
                             flex: 1,
                             p: { xs: 2, md: 2.5 },
-                            borderColor: 'divider',
-                            bgcolor: alpha(muiTheme.palette.background.paper, 0.72),
+                            borderRadius: 3,
+                            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
+                            bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.40)",
+                            backdropFilter: "blur(16px)",
                         }}
                     >
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
@@ -435,7 +442,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                         <AnimatePresence>
                             {previewEnabled && today.length > 0 && (
                                 <Box component={motion.div} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                                    <Paper sx={{ mt: 2, p: 2, minHeight: 60, bgcolor: 'action.hover', borderRadius: 2 }} variant="outlined">
+                                    <Paper sx={{ mt: 2, p: 2, minHeight: 60, bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", borderRadius: 2.5 }} variant="outlined">
                                         <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, mb: 1, display: 'block' }}>Preview</Typography>
                                         <Markdown>{today}</Markdown>
                                     </Paper>
