@@ -1,6 +1,6 @@
 # Dev Journal Agent Guide
 
-Last updated: 2026-03-05
+Last updated: 2026-03-11
 
 This file is the project-level source of truth for AI agents and contributors working in this repository.
 
@@ -320,6 +320,30 @@ Key facts:
 - current `AppearanceMode` is `dark | light`
 - there is no persistent `system` mode toggle; system preference is only the initial fallback and reset target
 
+### Glassmorphism Design System (branch: `redesign/glassmorphism`)
+
+The app uses a glassmorphism visual language across all surfaces:
+
+- **Glass panels**: all MUI Paper, Card, Drawer, AppBar, Dialog, Menu, Popover, and Tooltip components use semi-transparent backgrounds (`rgba`) with `backdrop-filter: blur()` and `saturate()`
+- **Multi-layer shadows**: `box-shadow` values combine outer shadow + inner highlight (`inset 0 1px 0 ...`) for depth
+- **Glass borders**: light-mode uses `rgba(255,255,255,0.45)` borders; dark-mode uses `rgba(255,255,255,0.08)` borders
+- **Mesh gradients**: `bodyGradient` in each preset uses 3-layer `radial-gradient(ellipse ...)` patterns
+- **Preset palettes**: `backgroundPaper` values are `rgba()` rather than hex to enable transparency
+- **Blur hierarchy**: Drawer 40px > AppBar/Dialog 32-40px > Paper 24px > Cards/inner 12-16px > Buttons/Chips 8px
+- **`WebkitBackdropFilter`** is always set alongside `backdropFilter` for Safari compatibility
+- **Gradient buttons**: `containedPrimary` uses `linear-gradient(135deg, primary, secondary)` with a white-border highlight
+- **Hover animations**: cards and list items use `translateY(-1px)` on hover for lift effect
+- **Scrollbars**: thin (6px) with transparent tracks and semi-transparent thumbs
+- **Selection color**: theme-aware `::selection` via MuiCssBaseline overrides
+- **Helper functions**: `glassLight(opacity)` and `glassDark(opacity)` in ThemeContext.tsx generate rgba values
+
+Component-level glass conventions:
+- `Layout.tsx` sidebar sections use shared `sectionBoxSx` and `sectionHeaderSx` objects for consistent glass sectioning
+- `PlannerBoard.tsx` uses a shared `plannerCardSx` object with glass props for all section cards
+- `EntryForm.tsx` and `PageEditor.tsx` toolbars use frosted glass Paper with reduced blur
+- Board item cards (Goals, Habits, Projects, Tasks) use glass bg + hover lift + subtle shadow on hover
+- All board header Papers use `borderRadius: 3.5` for consistent rounding
+
 ## Search, Notifications, and Local State
 
 ### Search
@@ -406,14 +430,17 @@ Before finishing work:
 
 The app is moving toward:
 - desktop-first productivity UI
-- cleaner editor/productivity styling
+- glassmorphism aesthetic with translucent panels, blur effects, and soft shadows
 - Notion-inspired page experience
 - richer workspace-driven planning
+- Apple-style visual polish with gradient accents and glass surfaces
 
 Avoid:
 - breaking existing functionality during redesign
 - describing partially implemented features as complete integrations
-- introducing visual changes that fight the existing theme/token system
+- introducing visual changes that fight the glassmorphism design system
+- using opaque backgrounds on surfaces that should be glass (use rgba + backdrop-filter instead)
+- adding hard borders; prefer subtle rgba borders consistent with the glass conventions
 
 ## Known Technical Debt / Follow-ups
 
@@ -425,7 +452,7 @@ Avoid:
 
 ## Recently Added Major Features
 
-As of 2026-03-05, the app already includes these recent additions:
+As of 2026-03-11, the app already includes these recent additions:
 - task card opening/editing flow
 - task subtasks
 - drag-and-drop task status movement
@@ -440,3 +467,4 @@ As of 2026-03-05, the app already includes these recent additions:
 - weekly review
 - focus session tracking
 - goal milestones
+- glassmorphism full UI redesign (on `redesign/glassmorphism` branch)

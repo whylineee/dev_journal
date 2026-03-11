@@ -25,24 +25,3 @@ html {
 a {
   color: inherit;
 }
-
-::selection {
-  background-color: rgba(120, 120, 180, 0.25);
-}
-
-@keyframes glassShimmer {
-  0% { opacity: 0.5; }
-  50% { opacity: 1; }
-  100% { opacity: 0.5; }
-}
-
-@keyframes glassFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
