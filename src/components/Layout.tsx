@@ -11,7 +11,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  TextField,
   Toolbar,
   Typography,
   useMediaQuery,
@@ -217,7 +216,7 @@ export const Layout = ({
 
   const drawerContent = (
     <>
-      <Toolbar sx={{ minHeight: { xs: 68, md: 72 } }} />
+      <Toolbar sx={{ minHeight: { xs: 52, md: 56 } }} />
       <Box sx={{ px: 1.5, pb: 1.5, overflowY: "auto", overflowX: "hidden", flex: 1 }}>
         {/* Overview stats card */}
         <Box
@@ -531,46 +530,88 @@ export const Layout = ({
     <Box sx={{ display: "flex", height: "100dvh", overflow: "hidden", bgcolor: "background.default" }}>
       <AppBar
         position="fixed"
+        elevation={0}
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
         }}
       >
-        <Toolbar sx={{ minHeight: { xs: 68, md: 72 }, gap: 1 }}>
+        <Toolbar
+          sx={{
+            minHeight: { xs: 52, md: 56 },
+            gap: 1,
+            px: { xs: 1.5, md: 2 },
+          }}
+        >
           {isMobile ? (
-            <IconButton color="inherit" onClick={() => setMobileDrawerOpen(true)} edge="start" sx={{ mr: 0.5 }}>
-              <MenuIcon />
+            <IconButton color="inherit" onClick={() => setMobileDrawerOpen(true)} edge="start" size="small">
+              <MenuIcon fontSize="small" />
             </IconButton>
           ) : null}
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, minWidth: 0, flexShrink: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.8,
+              minWidth: 0,
+              flexShrink: 1,
+              pl: { md: 0.5 },
+            }}
+          >
             <Box
               sx={{
-                width: 36,
-                height: 36,
+                width: 30,
+                height: 30,
                 display: "grid",
                 placeItems: "center",
-                borderRadius: 2,
+                borderRadius: 1.5,
                 background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
-                boxShadow: `0 4px 12px ${alpha(muiTheme.palette.primary.main, 0.30)}`,
+                boxShadow: `0 2px 8px ${alpha(muiTheme.palette.primary.main, 0.25)}`,
+                flexShrink: 0,
               }}
             >
-              <EditNoteIcon sx={{ color: isDark ? "#0a0a0a" : "#ffffff", fontSize: 20 }} />
+              <EditNoteIcon sx={{ color: isDark ? "#0a0a0a" : "#ffffff", fontSize: 17 }} />
             </Box>
-            <Box sx={{ minWidth: 0 }}>
+            <Typography
+              variant="subtitle1"
+              noWrap
+              sx={{
+                fontWeight: 700,
+                letterSpacing: "-0.02em",
+                color: "text.primary",
+                fontSize: "0.92rem",
+              }}
+            >
+              {t("Dev Journal")}
+            </Typography>
+
+            <Box
+              sx={{
+                display: { xs: "none", md: "flex" },
+                alignItems: "center",
+                ml: 0.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 4,
+                  height: 4,
+                  borderRadius: "50%",
+                  bgcolor: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.15)",
+                  mx: 0.8,
+                  flexShrink: 0,
+                }}
+              />
               <Typography
-                variant="subtitle1"
+                variant="caption"
                 noWrap
                 sx={{
-                  fontWeight: 700,
-                  letterSpacing: "-0.015em",
-                  color: "text.primary",
-                  lineHeight: 1.1,
+                  color: "text.secondary",
+                  fontSize: "0.74rem",
+                  fontWeight: 500,
                 }}
               >
-                {t("Dev Journal")}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: "0.68rem" }}>
-                {t("View: {tab}", { tab: activeTabLabel[activeTab] })}
+                {activeTabLabel[activeTab]}
               </Typography>
             </Box>
           </Box>
@@ -580,26 +621,34 @@ export const Layout = ({
           <Box
             sx={{
               position: "relative",
-              borderRadius: 2.5,
-              backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
-              backdropFilter: "blur(8px)",
+              borderRadius: 2,
+              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
               "&:hover": {
-                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
               },
-              width: { xs: "100%", sm: 320, md: 360 },
-              maxWidth: { xs: 180, sm: 360 },
+              width: { xs: 140, sm: 240, md: 280 },
               border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-              mr: 1,
+              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
               transition: "all 0.2s ease",
               "&:focus-within": {
-                borderColor: alpha(muiTheme.palette.primary.main, 0.40),
-                boxShadow: `0 0 0 3px ${alpha(muiTheme.palette.primary.main, 0.10)}`,
+                borderColor: alpha(muiTheme.palette.primary.main, 0.35),
+                boxShadow: `0 0 0 2px ${alpha(muiTheme.palette.primary.main, 0.08)}`,
+                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
+                width: { xs: 180, sm: 300, md: 340 },
               },
             }}
           >
-            <Box sx={{ px: 1.5, height: "100%", position: "absolute", pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <SearchIcon sx={{ color: "text.secondary", fontSize: 18 }} />
+            <Box
+              sx={{
+                px: 1,
+                height: "100%",
+                position: "absolute",
+                pointerEvents: "none",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <SearchIcon sx={{ color: "text.secondary", fontSize: 16 }} />
             </Box>
             <InputBase
               placeholder={isMobile ? t("Search...") : t("Search entries...")}
@@ -609,38 +658,43 @@ export const Layout = ({
                 color: "text.primary",
                 width: "100%",
                 "& .MuiInputBase-input": {
-                  py: 0.9,
+                  py: 0.65,
                   px: 1,
-                  pl: "38px",
+                  pl: "30px",
                   width: "100%",
-                  fontSize: "0.86rem",
+                  fontSize: "0.82rem",
                   "&::placeholder": {
                     color: muiTheme.palette.text.secondary,
-                    opacity: 1,
+                    opacity: 0.7,
                   },
                 },
               }}
             />
           </Box>
 
-          <TextField
-            select
+          <IconButton
             size="small"
-            value={language}
-            onChange={(event) => setLanguage(event.target.value === "uk" ? "uk" : "en")}
+            onClick={() => setLanguage(language === "en" ? "uk" : "en")}
             sx={{
-              minWidth: 80,
               display: { xs: "none", sm: "inline-flex" },
-              "& .MuiOutlinedInput-root": {
-                bgcolor: "transparent",
-                minHeight: 36,
+              width: 32,
+              height: 32,
+              color: "text.secondary",
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              border: "1px solid",
+              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+              borderRadius: 1.5,
+              "&:hover": {
+                borderColor: alpha(muiTheme.palette.primary.main, 0.25),
+                color: "text.primary",
               },
             }}
-            SelectProps={{ native: true }}
           >
-            <option value="en">EN</option>
-            <option value="uk">UKR</option>
-          </TextField>
+            <Typography sx={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.02em" }}>
+              {language === "en" ? "EN" : "UK"}
+            </Typography>
+          </IconButton>
         </Toolbar>
       </AppBar>
 
@@ -677,7 +731,7 @@ export const Layout = ({
         sx={{
           flexGrow: 1,
           p: { xs: 1.5, sm: 2, md: 3.5 },
-          pt: { xs: 10, md: 11 },
+          pt: { xs: 8.5, md: 9.5 },
           overflowY: "auto",
           overflowX: "hidden",
           position: "relative",
