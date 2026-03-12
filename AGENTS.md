@@ -473,3 +473,4 @@ As of 2026-03-11, the app already includes these recent additions:
 - luminance-based button contrast text for all theme presets
 - hidden sidebar scrollbar with preserved scroll functionality
 - proper button active/focus-visible states to prevent visual artifacts
+ - high-contrast “DJ + checkmark” app icon for easier identification in docks and app switchers
