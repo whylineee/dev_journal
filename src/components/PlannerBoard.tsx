@@ -866,12 +866,18 @@ export const PlannerBoard = ({
         <Typography variant="caption" sx={{ fontWeight: 700, mb: 1, display: "block", textTransform: "uppercase", letterSpacing: 0.5 }}>
           {t("Quick Capture")}
         </Typography>
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={1.5}
-          useFlexGap
-          alignItems={{ md: "flex-start" }}
-          sx={{ flexWrap: "wrap" }}
+        <Box
+          sx={{
+            mt: 0.5,
+            display: "grid",
+            gap: 1.25,
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "minmax(0, 2fr) minmax(180px, 1fr) minmax(140px, 0.8fr) auto",
+            },
+            alignItems: "center",
+          }}
         >
           <TextField
             fullWidth
@@ -885,7 +891,10 @@ export const PlannerBoard = ({
                 handleQuickAddTask();
               }
             }}
-            sx={{ flex: 2, minWidth: { xs: "100%", md: 240 } }}
+            sx={{
+              minWidth: 0,
+              gridColumn: { xs: "1", sm: "1 / -1", lg: "auto" },
+            }}
           />
           <TextField
             select
@@ -924,11 +933,17 @@ export const PlannerBoard = ({
             startIcon={<AddTaskIcon />}
             disabled={busy || quickTaskTitle.trim().length === 0}
             onClick={handleQuickAddTask}
-            sx={{ minWidth: 120, whiteSpace: "nowrap", ml: { md: "auto" }, contain: "layout" }}
+            sx={{
+              minWidth: { xs: "100%", lg: 120 },
+              width: { xs: "100%", lg: "auto" },
+              whiteSpace: "nowrap",
+              justifySelf: { lg: "end" },
+              contain: "layout",
+            }}
           >
             {t("Add Task")}
           </Button>
-        </Stack>
+        </Box>
         {quickTaskFeedback ? (
           <Typography variant="caption" color="success.main" sx={{ display: "block", mt: 1 }}>
             {quickTaskFeedback}
@@ -1413,86 +1428,95 @@ export const PlannerBoard = ({
                   {t("Weekly calendar")}
                 </Typography>
               </Box>
-              <Box sx={{ display: "grid", gridTemplateColumns: "72px repeat(7, minmax(0, 1fr))", minHeight: 540 }}>
-                <Box sx={{ borderRight: "1px solid", borderColor: "divider", bgcolor: alpha(muiTheme.palette.text.primary, 0.02) }}>
-                  {Array.from({ length: 14 }, (_, index) => 8 + index).map((hour) => (
-                    <Box key={hour} sx={{ height: 38, px: 1, pt: 0.4, borderBottom: "1px solid", borderColor: "divider" }}>
-                      <Typography variant="caption" color="text.secondary">
-                        {String(hour).padStart(2, "0")}:00
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-                {Array.from({ length: 7 }, (_, index) => addDays(startOfDay(new Date()), index)).map((day) => {
-                  const dayOccurrences = weeklyMeetingOccurrences.filter(
-                    (occurrence) => format(occurrence.start, "yyyy-MM-dd") === format(day, "yyyy-MM-dd")
-                  );
-                  return (
-                    <Box key={day.toISOString()} sx={{ position: "relative", borderRight: "1px solid", borderColor: "divider" }}>
-                      <Box sx={{ height: 34, px: 1, py: 0.6, borderBottom: "1px solid", borderColor: "divider", bgcolor: format(day, "yyyy-MM-dd") === today ? alpha(muiTheme.palette.primary.main, 0.08) : "transparent" }}>
+              <Box sx={{ overflowX: "auto", overflowY: "hidden" }}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "72px repeat(7, minmax(120px, 1fr))",
+                    minWidth: 912,
+                    minHeight: 540,
+                  }}
+                >
+                  <Box sx={{ borderRight: "1px solid", borderColor: "divider", bgcolor: alpha(muiTheme.palette.text.primary, 0.02) }}>
+                    {Array.from({ length: 14 }, (_, index) => 8 + index).map((hour) => (
+                      <Box key={hour} sx={{ height: 38, px: 1, pt: 0.4, borderBottom: "1px solid", borderColor: "divider" }}>
                         <Typography variant="caption" color="text.secondary">
-                          {format(day, "EEE d")}
+                          {String(hour).padStart(2, "0")}:00
                         </Typography>
                       </Box>
-                      <Box sx={{ position: "relative", height: 506 }}>
-                        {Array.from({ length: 14 }, (_, index) => (
-                          <Box
-                            key={`${day.toISOString()}-${index}`}
-                            sx={{
-                              height: 36,
-                              borderBottom: "1px solid",
-                              borderColor: alpha(muiTheme.palette.divider, 0.75),
-                            }}
-                          />
-                        ))}
-                        {dayOccurrences.map((occurrence) => {
-                          const top = Math.max(0, ((occurrence.start.getHours() + occurrence.start.getMinutes() / 60) - 8) * 36);
-                          const height = Math.max(28, ((occurrence.end.getTime() - occurrence.start.getTime()) / (60 * 60 * 1000)) * 36);
-                          return (
+                    ))}
+                  </Box>
+                  {Array.from({ length: 7 }, (_, index) => addDays(startOfDay(new Date()), index)).map((day) => {
+                    const dayOccurrences = weeklyMeetingOccurrences.filter(
+                      (occurrence) => format(occurrence.start, "yyyy-MM-dd") === format(day, "yyyy-MM-dd")
+                    );
+                    return (
+                      <Box key={day.toISOString()} sx={{ position: "relative", borderRight: "1px solid", borderColor: "divider" }}>
+                        <Box sx={{ height: 34, px: 1, py: 0.6, borderBottom: "1px solid", borderColor: "divider", bgcolor: format(day, "yyyy-MM-dd") === today ? alpha(muiTheme.palette.primary.main, 0.08) : "transparent" }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {format(day, "EEE d")}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ position: "relative", height: 506 }}>
+                          {Array.from({ length: 14 }, (_, index) => (
                             <Box
-                              key={occurrence.occurrence_id}
+                              key={`${day.toISOString()}-${index}`}
                               sx={{
-                                position: "absolute",
-                                left: 6,
-                                right: 6,
-                                top: `${top}px`,
-                                height: `${height}px`,
-                                borderRadius: 1.5,
-                                px: 0.8,
-                                py: 0.55,
-                                overflow: "hidden",
-                                bgcolor:
-                                  occurrence.status === "done"
-                                    ? alpha(muiTheme.palette.success.main, 0.18)
-                                    : occurrence.status === "live"
-                                      ? alpha(muiTheme.palette.warning.main, 0.2)
-                                      : occurrence.status === "missed"
-                                        ? alpha(muiTheme.palette.error.main, 0.16)
-                                        : alpha(muiTheme.palette.primary.main, 0.16),
-                                border: "1px solid",
-                                borderColor:
-                                  occurrence.status === "done"
-                                    ? "success.main"
-                                    : occurrence.status === "live"
-                                      ? "warning.main"
-                                      : occurrence.status === "missed"
-                                        ? "error.main"
-                                        : "primary.main",
+                                height: 36,
+                                borderBottom: "1px solid",
+                                borderColor: alpha(muiTheme.palette.divider, 0.75),
                               }}
-                            >
-                              <Typography variant="caption" sx={{ display: "block", fontWeight: 700, lineHeight: 1.15 }}>
-                                {occurrence.title}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.1 }}>
-                                {format(occurrence.start, "HH:mm")} - {format(occurrence.end, "HH:mm")}
-                              </Typography>
-                            </Box>
-                          );
-                        })}
+                            />
+                          ))}
+                          {dayOccurrences.map((occurrence) => {
+                            const top = Math.max(0, ((occurrence.start.getHours() + occurrence.start.getMinutes() / 60) - 8) * 36);
+                            const height = Math.max(28, ((occurrence.end.getTime() - occurrence.start.getTime()) / (60 * 60 * 1000)) * 36);
+                            return (
+                              <Box
+                                key={occurrence.occurrence_id}
+                                sx={{
+                                  position: "absolute",
+                                  left: 6,
+                                  right: 6,
+                                  top: `${top}px`,
+                                  height: `${height}px`,
+                                  borderRadius: 1.5,
+                                  px: 0.8,
+                                  py: 0.55,
+                                  overflow: "hidden",
+                                  bgcolor:
+                                    occurrence.status === "done"
+                                      ? alpha(muiTheme.palette.success.main, 0.18)
+                                      : occurrence.status === "live"
+                                        ? alpha(muiTheme.palette.warning.main, 0.2)
+                                        : occurrence.status === "missed"
+                                          ? alpha(muiTheme.palette.error.main, 0.16)
+                                          : alpha(muiTheme.palette.primary.main, 0.16),
+                                  border: "1px solid",
+                                  borderColor:
+                                    occurrence.status === "done"
+                                      ? "success.main"
+                                      : occurrence.status === "live"
+                                        ? "warning.main"
+                                        : occurrence.status === "missed"
+                                          ? "error.main"
+                                          : "primary.main",
+                                }}
+                              >
+                                <Typography variant="caption" sx={{ display: "block", fontWeight: 700, lineHeight: 1.15 }}>
+                                  {occurrence.title}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.1 }}>
+                                  {format(occurrence.start, "HH:mm")} - {format(occurrence.end, "HH:mm")}
+                                </Typography>
+                              </Box>
+                            );
+                          })}
+                        </Box>
                       </Box>
-                    </Box>
-                  );
-                })}
+                    );
+                  })}
+                </Box>
               </Box>
             </Box>
           </Box>
@@ -1860,7 +1884,7 @@ export const PlannerBoard = ({
             {renderSectionToggle("dailyWins")}
           </Stack>
           <Collapse in={!isSectionCollapsed("dailyWins")} timeout="auto" unmountOnExit>
-            <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
               <TextField
                 fullWidth
                 size="small"
@@ -1874,7 +1898,13 @@ export const PlannerBoard = ({
                   }
                 }}
               />
-              <Button variant="contained" size="small" onClick={handleAddDailyWin} disabled={dailyWinsInput.trim().length === 0}>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleAddDailyWin}
+                disabled={dailyWinsInput.trim().length === 0}
+                sx={{ width: { xs: "100%", sm: "auto" } }}
+              >
                 {t("Add win")}
               </Button>
             </Stack>

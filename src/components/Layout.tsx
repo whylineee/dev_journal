@@ -121,11 +121,13 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
             fontWeight: selected ? 650 : 500,
             fontSize: "0.86rem",
             lineHeight: 1.2,
+            noWrap: true,
           }}
           secondaryTypographyProps={{
             fontSize: "0.68rem",
             color: "text.secondary",
             lineHeight: 1.2,
+            noWrap: true,
           }}
         />
         {badge}
@@ -657,7 +659,10 @@ export const Layout = ({
               fontSize: { xs: "1rem", md: "1.1rem" },
               letterSpacing: "-0.02em",
               color: "text.primary",
-              flexShrink: 0,
+              flexShrink: 1,
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
             {activeTabLabel[activeTab]}
@@ -674,6 +679,7 @@ export const Layout = ({
                 backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
               },
               flexShrink: 1,
+              minWidth: { xs: 120, sm: 170 },
               maxWidth: { xs: 180, sm: 260, md: 320 },
               width: "100%",
               border: "1px solid",
