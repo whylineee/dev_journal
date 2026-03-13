@@ -45,6 +45,7 @@ Important current behavior:
 - Includes a stronger `Today Dashboard` summary layer
 - Includes `Weekly Review`
 - Includes upgraded `Focus Session` mode with optional task targeting and session tracking
+- Focus Session now supports post-session break presets (`5m`, `10m`, `15m`)
 
 ### 2. Journal
 - Daily entry workflow by date

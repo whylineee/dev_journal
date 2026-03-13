@@ -26,10 +26,16 @@ import BarChartRoundedIcon from "@mui/icons-material/BarChartRounded";
 
 const FOCUS_SESSIONS_STORAGE_KEY = "devJournal_focus_sessions";
 
-const DURATION_PRESETS = [
+const FOCUS_DURATION_PRESETS = [
   { label: "25m", minutes: 25 },
   { label: "50m", minutes: 50 },
   { label: "90m", minutes: 90 },
+] as const;
+
+const BREAK_DURATION_PRESETS = [
+  { label: "5m", minutes: 5 },
+  { label: "10m", minutes: 10 },
+  { label: "15m", minutes: 15 },
 ] as const;
 
 export const FocusBoard = () => {
@@ -45,6 +51,9 @@ export const FocusBoard = () => {
   const [focusSecondsLeft, setFocusSecondsLeft] = useState(25 * 60);
   const [focusRunning, setFocusRunning] = useState(false);
   const [focusDurationMinutes, setFocusDurationMinutes] = useState(25);
+  const [breakDurationMinutes, setBreakDurationMinutes] = useState(5);
+  const [isBreakMode, setIsBreakMode] = useState(false);
+  const [breakPending, setBreakPending] = useState(false);
   const [focusTaskId, setFocusTaskId] = useState<number | "">("");
   const [completedAnimation, setCompletedAnimation] = useState(false);
   const [sessionsMap, setSessionsMap] = useState<Record<string, number>>(() => {
@@ -102,9 +111,10 @@ export const FocusBoard = () => {
   const totalThisWeek = weeklyData.reduce((sum, d) => sum + d.count, 0);
   const maxWeekDay = Math.max(1, ...weeklyData.map((d) => d.count));
 
-  const totalDuration = focusDurationMinutes * 60;
+  const totalDuration = (isBreakMode ? breakDurationMinutes : focusDurationMinutes) * 60;
   const elapsed = totalDuration - focusSecondsLeft;
   const progress = totalDuration > 0 ? (elapsed / totalDuration) * 100 : 0;
+  const activeDurationPresets = isBreakMode ? BREAK_DURATION_PRESETS : FOCUS_DURATION_PRESETS;
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -116,15 +126,40 @@ export const FocusBoard = () => {
     invoke("set_tray_timer", { text }).catch(() => {});
   }, []);
 
+  const completeFocusSession = useCallback(
+    (notifyMessage: string) => {
+      const nextMap = { ...sessionsMap, [today]: (sessionsMap[today] ?? 0) + 1 };
+      persistSessions(nextMap);
+      setFocusRunning(false);
+      setBreakPending(true);
+      setIsBreakMode(true);
+      setFocusSecondsLeft(breakDurationMinutes * 60);
+      updateTrayTimer(null);
+      notify(notifyMessage, "success");
+    },
+    [breakDurationMinutes, notify, persistSessions, sessionsMap, today, updateTrayTimer]
+  );
+
   const handleToggleFocus = () => {
     if (focusRunning) {
       setFocusRunning(false);
       updateTrayTimer(null);
       return;
     }
-    if (focusSecondsLeft === 0) {
+
+    if (isBreakMode) {
+      if (focusSecondsLeft <= 0 || breakPending) {
+        setFocusSecondsLeft(breakDurationMinutes * 60);
+      }
+      setBreakPending(false);
+      setFocusRunning(true);
+      return;
+    }
+
+    if (focusSecondsLeft <= 0) {
       setFocusSecondsLeft(focusDurationMinutes * 60);
     }
+
     if (selectedFocusTask && selectedFocusTask.status === "todo") {
       updateTaskStatus.mutate({ id: selectedFocusTask.id, status: "in_progress" });
     }
@@ -133,39 +168,56 @@ export const FocusBoard = () => {
 
   const handleResetFocus = () => {
     setFocusRunning(false);
+    setIsBreakMode(false);
+    setBreakPending(false);
     setFocusSecondsLeft(focusDurationMinutes * 60);
     updateTrayTimer(null);
   };
 
   const handleSkip = () => {
+    if (isBreakMode) {
+      setFocusRunning(false);
+      setIsBreakMode(false);
+      setBreakPending(false);
+      setFocusSecondsLeft(focusDurationMinutes * 60);
+      updateTrayTimer(null);
+      notify(t("Break skipped."), "info");
+      return;
+    }
+
     setFocusRunning(false);
-    const nextMap = { ...sessionsMap, [today]: (sessionsMap[today] ?? 0) + 1 };
-    persistSessions(nextMap);
-    setFocusSecondsLeft(focusDurationMinutes * 60);
-    updateTrayTimer(null);
-    notify(t("Session marked as complete."), "success");
+    completeFocusSession(t("Session marked as complete."));
   };
 
   useEffect(() => {
     let timer: number | undefined;
     if (focusRunning) {
-      updateTrayTimer(formatTime(focusSecondsLeft));
+      updateTrayTimer(
+        isBreakMode ? `${t("Break")} ${formatTime(focusSecondsLeft)}` : formatTime(focusSecondsLeft)
+      );
       timer = window.setInterval(() => {
         setFocusSecondsLeft((prev) => {
           if (prev <= 1) {
             if (timer) window.clearInterval(timer);
-            setFocusRunning(false);
-            const nextMap = { ...sessionsMap, [today]: (sessionsMap[today] ?? 0) + 1 };
-            persistSessions(nextMap);
+            if (isBreakMode) {
+              setFocusRunning(false);
+              setIsBreakMode(false);
+              setBreakPending(false);
+              setFocusSecondsLeft(focusDurationMinutes * 60);
+              updateTrayTimer(null);
+              notify(t("Break completed!"), "success");
+              sendNotification({ title: "Dev Journal", body: t("Break completed!") });
+              return 0;
+            }
+
+            completeFocusSession(t("Focus session completed!"));
             setCompletedAnimation(true);
             setTimeout(() => setCompletedAnimation(false), 2400);
-            updateTrayTimer(null);
-            notify(t("Focus session completed!"), "success");
             sendNotification({ title: "Dev Journal", body: t("Focus session completed!") });
             return 0;
           }
           const next = prev - 1;
-          updateTrayTimer(formatTime(next));
+          updateTrayTimer(isBreakMode ? `${t("Break")} ${formatTime(next)}` : formatTime(next));
           return next;
         });
       }, 1000);
@@ -173,13 +225,29 @@ export const FocusBoard = () => {
     return () => {
       if (timer) window.clearInterval(timer);
     };
-  }, [focusRunning, sessionsMap, notify, today, persistSessions, t, updateTrayTimer, focusSecondsLeft]);
+  }, [
+    breakPending,
+    completeFocusSession,
+    focusDurationMinutes,
+    focusRunning,
+    isBreakMode,
+    notify,
+    t,
+    updateTrayTimer,
+    focusSecondsLeft,
+  ]);
 
   useEffect(() => {
-    if (!focusRunning) {
+    if (!focusRunning && !isBreakMode) {
       setFocusSecondsLeft(focusDurationMinutes * 60);
     }
-  }, [focusDurationMinutes, focusRunning]);
+  }, [focusDurationMinutes, focusRunning, isBreakMode]);
+
+  useEffect(() => {
+    if (!focusRunning && isBreakMode) {
+      setFocusSecondsLeft(breakDurationMinutes * 60);
+    }
+  }, [breakDurationMinutes, focusRunning, isBreakMode]);
 
   useEffect(() => {
     return () => { updateTrayTimer(null); };
@@ -280,7 +348,9 @@ export const FocusBoard = () => {
                 {formatTime(focusSecondsLeft)}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                {focusRunning ? t("Focusing...") : focusSecondsLeft === 0 ? t("Done!") : t("Ready")}
+                {focusRunning
+                  ? (isBreakMode ? t("Break in progress...") : t("Focusing..."))
+                  : (isBreakMode ? t("Break ready") : focusSecondsLeft === 0 ? t("Done!") : t("Ready"))}
               </Typography>
             </Box>
           </Box>
@@ -349,26 +419,37 @@ export const FocusBoard = () => {
                 transition: "all 0.2s ease",
                 "&:hover": { borderColor: alpha(muiTheme.palette.primary.main, 0.3) },
               }}
-              title={t("Mark complete")}
+              title={isBreakMode ? t("Skip break") : t("Mark complete")}
             >
               <SkipNextRoundedIcon fontSize="small" />
             </IconButton>
           </Stack>
 
           {/* Duration presets */}
-          <Stack direction="row" spacing={0.75} sx={{ mt: 2.5, flexWrap: "wrap", justifyContent: "center" }}>
-            {DURATION_PRESETS.map((preset) => (
+          <Stack spacing={0.75} sx={{ mt: 2.5, alignItems: "center" }}>
+            <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
+              {isBreakMode ? t("Break time") : t("Focus duration")}
+            </Typography>
+            <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", justifyContent: "center" }}>
+              {activeDurationPresets.map((preset) => (
               <Chip
                 key={preset.minutes}
                 size="small"
                 label={preset.label}
-                color={focusDurationMinutes === preset.minutes ? "primary" : "default"}
-                variant={focusDurationMinutes === preset.minutes ? "filled" : "outlined"}
-                onClick={() => setFocusDurationMinutes(preset.minutes)}
+                color={(isBreakMode ? breakDurationMinutes : focusDurationMinutes) === preset.minutes ? "primary" : "default"}
+                variant={(isBreakMode ? breakDurationMinutes : focusDurationMinutes) === preset.minutes ? "filled" : "outlined"}
+                onClick={() => {
+                  if (isBreakMode) {
+                    setBreakDurationMinutes(preset.minutes);
+                    return;
+                  }
+                  setFocusDurationMinutes(preset.minutes);
+                }}
                 disabled={focusRunning}
                 sx={{ cursor: "pointer", transition: "all 0.2s ease" }}
               />
-            ))}
+              ))}
+            </Stack>
           </Stack>
         </Box>
 
