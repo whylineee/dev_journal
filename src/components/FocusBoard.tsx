@@ -238,18 +238,6 @@ export const FocusBoard = () => {
   ]);
 
   useEffect(() => {
-    if (!focusRunning && !isBreakMode) {
-      setFocusSecondsLeft(focusDurationMinutes * 60);
-    }
-  }, [focusDurationMinutes, focusRunning, isBreakMode]);
-
-  useEffect(() => {
-    if (!focusRunning && isBreakMode) {
-      setFocusSecondsLeft(breakDurationMinutes * 60);
-    }
-  }, [breakDurationMinutes, focusRunning, isBreakMode]);
-
-  useEffect(() => {
     return () => { updateTrayTimer(null); };
   }, [updateTrayTimer]);
 
@@ -446,9 +434,15 @@ export const FocusBoard = () => {
                 onClick={() => {
                   if (isBreakMode) {
                     setBreakDurationMinutes(preset.minutes);
+                    if (!focusRunning) {
+                      setFocusSecondsLeft(preset.minutes * 60);
+                    }
                     return;
                   }
                   setFocusDurationMinutes(preset.minutes);
+                  if (!focusRunning) {
+                    setFocusSecondsLeft(preset.minutes * 60);
+                  }
                 }}
                 disabled={focusRunning}
                 sx={{ cursor: "pointer", transition: "all 0.2s ease" }}
