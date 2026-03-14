@@ -37,7 +37,7 @@ import { useProjects } from "../hooks/useProjects";
 import { useTasks } from "../hooks/useTasks";
 import { useI18n } from "../i18n/I18nContext";
 
-const statusLabel: Record<GoalStatus, string> = {
+const statusLabelKey: Record<GoalStatus, string> = {
   active: "Active",
   paused: "Paused",
   completed: "Completed",
@@ -102,6 +102,15 @@ const normalizeProgress = (value: number) => Math.max(0, Math.min(100, Math.roun
 
 export const GoalsBoard = () => {
   const { t } = useI18n();
+  const statusLabel: Record<GoalStatus, string> = useMemo(
+    () => ({
+      active: t(statusLabelKey.active),
+      paused: t(statusLabelKey.paused),
+      completed: t(statusLabelKey.completed),
+      archived: t(statusLabelKey.archived),
+    }),
+    [t]
+  );
   const { data: goals = [], isLoading } = useGoals();
   const { data: projects = [] } = useProjects();
   const { data: tasks = [] } = useTasks();
@@ -124,6 +133,7 @@ export const GoalsBoard = () => {
   const [progress, setProgress] = useState(0);
   const [projectId, setProjectId] = useState<number | "">("");
   const [targetDate, setTargetDate] = useState("");
+  const [dialogError, setDialogError] = useState("");
   const [newMilestoneTitles, setNewMilestoneTitles] = useState<Record<number, string>>({});
   const [newMilestoneDueDates, setNewMilestoneDueDates] = useState<Record<number, string>>({});
 
@@ -218,6 +228,7 @@ export const GoalsBoard = () => {
     setProgress(0);
     setProjectId("");
     setTargetDate("");
+    setDialogError("");
     setDialogOpen(true);
   };
 
@@ -229,40 +240,63 @@ export const GoalsBoard = () => {
     setProgress(goal.progress);
     setProjectId(goal.project_id ?? "");
     setTargetDate(goal.target_date ?? "");
+    setDialogError("");
     setDialogOpen(true);
   };
 
   const handleSave = () => {
     const cleanTitle = title.trim();
     if (!cleanTitle) {
+      setDialogError(t("Title is required."));
       return;
     }
+    setDialogError("");
 
     const normalizedProgress = normalizeProgress(progress);
     const normalizedStatus = normalizedProgress === 100 ? "completed" : status;
 
     if (editingGoal) {
-      updateGoal.mutate({
-        id: editingGoal.id,
-        title: cleanTitle,
-        description: description.trim(),
-        status: normalizedStatus,
-        progress: normalizedProgress,
-        project_id: projectId === "" ? null : projectId,
-        target_date: targetDate || null,
-      });
+      updateGoal.mutate(
+        {
+          id: editingGoal.id,
+          title: cleanTitle,
+          description: description.trim(),
+          status: normalizedStatus,
+          progress: normalizedProgress,
+          project_id: projectId === "" ? null : projectId,
+          target_date: targetDate || null,
+        },
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+            setDialogError("");
+          },
+          onError: () => {
+            setDialogError(t("Failed to save goal. Please try again."));
+          },
+        }
+      );
     } else {
-      createGoal.mutate({
-        title: cleanTitle,
-        description: description.trim(),
-        status: normalizedStatus,
-        progress: normalizedProgress,
-        project_id: projectId === "" ? null : projectId,
-        target_date: targetDate || null,
-      });
+      createGoal.mutate(
+        {
+          title: cleanTitle,
+          description: description.trim(),
+          status: normalizedStatus,
+          progress: normalizedProgress,
+          project_id: projectId === "" ? null : projectId,
+          target_date: targetDate || null,
+        },
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+            setDialogError("");
+          },
+          onError: () => {
+            setDialogError(t("Failed to save goal. Please try again."));
+          },
+        }
+      );
     }
-
-    setDialogOpen(false);
   };
 
   const handleDelete = (id: number) => {
@@ -331,10 +365,20 @@ export const GoalsBoard = () => {
         </Stack>
 
         <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
-          <Chip label={`Total: ${stats.total}`} variant="outlined" size="small" />
-          <Chip label={`Active: ${stats.active}`} color="info" variant="outlined" size="small" />
-          <Chip label={`Completed: ${stats.completed}`} color="success" variant="outlined" size="small" />
-          <Chip label={`Overdue: ${stats.overdue}`} color={stats.overdue > 0 ? "error" : "default"} variant="outlined" size="small" />
+          <Chip label={t("Total: {count}", { count: stats.total })} variant="outlined" size="small" />
+          <Chip label={t("Active: {count}", { count: stats.active })} color="info" variant="outlined" size="small" />
+          <Chip
+            label={t("Completed: {count}", { count: stats.completed })}
+            color="success"
+            variant="outlined"
+            size="small"
+          />
+          <Chip
+            label={t("Overdue: {count}", { count: stats.overdue })}
+            color={stats.overdue > 0 ? "error" : "default"}
+            variant="outlined"
+            size="small"
+          />
         </Stack>
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mt: 2 }}>
@@ -360,11 +404,11 @@ export const GoalsBoard = () => {
             sx={{ minWidth: 180 }}
             SelectProps={{ native: true }}
           >
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="completed">Completed</option>
-            <option value="archived">Archived</option>
+            <option value="all">{t("All statuses")}</option>
+            <option value="active">{t("Active")}</option>
+            <option value="paused">{t("Paused")}</option>
+            <option value="completed">{t("Completed")}</option>
+            <option value="archived">{t("Archived")}</option>
           </TextField>
 
           <TextField
@@ -447,20 +491,30 @@ export const GoalsBoard = () => {
                     {goal.target_date ? (
                       <Chip
                         size="small"
-                        label={overdue ? `Overdue: ${formatDate(goal.target_date)}` : `Target: ${formatDate(goal.target_date)}`}
+                        label={
+                          overdue
+                            ? t("Overdue: {date}", { date: formatDate(goal.target_date) })
+                            : t("Target: {date}", { date: formatDate(goal.target_date) })
+                        }
                         color={overdue ? "error" : "default"}
                         variant="outlined"
                       />
                     ) : null}
                     <Chip
                       size="small"
-                      label={`Tasks: ${completedLinkedTasks}/${linkedTasks.length}`}
+                      label={t("Tasks: {completed}/{total}", {
+                        completed: completedLinkedTasks,
+                        total: linkedTasks.length,
+                      })}
                       color={linkedTasks.length > 0 ? "success" : "default"}
                       variant="outlined"
                     />
                     <Chip
                       size="small"
-                      label={`Milestones: ${completedMilestones}/${goalMilestones.length}`}
+                      label={t("Milestones: {completed}/{total}", {
+                        completed: completedMilestones,
+                        total: goalMilestones.length,
+                      })}
                       color={goalMilestones.length > 0 ? "secondary" : "default"}
                       variant="outlined"
                     />
@@ -489,14 +543,14 @@ export const GoalsBoard = () => {
                     </Stack>
                   ) : (
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: "block" }}>
-                      Link tasks to this goal from Tasks Board.
+                      {t("Link tasks to this goal from Tasks Board.")}
                     </Typography>
                   )}
 
                   <Box sx={{ mt: 1.5 }}>
                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
                       <Typography variant="caption" color="text.secondary">
-                        Progress
+                        {t("Progress")}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {displayProgress}%
@@ -531,14 +585,21 @@ export const GoalsBoard = () => {
                         {t("Milestones")}
                       </Typography>
                       {goalMilestones.length > 0 ? (
-                        <Chip size="small" label={`${completedMilestones}/${goalMilestones.length} done`} variant="outlined" />
+                        <Chip
+                          size="small"
+                          label={t("{completed}/{total} done", {
+                            completed: completedMilestones,
+                            total: goalMilestones.length,
+                          })}
+                          variant="outlined"
+                        />
                       ) : null}
                     </Stack>
 
                     <Stack spacing={0.8}>
                       {goalMilestones.length === 0 ? (
                         <Typography variant="caption" color="text.secondary">
-                          No milestones yet. Add the first checkpoint below.
+                          {t("No milestones yet. Add the first checkpoint below.")}
                         </Typography>
                       ) : (
                         goalMilestones.map((milestone) => (
@@ -572,7 +633,7 @@ export const GoalsBoard = () => {
                               </Typography>
                               {milestone.due_date ? (
                                 <Typography variant="caption" color="text.secondary">
-                                  Due: {formatDate(milestone.due_date)}
+                                  {t("Due: {date}", { date: formatDate(milestone.due_date) })}
                                 </Typography>
                               ) : null}
                             </Box>
@@ -593,7 +654,7 @@ export const GoalsBoard = () => {
                       <TextField
                         size="small"
                         fullWidth
-                        placeholder="New milestone"
+                        placeholder={t("New milestone")}
                         value={newMilestoneTitles[goal.id] ?? ""}
                         onChange={(event) =>
                           setNewMilestoneTitles((prev) => ({ ...prev, [goal.id]: event.target.value }))
@@ -621,7 +682,7 @@ export const GoalsBoard = () => {
                         onClick={() => handleAddMilestone(goal.id)}
                         disabled={busy || (newMilestoneTitles[goal.id] ?? "").trim().length === 0}
                       >
-                        Add
+                        {t("Add")}
                       </Button>
                     </Stack>
                   </Box>
@@ -657,10 +718,10 @@ export const GoalsBoard = () => {
                         />
                       </>
                     ) : (
-                      <Chip label="Auto progress from milestones" size="small" color="secondary" variant="outlined" />
+                      <Chip label={t("Auto progress from milestones")} size="small" color="secondary" variant="outlined" />
                     )}
                     <Chip
-                      label="Mark Completed"
+                      label={t("Mark Completed")}
                       size="small"
                       color="success"
                       variant={goal.status === "completed" ? "filled" : "outlined"}
@@ -668,7 +729,7 @@ export const GoalsBoard = () => {
                       clickable
                     />
                     <Chip
-                      label="Pause"
+                      label={t("Pause")}
                       size="small"
                       color={goal.status === "paused" ? "warning" : "default"}
                       variant={goal.status === "paused" ? "filled" : "outlined"}
@@ -676,7 +737,7 @@ export const GoalsBoard = () => {
                       clickable
                     />
                     <Chip
-                      label="Activate"
+                      label={t("Activate")}
                       size="small"
                       color={goal.status === "active" ? "info" : "default"}
                       variant={goal.status === "active" ? "filled" : "outlined"}
@@ -707,26 +768,33 @@ export const GoalsBoard = () => {
         {!isLoading && filteredGoals.length === 0 ? (
           <Paper sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              No goals match current filters.
+              {t("No goals match current filters.")}
             </Typography>
           </Paper>
         ) : null}
       </Stack>
 
       <Dialog open={isDialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editingGoal ? "Edit goal" : "Create goal"}</DialogTitle>
+        <DialogTitle>{editingGoal ? t("Edit goal") : t("Create goal")}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
-              label="Title"
+              label={t("Title")}
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                if (dialogError) {
+                  setDialogError("");
+                }
+              }}
+              error={Boolean(dialogError)}
+              helperText={dialogError || " "}
               autoFocus
               fullWidth
             />
 
             <TextField
-              label="Description"
+              label={t("Description")}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               multiline
@@ -737,21 +805,21 @@ export const GoalsBoard = () => {
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
                 select
-                label="Status"
+                label={t("Status")}
                 value={status}
                 onChange={(event) => setStatus(event.target.value as GoalStatus)}
                 SelectProps={{ native: true }}
                 fullWidth
               >
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
-                <option value="completed">Completed</option>
-                <option value="archived">Archived</option>
+                <option value="active">{t("Active")}</option>
+                <option value="paused">{t("Paused")}</option>
+                <option value="completed">{t("Completed")}</option>
+                <option value="archived">{t("Archived")}</option>
               </TextField>
 
               <TextField
                 type="number"
-                label="Progress %"
+                label={t("Progress %")}
                 value={progress}
                 onChange={(event) => setProgress(normalizeProgress(Number(event.target.value)))}
                 inputProps={{ min: 0, max: 100, step: 1 }}
@@ -780,7 +848,7 @@ export const GoalsBoard = () => {
 
             <TextField
               type="date"
-              label="Target date"
+              label={t("Target date")}
               value={targetDate}
               onChange={(event) => setTargetDate(event.target.value)}
               InputLabelProps={{ shrink: true }}
@@ -790,10 +858,10 @@ export const GoalsBoard = () => {
 
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)} color="inherit">
-            Cancel
+            {t("Cancel")}
           </Button>
-          <Button onClick={handleSave} variant="contained" disabled={busy}>
-            Save
+          <Button onClick={handleSave} variant="contained" disabled={busy || title.trim().length === 0}>
+            {t("Save")}
           </Button>
         </DialogActions>
       </Dialog>

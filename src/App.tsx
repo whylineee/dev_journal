@@ -416,7 +416,7 @@ function App() {
         title: t("Switch to {mode} Mode", {
           mode: appearanceMode === "dark" ? t("Light") : t("Dark"),
         }),
-        subtitle: "Toggle appearance mode instantly",
+        subtitle: t("Toggle appearance mode instantly"),
         section: t("Quick Actions"),
         keywords: ["theme", "dark", "light"],
         onSelect: () => {
@@ -426,7 +426,9 @@ function App() {
       {
         id: "toggle-language",
         title: `${t("Language")}: ${language === "en" ? t("English") : t("Ukrainian")}`,
-        subtitle: `${t("Switch to {mode} Mode", { mode: language === "en" ? t("Ukrainian") : t("English") })}`,
+        subtitle: t("Switch language to {language}", {
+          language: language === "en" ? t("Ukrainian") : t("English"),
+        }),
         section: t("Quick Actions"),
         keywords: ["language", "locale", "ua", "en"],
         onSelect: () => {

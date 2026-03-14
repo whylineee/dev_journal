@@ -70,10 +70,10 @@ import {
 import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 
-const columns: Array<{ status: TaskStatus; label: string; color: "default" | "warning" | "info" | "success" }> = [
-  { status: "todo", label: "To Do", color: "warning" },
-  { status: "in_progress", label: "In Progress", color: "info" },
-  { status: "done", label: "Done", color: "success" },
+const columns: Array<{ status: TaskStatus; color: "default" | "warning" | "info" | "success" }> = [
+  { status: "todo", color: "warning" },
+  { status: "in_progress", color: "info" },
+  { status: "done", color: "success" },
 ];
 
 const priorityColor: Record<TaskPriority, "default" | "info" | "warning" | "error"> = {
@@ -83,20 +83,20 @@ const priorityColor: Record<TaskPriority, "default" | "info" | "warning" | "erro
   urgent: "error",
 };
 
-const statusLabel: Record<TaskStatus, string> = {
+const statusLabelKey: Record<TaskStatus, string> = {
   todo: "To Do",
   in_progress: "In Progress",
   done: "Done",
 };
 
-const priorityLabel: Record<TaskPriority, string> = {
+const priorityLabelKey: Record<TaskPriority, string> = {
   low: "Low",
   medium: "Medium",
   high: "High",
   urgent: "Urgent",
 };
 
-const recurrenceLabel: Record<TaskRecurrence, string> = {
+const recurrenceLabelKey: Record<TaskRecurrence, string> = {
   none: "Does not repeat",
   daily: "Daily",
   weekdays: "Weekdays",
@@ -237,6 +237,32 @@ const persistTaskOutcomes = (value: TaskOutcomeMap) => {
 export const TasksBoard = () => {
   const { t } = useI18n();
   const { notify } = useAppNotifications();
+  const statusLabel: Record<TaskStatus, string> = useMemo(
+    () => ({
+      todo: t(statusLabelKey.todo),
+      in_progress: t(statusLabelKey.in_progress),
+      done: t(statusLabelKey.done),
+    }),
+    [t]
+  );
+  const priorityLabel: Record<TaskPriority, string> = useMemo(
+    () => ({
+      low: t(priorityLabelKey.low),
+      medium: t(priorityLabelKey.medium),
+      high: t(priorityLabelKey.high),
+      urgent: t(priorityLabelKey.urgent),
+    }),
+    [t]
+  );
+  const recurrenceLabel: Record<TaskRecurrence, string> = useMemo(
+    () => ({
+      none: t(recurrenceLabelKey.none),
+      daily: t(recurrenceLabelKey.daily),
+      weekdays: t(recurrenceLabelKey.weekdays),
+      weekly: t(recurrenceLabelKey.weekly),
+    }),
+    [t]
+  );
   // `nowMs` is updated every second to render live timer values without round-trips.
   const { data: tasks = [], isLoading } = useTasks();
   const { data: projects = [] } = useProjects();
@@ -508,10 +534,11 @@ export const TasksBoard = () => {
   const handleSave = () => {
     const cleanTitle = title.trim();
     if (!cleanTitle) {
+      notify(t("Task title is required."), "warning");
       return;
     }
     if (recurrence !== "none" && !dueDate) {
-      notify("Recurring tasks require a due date.", "warning");
+      notify(t("Recurring tasks require a due date."), "warning");
       return;
     }
 
@@ -535,7 +562,11 @@ export const TasksBoard = () => {
         {
           onSuccess: () => {
             saveTaskOutcome(editingTask.id);
-            notify("Task updated.", "success");
+            notify(t("Task updated."), "success");
+            setDialogOpen(false);
+          },
+          onError: () => {
+            notify(t("Failed to update task. Please try again."), "error");
           },
         }
       );
@@ -556,18 +587,20 @@ export const TasksBoard = () => {
         {
           onSuccess: (createdTask) => {
             saveTaskOutcome(createdTask.id);
-            notify("Task created.", "success");
+            notify(t("Task created."), "success");
+            setDialogOpen(false);
+          },
+          onError: () => {
+            notify(t("Failed to create task. Please try again."), "error");
           },
         }
       );
     }
-
-    setDialogOpen(false);
   };
 
   const handleDelete = (taskId: number) => {
     deleteTask.mutate(taskId);
-    notify("Task deleted.", "info");
+    notify(t("Task deleted."), "info");
     if (taskOutcomes[String(taskId)]) {
       const updated = { ...taskOutcomes };
       delete updated[String(taskId)];
@@ -615,7 +648,7 @@ export const TasksBoard = () => {
     }
 
     moveToStatus(draggedTask, nextStatus);
-    notify(`Task moved to ${statusLabel[nextStatus]}.`, "info");
+    notify(t("Task moved to {status}.", { status: statusLabel[nextStatus] }), "info");
   };
 
   const openEditFromTaskDetails = () => {
@@ -716,11 +749,21 @@ export const TasksBoard = () => {
         </Stack>
 
         <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
-          <Chip label={`Total: ${stats.total}`} variant="outlined" size="small" />
-          <Chip label={`Done: ${stats.done}`} color="success" variant="outlined" size="small" />
+          <Chip label={t("Total: {count}", { count: stats.total })} variant="outlined" size="small" />
+          <Chip label={t("Done: {count}", { count: stats.done })} color="success" variant="outlined" size="small" />
           <Chip label={`${t("Due today")}: ${stats.dueToday}`} color="info" variant="outlined" size="small" />
-          <Chip label={`Overdue: ${stats.overdue}`} color={stats.overdue > 0 ? "error" : "default"} variant="outlined" size="small" />
-          <Chip label={`Active timers: ${stats.activeTimers}`} color={stats.activeTimers > 0 ? "warning" : "default"} variant="outlined" size="small" />
+          <Chip
+            label={t("Overdue: {count}", { count: stats.overdue })}
+            color={stats.overdue > 0 ? "error" : "default"}
+            variant="outlined"
+            size="small"
+          />
+          <Chip
+            label={t("Active timers: {count}", { count: stats.activeTimers })}
+            color={stats.activeTimers > 0 ? "warning" : "default"}
+            variant="outlined"
+            size="small"
+          />
         </Stack>
 
         <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
@@ -747,9 +790,9 @@ export const TasksBoard = () => {
             SelectProps={{ native: true }}
           >
             <option value="all">{t("All statuses")}</option>
-            <option value="todo">To Do</option>
-            <option value="in_progress">In Progress</option>
-            <option value="done">Done</option>
+            <option value="todo">{t("To Do")}</option>
+            <option value="in_progress">{t("In Progress")}</option>
+            <option value="done">{t("Done")}</option>
           </TextField>
 
           <TextField
@@ -761,10 +804,10 @@ export const TasksBoard = () => {
             SelectProps={{ native: true }}
           >
             <option value="all">{t("All priorities")}</option>
-            <option value="urgent">Urgent</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="urgent">{t("Urgent")}</option>
+            <option value="high">{t("High")}</option>
+            <option value="medium">{t("Medium")}</option>
+            <option value="low">{t("Low")}</option>
           </TextField>
 
           <TextField
@@ -810,7 +853,7 @@ export const TasksBoard = () => {
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  {column.label}
+                  {statusLabel[column.status]}
                 </Typography>
                 <Chip
                   label={grouped[column.status].length}
@@ -898,12 +941,12 @@ export const TasksBoard = () => {
                         ) : null}
                         {outcome?.before ? (
                           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                            <strong>Before:</strong> {outcome.before}
+                            <strong>{t("Before:")}</strong> {outcome.before}
                           </Typography>
                         ) : null}
                         {outcome?.after ? (
                           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                            <strong>After:</strong> {outcome.after}
+                            <strong>{t("After:")}</strong> {outcome.after}
                           </Typography>
                         ) : null}
 
@@ -935,8 +978,8 @@ export const TasksBoard = () => {
                               size="small"
                               label={
                                 overdue
-                                  ? `Overdue: ${formatTaskDateOnly(task.due_date)}`
-                                  : `Due: ${formatTaskDateOnly(task.due_date)}`
+                                  ? t("Overdue: {date}", { date: formatTaskDateOnly(task.due_date) })
+                                  : t("Due: {date}", { date: formatTaskDateOnly(task.due_date) })
                               }
                               color={overdue ? "error" : "default"}
                               variant="outlined"
@@ -953,7 +996,7 @@ export const TasksBoard = () => {
                           <Chip
                             size="small"
                             icon={<TimerIcon fontSize="small" />}
-                            label={`Spent: ${formatDuration(elapsedSeconds)}`}
+                            label={t("Spent: {duration}", { duration: formatDuration(elapsedSeconds) })}
                             color={isRunning ? "warning" : "default"}
                             variant="outlined"
                           />
@@ -961,12 +1004,16 @@ export const TasksBoard = () => {
                             <>
                               <Chip
                                 size="small"
-                                label={`Target: ${task.time_estimate_minutes}m`}
+                                label={t("Target: {minutes}m", { minutes: task.time_estimate_minutes })}
                                 variant="outlined"
                               />
                               <Chip
                                 size="small"
-                                label={remainingSeconds >= 0 ? `Left: ${formatDuration(remainingSeconds)}` : `Over: ${formatDuration(Math.abs(remainingSeconds))}`}
+                                label={
+                                  remainingSeconds >= 0
+                                    ? t("Left: {duration}", { duration: formatDuration(remainingSeconds) })
+                                    : t("Over: {duration}", { duration: formatDuration(Math.abs(remainingSeconds)) })
+                                }
                                 color={remainingSeconds < 0 ? "error" : "success"}
                                 variant="outlined"
                               />
@@ -975,7 +1022,7 @@ export const TasksBoard = () => {
                         </Stack>
 
                         <Stack direction="row" spacing={0} sx={{ mt: 1.2, flexWrap: "wrap", gap: 0.75 }}>
-                          <Tooltip title={isRunning ? "Pause timer" : "Start timer"}>
+                          <Tooltip title={isRunning ? t("Pause timer") : t("Start timer")}>
                             <span>
                               <IconButton
                                 size="small"
@@ -987,7 +1034,7 @@ export const TasksBoard = () => {
                               </IconButton>
                             </span>
                           </Tooltip>
-                          <Tooltip title="Reset timer">
+                          <Tooltip title={t("Reset timer")}>
                             <span>
                               <IconButton
                                 size="small"
@@ -1001,19 +1048,19 @@ export const TasksBoard = () => {
                         </Stack>
 
                         <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 1 }}>
-                          Updated: {formatTaskDateTime(task.updated_at)}
+                          {t("Updated: {datetime}", { datetime: formatTaskDateTime(task.updated_at) })}
                         </Typography>
                       </Box>
 
                       <Stack direction="row" spacing={0.5}>
-                        <Tooltip title="Drag">
+                        <Tooltip title={t("Drag")}>
                           <span>
                             <IconButton size="small" disabled={busy} sx={{ cursor: busy ? "default" : "grab" }}>
                               <DragIndicatorIcon fontSize="small" />
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title="Open card">
+                        <Tooltip title={t("Open card")}>
                           <span>
                             <IconButton size="small" onClick={() => openTaskDetails(task)} disabled={busy}>
                               <OpenInNewIcon fontSize="small" />
@@ -1055,7 +1102,7 @@ export const TasksBoard = () => {
 
               {!isLoading && grouped[column.status].length === 0 ? (
                 <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                  No tasks in this column.
+                  {t("No tasks in this column.")}
                 </Typography>
               ) : null}
             </Stack>
@@ -1180,12 +1227,16 @@ export const TasksBoard = () => {
                       />
                     ) : null}
                     {activeTask.due_date ? (
-                      <Chip size="small" label={`Due: ${formatTaskDateOnly(activeTask.due_date)}`} variant="outlined" />
+                      <Chip
+                        size="small"
+                        label={t("Due: {date}", { date: formatTaskDateOnly(activeTask.due_date) })}
+                        variant="outlined"
+                      />
                     ) : null}
                     {activeTask.recurrence !== "none" ? (
                       <Chip
                         size="small"
-                        label={`Repeats: ${recurrenceLabel[activeTask.recurrence]}`}
+                        label={t("Repeats: {value}", { value: recurrenceLabel[activeTask.recurrence] })}
                         color="secondary"
                         variant="outlined"
                       />
@@ -1210,12 +1261,12 @@ export const TasksBoard = () => {
 
               {taskOutcomes[String(activeTask.id)]?.before ? (
                 <Typography variant="body2" color="text.secondary">
-                  <strong>Before:</strong> {taskOutcomes[String(activeTask.id)]?.before}
+                  <strong>{t("Before:")}</strong> {taskOutcomes[String(activeTask.id)]?.before}
                 </Typography>
               ) : null}
               {taskOutcomes[String(activeTask.id)]?.after ? (
                 <Typography variant="body2" color="text.secondary">
-                  <strong>After:</strong> {taskOutcomes[String(activeTask.id)]?.after}
+                  <strong>{t("After:")}</strong> {taskOutcomes[String(activeTask.id)]?.after}
                 </Typography>
               ) : null}
 
@@ -1339,11 +1390,11 @@ export const TasksBoard = () => {
       </Dialog>
 
       <Dialog open={isDialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editingTask ? "Edit task" : "Create task"}</DialogTitle>
+        <DialogTitle>{editingTask ? t("Edit task") : t("Create task")}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
-              label="Title"
+              label={t("Title")}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               autoFocus
@@ -1351,7 +1402,7 @@ export const TasksBoard = () => {
             />
 
             <TextField
-              label="Description"
+              label={t("Description")}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               multiline
@@ -1362,29 +1413,29 @@ export const TasksBoard = () => {
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
                 select
-                label="Status"
+                label={t("Status")}
                 value={status}
                 onChange={(event) => setStatus(event.target.value as TaskStatus)}
                 SelectProps={{ native: true }}
                 fullWidth
               >
-                <option value="todo">To Do</option>
-                <option value="in_progress">In Progress</option>
-                <option value="done">Done</option>
+                <option value="todo">{t("To Do")}</option>
+                <option value="in_progress">{t("In Progress")}</option>
+                <option value="done">{t("Done")}</option>
               </TextField>
 
               <TextField
                 select
-                label="Priority"
+                label={t("Priority")}
                 value={priority}
                 onChange={(event) => setPriority(event.target.value as TaskPriority)}
                 SelectProps={{ native: true }}
                 fullWidth
               >
-                <option value="urgent">Urgent</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                <option value="urgent">{t("Urgent")}</option>
+                <option value="high">{t("High")}</option>
+                <option value="medium">{t("Medium")}</option>
+                <option value="low">{t("Low")}</option>
               </TextField>
             </Stack>
 
@@ -1429,7 +1480,7 @@ export const TasksBoard = () => {
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
                 type="date"
-                label="Due date"
+                label={t("Due date")}
                 value={dueDate}
                 onChange={(event) => setDueDate(event.target.value)}
                 InputLabelProps={{ shrink: true }}
@@ -1438,7 +1489,7 @@ export const TasksBoard = () => {
 
               <TextField
                 type="number"
-                label="Time limit (minutes)"
+                label={t("Time limit (minutes)")}
                 value={timeEstimateMinutes}
                 onChange={(event) => setTimeEstimateMinutes(normalizeEstimateMinutes(Number(event.target.value)))}
                 inputProps={{ min: 0, max: 10080, step: 5 }}
@@ -1449,21 +1500,21 @@ export const TasksBoard = () => {
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
                 select
-                label="Repeat"
+                label={t("Repeat")}
                 value={recurrence}
                 onChange={(event) => setRecurrence(event.target.value as TaskRecurrence)}
                 SelectProps={{ native: true }}
                 fullWidth
               >
-                <option value="none">Does not repeat</option>
-                <option value="daily">Daily</option>
-                <option value="weekdays">Weekdays</option>
-                <option value="weekly">Weekly</option>
+                <option value="none">{t("Does not repeat")}</option>
+                <option value="daily">{t("Daily")}</option>
+                <option value="weekdays">{t("Weekdays")}</option>
+                <option value="weekly">{t("Weekly")}</option>
               </TextField>
 
               <TextField
                 type="date"
-                label="Repeat until"
+                label={t("Repeat until")}
                 value={recurrenceUntil}
                 onChange={(event) => setRecurrenceUntil(event.target.value)}
                 InputLabelProps={{ shrink: true }}
@@ -1473,7 +1524,7 @@ export const TasksBoard = () => {
             </Stack>
 
             <TextField
-              label="Before (planned outcome)"
+              label={t("Before (planned outcome)")}
               value={beforeOutcome}
               onChange={(event) => setBeforeOutcome(event.target.value)}
               multiline
@@ -1482,7 +1533,7 @@ export const TasksBoard = () => {
             />
 
             <TextField
-              label="After (actual outcome)"
+              label={t("After (actual outcome)")}
               value={afterOutcome}
               onChange={(event) => setAfterOutcome(event.target.value)}
               multiline
@@ -1493,13 +1544,13 @@ export const TasksBoard = () => {
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDialogOpen(false)}>{t("Cancel")}</Button>
           <Button
             variant="contained"
             onClick={handleSave}
             disabled={busy || title.trim().length === 0}
           >
-            {editingTask ? "Save" : "Create"}
+            {editingTask ? t("Save") : t("Create")}
           </Button>
         </DialogActions>
       </Dialog>
