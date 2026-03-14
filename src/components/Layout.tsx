@@ -465,6 +465,8 @@ export const Layout = ({
             </Typography>
             <IconButton
               size="small"
+              aria-label={t("Create New Page")}
+              title={t("Create New Page")}
               onClick={() => {
                 onTabChange("page");
                 onSelectPage(null);
@@ -532,6 +534,8 @@ export const Layout = ({
           {t("Settings & Theme")}
         </Typography>
         <IconButton
+          aria-label={t("Open Settings")}
+          title={t("Open Settings")}
           onClick={() => {
             onTabChange("settings");
             closeMobileDrawer();
@@ -642,6 +646,8 @@ export const Layout = ({
         >
           {isMobile && (
             <IconButton
+              aria-label={t("Open navigation menu")}
+              title={t("Open navigation menu")}
               color="inherit"
               onClick={() => setMobileDrawerOpen(true)}
               edge="start"

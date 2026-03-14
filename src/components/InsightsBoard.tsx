@@ -325,7 +325,12 @@ export const InsightsBoard = () => {
         </Stack>
         <Typography variant="caption" color="text.secondary">{subtitle}</Typography>
       </Box>
-      <IconButton size="small" sx={{ transition: "transform 0.2s ease", transform: isOpen(key) ? "rotate(180deg)" : "rotate(0deg)" }}>
+      <IconButton
+        size="small"
+        aria-label={isOpen(key) ? t("Collapse section") : t("Expand section")}
+        title={isOpen(key) ? t("Collapse section") : t("Expand section")}
+        sx={{ transition: "transform 0.2s ease", transform: isOpen(key) ? "rotate(180deg)" : "rotate(0deg)" }}
+      >
         <ExpandMoreIcon fontSize="small" />
       </IconButton>
     </Box>

@@ -375,6 +375,8 @@ export const FocusBoard = () => {
           <Stack direction="row" spacing={1.5} alignItems="center">
             <IconButton
               onClick={handleToggleFocus}
+              aria-label={focusRunning ? t("Pause focus timer") : t("Start focus timer")}
+              title={focusRunning ? t("Pause focus timer") : t("Start focus timer")}
               sx={{
                 width: 56,
                 height: 56,
@@ -398,6 +400,8 @@ export const FocusBoard = () => {
             </IconButton>
             <IconButton
               onClick={handleResetFocus}
+              aria-label={t("Reset focus timer")}
+              title={t("Reset focus timer")}
               sx={{
                 width: 42,
                 height: 42,
@@ -411,6 +415,7 @@ export const FocusBoard = () => {
             </IconButton>
             <IconButton
               onClick={handleSkip}
+              aria-label={isBreakMode ? t("Skip break") : t("Mark complete")}
               sx={{
                 width: 42,
                 height: 42,

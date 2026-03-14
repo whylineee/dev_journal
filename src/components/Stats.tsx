@@ -287,8 +287,8 @@ export const Stats = () => {
                     <Box component={motion.div} variants={itemVariants} sx={{ flex: 1 }}>
                         <Paper sx={{ p: 3, height: '100%', minHeight: 300, display: 'flex', flexDirection: 'column' }}>
                             <Typography variant="subtitle2" gutterBottom color="text.secondary">Words Written (Last 14 Days)</Typography>
-                            <Box sx={{ flexGrow: 1, mt: 2 }}>
-                                <ResponsiveContainer width="100%" height="100%">
+                            <Box sx={{ flexGrow: 1, mt: 2, minWidth: 0, minHeight: 220 }}>
+                                <ResponsiveContainer width="100%" height={220}>
                                     <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={alpha(muiTheme.palette.text.primary, 0.1)} />
                                         <XAxis
