@@ -77,6 +77,7 @@ export const HabitsBoard = () => {
   const [description, setDescription] = useState("");
   const [targetPerWeek, setTargetPerWeek] = useState(5);
   const [color, setColor] = useState("#60a5fa");
+  const [dialogError, setDialogError] = useState("");
 
   const busy =
     createHabit.isPending ||
@@ -125,6 +126,7 @@ export const HabitsBoard = () => {
     setDescription("");
     setTargetPerWeek(5);
     setColor("#60a5fa");
+    setDialogError("");
     setDialogOpen(true);
   };
 
@@ -134,33 +136,56 @@ export const HabitsBoard = () => {
     setDescription(habit.description);
     setTargetPerWeek(habit.target_per_week);
     setColor(habit.color);
+    setDialogError("");
     setDialogOpen(true);
   };
 
   const handleSave = () => {
     const cleanTitle = title.trim();
     if (!cleanTitle) {
+      setDialogError(t("Title is required."));
       return;
     }
+    setDialogError("");
 
     if (editingHabit) {
-      updateHabit.mutate({
-        id: editingHabit.id,
-        title: cleanTitle,
-        description: description.trim(),
-        target_per_week: normalizeWeeklyTarget(targetPerWeek),
-        color,
-      });
+      updateHabit.mutate(
+        {
+          id: editingHabit.id,
+          title: cleanTitle,
+          description: description.trim(),
+          target_per_week: normalizeWeeklyTarget(targetPerWeek),
+          color,
+        },
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+            setDialogError("");
+          },
+          onError: () => {
+            setDialogError(t("Failed to save habit. Please try again."));
+          },
+        }
+      );
     } else {
-      createHabit.mutate({
-        title: cleanTitle,
-        description: description.trim(),
-        target_per_week: normalizeWeeklyTarget(targetPerWeek),
-        color,
-      });
+      createHabit.mutate(
+        {
+          title: cleanTitle,
+          description: description.trim(),
+          target_per_week: normalizeWeeklyTarget(targetPerWeek),
+          color,
+        },
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+            setDialogError("");
+          },
+          onError: () => {
+            setDialogError(t("Failed to save habit. Please try again."));
+          },
+        }
+      );
     }
-
-    setDialogOpen(false);
   };
 
   const handleToggle = (habit: HabitWithLogs, date: string) => {
@@ -201,9 +226,14 @@ export const HabitsBoard = () => {
         </Stack>
 
         <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
-          <Chip label={`Total: ${stats.total}`} variant="outlined" size="small" />
-          <Chip label={`Targets met: ${stats.targetReached}`} color="success" variant="outlined" size="small" />
-          <Chip label={`Avg streak: ${stats.avgStreak}d`} color="info" variant="outlined" size="small" />
+          <Chip label={t("Total: {count}", { count: stats.total })} variant="outlined" size="small" />
+          <Chip
+            label={t("Targets met: {count}", { count: stats.targetReached })}
+            color="success"
+            variant="outlined"
+            size="small"
+          />
+          <Chip label={t("Avg streak: {count}d", { count: stats.avgStreak })} color="info" variant="outlined" size="small" />
         </Stack>
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mt: 2 }}>
@@ -340,25 +370,32 @@ export const HabitsBoard = () => {
         {!isLoading && filteredHabits.length === 0 ? (
           <Paper sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              No habits match current filters.
+              {t("No habits match current filters.")}
             </Typography>
           </Paper>
         ) : null}
       </Stack>
 
       <Dialog open={isDialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editingHabit ? "Edit habit" : "Create habit"}</DialogTitle>
+        <DialogTitle>{editingHabit ? t("Edit habit") : t("Create habit")}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
-              label="Title"
+              label={t("Title")}
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                if (dialogError) {
+                  setDialogError("");
+                }
+              }}
+              error={Boolean(dialogError)}
+              helperText={dialogError || " "}
               autoFocus
               fullWidth
             />
             <TextField
-              label="Description"
+              label={t("Description")}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               multiline
@@ -368,7 +405,7 @@ export const HabitsBoard = () => {
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
                 type="number"
-                label="Target / week"
+                label={t("Target / week")}
                 value={targetPerWeek}
                 onChange={(event) => setTargetPerWeek(normalizeWeeklyTarget(Number(event.target.value)))}
                 inputProps={{ min: 1, max: 14, step: 1 }}
@@ -376,7 +413,7 @@ export const HabitsBoard = () => {
               />
               <TextField
                 type="color"
-                label="Color"
+                label={t("Color")}
                 value={color}
                 onChange={(event) => setColor(event.target.value)}
                 InputLabelProps={{ shrink: true }}
@@ -387,10 +424,10 @@ export const HabitsBoard = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)} color="inherit">
-            Cancel
+            {t("Cancel")}
           </Button>
-          <Button onClick={handleSave} variant="contained" disabled={busy}>
-            Save
+          <Button onClick={handleSave} variant="contained" disabled={busy || title.trim().length === 0}>
+            {t("Save")}
           </Button>
         </DialogActions>
       </Dialog>

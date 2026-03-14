@@ -122,6 +122,7 @@ export const ProjectsBoard = () => {
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(defaultColor);
   const [status, setStatus] = useState<ProjectStatus>("active");
+  const [dialogError, setDialogError] = useState("");
 
   const [workspaceTaskTitle, setWorkspaceTaskTitle] = useState("");
   const [workspaceTaskDescription, setWorkspaceTaskDescription] = useState("");
@@ -245,6 +246,7 @@ export const ProjectsBoard = () => {
     setDescription("");
     setColor(defaultColor);
     setStatus("active");
+    setDialogError("");
     setDialogOpen(true);
   };
 
@@ -254,33 +256,56 @@ export const ProjectsBoard = () => {
     setDescription(project.description);
     setColor(project.color || defaultColor);
     setStatus(project.status);
+    setDialogError("");
     setDialogOpen(true);
   };
 
   const handleSave = () => {
     const cleanName = name.trim();
     if (!cleanName) {
+      setDialogError(t("Name is required."));
       return;
     }
+    setDialogError("");
 
     if (editingProject) {
-      updateProject.mutate({
-        id: editingProject.id,
-        name: cleanName,
-        description: description.trim(),
-        color: color || defaultColor,
-        status,
-      });
+      updateProject.mutate(
+        {
+          id: editingProject.id,
+          name: cleanName,
+          description: description.trim(),
+          color: color || defaultColor,
+          status,
+        },
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+            setDialogError("");
+          },
+          onError: () => {
+            setDialogError(t("Failed to save project. Please try again."));
+          },
+        }
+      );
     } else {
-      createProject.mutate({
-        name: cleanName,
-        description: description.trim(),
-        color: color || defaultColor,
-        status,
-      });
+      createProject.mutate(
+        {
+          name: cleanName,
+          description: description.trim(),
+          color: color || defaultColor,
+          status,
+        },
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+            setDialogError("");
+          },
+          onError: () => {
+            setDialogError(t("Failed to save project. Please try again."));
+          },
+        }
+      );
     }
-
-    setDialogOpen(false);
   };
 
   const selectedProject = useMemo(
@@ -394,11 +419,16 @@ export const ProjectsBoard = () => {
         </Stack>
 
         <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
-          <Chip label={`Total: ${dashboardStats.total}`} variant="outlined" size="small" />
-          <Chip label={`Active: ${dashboardStats.active}`} color="info" variant="outlined" size="small" />
-          <Chip label={`Paused: ${dashboardStats.paused}`} color="warning" variant="outlined" size="small" />
-          <Chip label={`Completed: ${dashboardStats.completed}`} color="success" variant="outlined" size="small" />
-          <Chip label={`Archived: ${dashboardStats.archived}`} variant="outlined" size="small" />
+          <Chip label={t("Total: {count}", { count: dashboardStats.total })} variant="outlined" size="small" />
+          <Chip label={t("Active: {count}", { count: dashboardStats.active })} color="info" variant="outlined" size="small" />
+          <Chip label={t("Paused: {count}", { count: dashboardStats.paused })} color="warning" variant="outlined" size="small" />
+          <Chip
+            label={t("Completed: {count}", { count: dashboardStats.completed })}
+            color="success"
+            variant="outlined"
+            size="small"
+          />
+          <Chip label={t("Archived: {count}", { count: dashboardStats.archived })} variant="outlined" size="small" />
         </Stack>
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mt: 2 }}>
@@ -812,7 +842,14 @@ export const ProjectsBoard = () => {
             <TextField
               label={t("Name")}
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (dialogError) {
+                  setDialogError("");
+                }
+              }}
+              error={Boolean(dialogError)}
+              helperText={dialogError || " "}
               autoFocus
               fullWidth
             />
@@ -855,7 +892,7 @@ export const ProjectsBoard = () => {
           <Button onClick={() => setDialogOpen(false)} color="inherit">
             {t("Cancel")}
           </Button>
-          <Button onClick={handleSave} variant="contained" disabled={busy}>
+          <Button onClick={handleSave} variant="contained" disabled={busy || name.trim().length === 0}>
             {t("Save")}
           </Button>
         </DialogActions>
