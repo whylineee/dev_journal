@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -44,25 +44,6 @@ import { Meeting, MeetingRecurrence, MeetingStatus } from "../types";
 const DAILY_WINS_STORAGE_KEY = "devJournal_daily_wins";
 const PLANNER_COLLAPSE_STORAGE_KEY = "devJournal_planner_collapsed_sections";
 const FOCUS_SESSIONS_STORAGE_KEY = "devJournal_focus_sessions";
-const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
-
-const readUsageMap = (): Record<string, number> => {
-  try {
-    const raw = localStorage.getItem(APP_USAGE_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, number>;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
-const formatUsageDuration = (totalSeconds: number): string => {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-};
 
 const toLocalDatetimeInputValue = (value: Date) => {
   const year = value.getFullYear();
@@ -219,14 +200,6 @@ export const PlannerBoard = ({
     }
   });
 
-  const [appUsageMap, setAppUsageMap] = useState<Record<string, number>>(readUsageMap);
-
-  useEffect(() => {
-    const handler = () => setAppUsageMap(readUsageMap());
-    window.addEventListener("devJournal:usageUpdated", handler);
-    return () => window.removeEventListener("devJournal:usageUpdated", handler);
-  }, []);
-
   const overdueTasks = useMemo(
     () => tasks.filter((task) => isTaskOverdue(task)).slice(0, 6),
     [tasks]
@@ -320,7 +293,6 @@ export const PlannerBoard = ({
     }));
   }, [weeklyMeetingOccurrences]);
 
-  const usageToday = appUsageMap[today] ?? 0;
   const focusSessionsTodayCount = focusSessionsMap[today] ?? 0;
 
   const journalStreak = useMemo(() => {
@@ -341,17 +313,6 @@ export const PlannerBoard = ({
     return streak;
   }, [entries, today]);
 
-  const tasksCompletedThisWeek = useMemo(() => {
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
-    return tasks.filter(
-      (task) =>
-        task.status === "done" &&
-        task.updated_at &&
-        isWithinInterval(parseISO(task.updated_at), { start: weekStart, end: weekEnd })
-    ).length;
-  }, [tasks]);
-
   const todayDashboardCards = useMemo(
     () => [
       { label: t("Due today"), value: dueTodayTasks.length, tone: "info" as const },
@@ -368,12 +329,10 @@ export const PlannerBoard = ({
 
   const usageStatsCards = useMemo(
     () => [
-      { label: t("Time in app"), value: formatUsageDuration(usageToday), tone: "primary" as const },
       { label: t("Focus sessions"), value: focusSessionsTodayCount, tone: "info" as const },
       { label: t("Journal streak"), value: `${journalStreak}d`, tone: "success" as const },
-      { label: t("Done this week"), value: tasksCompletedThisWeek, tone: "secondary" as const },
     ],
-    [usageToday, focusSessionsTodayCount, journalStreak, tasksCompletedThisWeek, t]
+    [focusSessionsTodayCount, journalStreak, t]
   );
 
   const priorityTasks = useMemo(
@@ -475,6 +434,10 @@ export const PlannerBoard = ({
   const dailyWins = dailyWinsMap[today] ?? [];
   const focusSessionsToday = focusSessionsMap[today] ?? 0;
   const isDark = muiTheme.palette.mode === "dark";
+  const hasTodayEntry = useMemo(
+    () => entries.some((entry) => entry.date === today),
+    [entries, today]
+  );
   const plannerCardSx = {
     p: { xs: 2.5, sm: 3 },
     borderRadius: 3.5,
@@ -727,9 +690,9 @@ export const PlannerBoard = ({
   );
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: "auto", mt: { xs: 1, md: 1.5 }, pb: 4 }}>
+    <Box sx={{ maxWidth: 1200, mx: "auto", mt: { xs: 1, md: 1.25 }, pb: 3 }}>
       {/* ── Header ── */}
-      <Box sx={{ mb: { xs: 2, md: 2.5 } }}>
+      <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.25 }}>
           {t("Planner")}
         </Typography>
@@ -738,41 +701,51 @@ export const PlannerBoard = ({
         </Typography>
       </Box>
 
-      <Box sx={{ ...plannerCardSx, mb: { xs: 2, md: 2.5 } }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+      <Box sx={{ ...plannerCardSx, p: { xs: 2, sm: 2.25 }, mb: { xs: 1.75, md: 2.25 } }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {t("Today Dashboard")}
           </Typography>
           <Chip
             size="small"
-            color={entries.some((entry) => entry.date === today) ? "success" : "warning"}
+            color={hasTodayEntry ? "success" : "warning"}
             variant="outlined"
-            label={entries.some((entry) => entry.date === today) ? t("Journal Today") : t("Missing")}
+            label={hasTodayEntry ? t("Journal Today") : t("Missing")}
           />
         </Stack>
 
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(4, minmax(0, 1fr))", xl: "repeat(8, minmax(0, 1fr))" },
-            gap: 1,
+            gridTemplateColumns: {
+              xs: "repeat(2, minmax(0, 1fr))",
+              sm: "repeat(4, minmax(0, 1fr))",
+              lg: "repeat(8, minmax(0, 1fr))",
+            },
+            gap: 0.75,
           }}
         >
           {[...todayDashboardCards, ...usageStatsCards].map((card) => (
             <Box
               key={card.label}
               sx={{
-                p: 1,
-                borderRadius: 2,
+                p: { xs: 0.9, sm: 1 },
+                minHeight: { xs: 64, sm: 72 },
+                borderRadius: 1.75,
                 border: "1px solid",
-                borderColor: isDark ? alpha(muiTheme.palette[card.tone].main, 0.20) : alpha(muiTheme.palette[card.tone].main, 0.15),
+                borderColor: isDark
+                  ? alpha(muiTheme.palette[card.tone].main, 0.2)
+                  : alpha(muiTheme.palette[card.tone].main, 0.15),
                 bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.40)",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
               }}
             >
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.65rem", lineHeight: 1.2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.66rem", lineHeight: 1.15 }}>
                 {card.label}
               </Typography>
-              <Typography variant="body1" sx={{ fontWeight: 700, mt: 0.2, lineHeight: 1.2 }}>
+              <Typography variant="body1" sx={{ fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
                 {card.value}
               </Typography>
             </Box>
@@ -781,26 +754,27 @@ export const PlannerBoard = ({
 
         <Box
           sx={{
-            mt: 1.5,
+            mt: 1.25,
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", lg: "1.2fr 1fr" },
-            gap: 1.5,
+            gridTemplateColumns: { xs: "1fr", md: "1.2fr 1fr" },
+            gap: 1,
           }}
         >
           <Box
             sx={{
-              p: 1.25,
-              borderRadius: 2,
+              p: 1,
+              minHeight: 90,
+              borderRadius: 1.75,
               border: "1px solid",
               borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.35)",
               bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
             }}
           >
-            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.75, display: "block" }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.6, display: "block" }}>
               {t("Priority Stack")}
             </Typography>
             <Stack spacing={0.5}>
-              {priorityTasks.slice(0, 3).map((task) => (
+              {priorityTasks.slice(0, 2).map((task) => (
                 <Stack key={task.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
                   <Typography variant="body2" noWrap sx={{ fontWeight: 600, minWidth: 0 }}>
                     {task.title}
@@ -813,19 +787,25 @@ export const PlannerBoard = ({
                   {t("No open tasks to focus on right now.")}
                 </Typography>
               )}
+              {priorityTasks.length > 2 ? (
+                <Typography variant="caption" color="text.secondary">
+                  +{priorityTasks.length - 2}
+                </Typography>
+              ) : null}
             </Stack>
           </Box>
 
           <Box
             sx={{
-              p: 1.25,
-              borderRadius: 2,
+              p: 1,
+              minHeight: 90,
+              borderRadius: 1.75,
               border: "1px solid",
               borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.35)",
               bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
             }}
           >
-            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.75, display: "block" }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.6, display: "block" }}>
               {t("Next Meeting")}
             </Typography>
             {todayMeetings[0] ? (
@@ -850,7 +830,7 @@ export const PlannerBoard = ({
       {/* ── Quick Capture (compact, inline) ── */}
       <Box
         sx={{
-          mb: { xs: 2, md: 2.5 },
+          mb: { xs: 1.75, md: 2.25 },
           p: { xs: 1.5, md: 2 },
           borderRadius: 3,
           border: "1px solid",
