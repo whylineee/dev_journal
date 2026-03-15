@@ -599,6 +599,8 @@ export const Layout = ({
           overflowY: "auto",
           overflowX: "hidden",
           position: "relative",
+          scrollbarWidth: "none",
+          "&::-webkit-scrollbar": { display: "none" },
         }}
       >
         <Box
