@@ -1,6 +1,6 @@
 # Dev Journal Agent Guide
 
-Last updated: 2026-03-11
+Last updated: 2026-03-16
 
 This file is the project-level source of truth for AI agents and contributors working in this repository.
 
@@ -54,15 +54,23 @@ Important current behavior:
 
 ### 3. Pages
 - Markdown-based page editor in `src/components/PageEditor.tsx`
-- Single-column Notion-like canvas layout
+- Single-column Notion-like full-canvas layout (no boxed inner editor panel)
 - No side-by-side editor/preview split anymore
+- Editor is organized into three top-level sections: `Page`, `Tasks`, and `Checklist`
 - Supports:
+  - free writing in `Page` section (notes/ideas/requirements) without requiring task blocks
   - markdown formatting helpers
   - code blocks
   - markdown tables
   - markdown checklists
   - embedded task database block via `{{TASK_TABLE}}`
+  - embedded Notion-style form database block via `{{FORM_DB:...}}` (URL-encoded JSON payload)
+  - embedded Notion-style task tracker database via `{{TASK_TRACKER:<id>}}` token internally
+- Task blocks expose Notion-like views (`All Tasks`, `My Tasks`, `Checklist`) inside the `Tasks` section
+- `Checklist` section provides a dedicated checklist editing surface (add/edit/toggle/remove) synced to markdown task-list lines
 - `pagePreviewEnabled` now controls inline live blocks below the editor, not a separate right-side pane
+- Editor surface hides internal block tokens; interactive blocks render below the markdown editor in a single continuous page flow
+- Embedded task/task-tracker databases use Notion-like view tabs with compact action controls in the block header
 - This is still a markdown editor, not a true block-editor engine
 
 ### 4. Tasks
@@ -288,7 +296,12 @@ Meeting action items are stored as JSON and can be materialized into real tasks.
 ### Pages
 - Stored as raw markdown content in the DB
 - `{{TASK_TABLE}}` is a custom embedded block token
-- Checklist interaction currently relies on markdown task list syntax and inline live block rendering
+- `{{FORM_DB:...}}` is a custom embedded form database token (self-contained schema + rows)
+- `{{TASK_TRACKER:<id>}}` is a custom embedded task tracker token used by the markdown/page engine
+- The editor hides custom block tokens from visible text editing and keeps embedded blocks interactive below the editor
+- On save, task trackers are persisted into markdown as URL-encoded payload tokens and restored on load
+- Legacy URL-encoded tracker payload tokens are auto-migrated back to short token format in the editor
+- Checklist interaction is managed through the dedicated `Checklist` section and persisted as markdown task-list lines
 
 ## Calendar / Meetings Integration Reality Check
 
