@@ -94,24 +94,7 @@ const resolveFontFamily = (preset: FontPreset) => {
   return ["Inter", '"Helvetica Neue"', "Arial", "sans-serif"].join(",");
 };
 
-const glassLight = (opacity: number) => `rgba(255, 255, 255, ${opacity})`;
-const glassDark = (opacity: number) => `rgba(0, 0, 0, ${opacity})`;
 
-/** WCAG relative luminance from a hex color. */
-const relativeLuminance = (hex: string): number => {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  const lin = (c: number) =>
-    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-};
-
-/** Pick high-contrast text for a gradient spanning two colors. */
-const gradientContrastText = (colorA: string, colorB: string): string => {
-  const avg = (relativeLuminance(colorA) + relativeLuminance(colorB)) / 2;
-  return avg > 0.35 ? "#0a0a0a" : "#ffffff";
-};
 
 /**
  * Builds MUI theme tokens from current theme settings.
@@ -130,29 +113,23 @@ const buildMuiTheme = ({
   uiDensity: UiDensity;
 }): Theme => {
   const isDark = appearanceMode === "dark";
-  const btnContrastColor = gradientContrastText(palette.primary, palette.secondary);
 
-  const glassBorder = isDark
-    ? "1px solid rgba(255, 255, 255, 0.08)"
-    : "1px solid rgba(255, 255, 255, 0.45)";
-
-  const glassShadow = isDark
-    ? "0 8px 32px rgba(0, 0, 0, 0.40), 0 2px 8px rgba(0, 0, 0, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.04)"
-    : "0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.70)";
-
-  const glassBg = isDark ? glassDark(0.35) : glassLight(0.50);
-  const glassBlur = "blur(24px) saturate(1.4)";
-  const cardRadius = Math.max(12, borderRadius - 2);
-  const btnRadius = Math.max(10, borderRadius - 4);
+  // Completely Flat, Clean Design Language
+  const borderColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)";
+  const paperBg = palette.backgroundPaper;
+  const shadowSm = isDark ? "none" : "0 1px 3px rgba(0,0,0,0.04)";
+  const shadowMd = isDark ? "0 4px 12px rgba(0,0,0,0.2)" : "0 4px 12px rgba(0,0,0,0.05)";
+  const cardRadius = Math.max(6, borderRadius - 6);
+  const btnRadius = Math.max(4, borderRadius - 8);
 
   const baseTheme = createTheme({
     palette: {
       mode: appearanceMode,
-      primary: { main: palette.primary, contrastText: btnContrastColor },
-      secondary: { main: palette.secondary, contrastText: btnContrastColor },
+      primary: { main: palette.primary, contrastText: isDark ? "#000" : "#fff" },
+      secondary: { main: palette.secondary, contrastText: isDark ? "#000" : "#fff" },
       background: {
         default: palette.backgroundDefault,
-        paper: palette.backgroundPaper,
+        paper: paperBg,
       },
       text: {
         primary: palette.textPrimary,
@@ -164,29 +141,26 @@ const buildMuiTheme = ({
     typography: {
       fontFamily,
       h4: { fontWeight: 700, letterSpacing: "-0.025em", fontSize: "1.85rem", lineHeight: 1.2 },
-      h5: { fontWeight: 650, letterSpacing: "-0.015em", fontSize: "1.4rem", lineHeight: 1.25 },
+      h5: { fontWeight: 600, letterSpacing: "-0.015em", fontSize: "1.4rem", lineHeight: 1.25 },
       h6: { fontWeight: 600, fontSize: "1.05rem", lineHeight: 1.3 },
-      subtitle1: { fontWeight: 500, fontSize: "0.95rem", lineHeight: 1.45 },
+      subtitle1: { fontWeight: 500, fontSize: "0.95rem", lineHeight: 1.3 },
       subtitle2: {
-        fontWeight: 500,
-        letterSpacing: "0.06em",
+        fontWeight: 600,
+        letterSpacing: "0.04em",
         textTransform: "uppercase",
         fontSize: "0.72rem",
       },
       body1: {
         fontSize: "0.95rem",
         lineHeight: 1.6,
-        letterSpacing: "0.01em",
       },
       body2: {
         fontSize: "0.87rem",
         lineHeight: 1.55,
-        letterSpacing: "0.01em",
       },
       button: {
         fontSize: "0.85rem",
-        letterSpacing: "0.02em",
-        fontWeight: 600,
+        fontWeight: 500,
       },
     },
     components: {
@@ -194,28 +168,17 @@ const buildMuiTheme = ({
         styleOverrides: {
           body: {
             backgroundColor: palette.backgroundDefault,
-            backgroundImage: palette.bodyGradient,
-            backgroundAttachment: "fixed",
             minHeight: "100vh",
             color: palette.textPrimary,
             fontFeatureSettings: '"cv02" 1, "cv03" 1, "cv04" 1, "cv11" 1',
             WebkitFontSmoothing: "antialiased",
             MozOsxFontSmoothing: "grayscale",
-            scrollbarWidth: "thin",
-            scrollbarColor: `${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"} transparent`,
+            scrollbarWidth: "none", // hide scrollbar for general clean look
+            "&::-webkit-scrollbar": { display: "none" },
           },
           "::selection": {
-            backgroundColor: `${palette.primary}30`,
+            backgroundColor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)",
             color: palette.textPrimary,
-          },
-          "::-webkit-scrollbar": { width: "6px", height: "6px" },
-          "::-webkit-scrollbar-track": { background: "transparent" },
-          "::-webkit-scrollbar-thumb": {
-            background: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)",
-            borderRadius: "3px",
-          },
-          "::-webkit-scrollbar-thumb:hover": {
-            background: isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.22)",
           },
         },
       },
@@ -223,11 +186,9 @@ const buildMuiTheme = ({
         styleOverrides: {
           root: {
             backgroundImage: "none",
-            backgroundColor: glassBg,
-            backdropFilter: glassBlur,
-            WebkitBackdropFilter: glassBlur,
-            border: glassBorder,
-            boxShadow: glassShadow,
+            backgroundColor: paperBg,
+            border: `1px solid ${borderColor}`,
+            boxShadow: shadowSm,
             borderRadius: cardRadius,
           },
         },
@@ -236,17 +197,12 @@ const buildMuiTheme = ({
         styleOverrides: {
           root: {
             borderRadius: cardRadius,
-            backgroundColor: glassBg,
-            backdropFilter: glassBlur,
-            WebkitBackdropFilter: glassBlur,
-            border: glassBorder,
-            boxShadow: glassShadow,
-            transition: "transform 0.2s ease, box-shadow 0.2s ease",
+            backgroundColor: paperBg,
+            border: `1px solid ${borderColor}`,
+            boxShadow: shadowSm,
+            transition: "transform 0.15s ease, box-shadow 0.15s ease",
             "&:hover": {
-              transform: "translateY(-1px)",
-              boxShadow: isDark
-                ? "0 12px 40px rgba(0, 0, 0, 0.50), 0 4px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06)"
-                : "0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.80)",
+              boxShadow: shadowMd,
             },
           },
         },
@@ -260,58 +216,41 @@ const buildMuiTheme = ({
         styleOverrides: {
           root: {
             textTransform: "none",
-            fontWeight: 600,
+            fontWeight: 500,
             borderRadius: btnRadius,
-            minHeight: uiDensity === "compact" ? 34 : 40,
-            padding: uiDensity === "compact" ? "6px 14px" : "9px 20px",
-            transition: "background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease",
+            minHeight: uiDensity === "compact" ? 30 : 36,
+            padding: uiDensity === "compact" ? "4px 12px" : "6px 16px",
+            transition: "all 0.15s ease",
           },
           containedPrimary: {
-            background: `linear-gradient(135deg, ${palette.primary}, ${palette.secondary})`,
-            boxShadow: `0 2px 8px ${palette.primary}25`,
-            border: "1px solid rgba(255, 255, 255, 0.15)",
-            color: btnContrastColor,
-            overflow: "hidden",
-            position: "relative" as const,
-            isolation: "isolate" as const,
-            transition: "box-shadow 0.2s ease, transform 0.15s ease",
-            "& .MuiSvgIcon-root": { color: "inherit" },
+            backgroundColor: isDark ? "#fff" : "#191919",
+            color: isDark ? "#000" : "#fff",
+            border: "1px solid transparent",
             "&:hover": {
-              boxShadow: `0 4px 14px ${palette.primary}30`,
-              transform: "translateY(-1px)",
-              background: `linear-gradient(135deg, ${palette.primary}, ${palette.secondary})`,
-              color: btnContrastColor,
+              backgroundColor: isDark ? "#e5e5e5" : "#3c3c3c",
             },
             "&:active": {
-              transform: "translateY(0) scale(0.98)",
-              boxShadow: "none",
-              transition: "transform 0.05s ease, box-shadow 0.05s ease",
-            },
-            "&.Mui-focusVisible": {
-              outline: `2px solid ${palette.primary}`,
-              outlineOffset: 2,
-              boxShadow: `0 2px 8px ${palette.primary}25`,
+              transform: "scale(0.97)",
             },
             "&.Mui-disabled": {
-              background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-              color: isDark ? "rgba(255,255,255,0.30)" : "rgba(0,0,0,0.26)",
-              boxShadow: "none",
-              border: "1px solid transparent",
+              backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+              color: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)",
             },
           },
           outlined: {
-            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.50)",
-            borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)",
-            backdropFilter: "blur(8px) saturate(1.4)",
-            WebkitBackdropFilter: "blur(8px) saturate(1.4)",
+            backgroundColor: "transparent",
+            borderColor: borderColor,
+            color: palette.textPrimary,
             "&:hover": {
-              backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.70)",
-              borderColor: palette.primary,
+              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+              borderColor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
             },
           },
           text: {
+            color: palette.textSecondary,
             "&:hover": {
-              backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+              color: palette.textPrimary,
             },
           },
         },
@@ -327,43 +266,20 @@ const buildMuiTheme = ({
               color: palette.textSecondary,
             },
             "& .MuiInputLabel-root.Mui-focused": {
-              color: palette.primary,
-            },
-            "& .MuiInputLabel-root.MuiInputLabel-shrink": {
-              backgroundColor: `${palette.backgroundDefault}e8`,
-              paddingLeft: 6,
-              paddingRight: 6,
-              borderRadius: 6,
-            },
-            "&:has(select.MuiNativeSelect-select) .MuiInputLabel-root": {
-              transform: "translate(14px, -9px) scale(0.75)",
-              maxWidth: "calc(133% - 32px)",
-              backgroundColor: `${palette.backgroundDefault}e8`,
-              paddingLeft: 6,
-              paddingRight: 6,
-              borderRadius: 6,
-            },
-            "&:has(select.MuiNativeSelect-select) .MuiOutlinedInput-notchedOutline legend": {
-              maxWidth: "100%",
+              color: palette.textPrimary,
             },
             "& .MuiOutlinedInput-root": {
-              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
-              backdropFilter: "blur(12px) saturate(1.4)",
-              WebkitBackdropFilter: "blur(12px) saturate(1.4)",
-              transition: "all 0.2s ease",
+              backgroundColor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
               borderRadius: btnRadius,
               "& fieldset": {
-                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-                transition: "border-color 0.2s ease",
+                borderColor: borderColor,
               },
-              "&:hover fieldset": { borderColor: `${palette.primary}60` },
+              "&:hover fieldset": { 
+                borderColor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+              },
               "&.Mui-focused fieldset": {
-                borderColor: palette.primary,
-                borderWidth: "1.5px",
-              },
-              "&.Mui-focused": {
-                boxShadow: `0 0 0 3px ${palette.primary}30`,
-                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.70)",
+                borderColor: palette.textPrimary,
+                borderWidth: "1px",
               },
             },
           },
@@ -373,17 +289,10 @@ const buildMuiTheme = ({
         styleOverrides: {
           root: {
             fontWeight: 500,
-            borderRadius: 999,
-            height: uiDensity === "compact" ? 24 : 28,
-            backdropFilter: "blur(8px) saturate(1.4)",
-            WebkitBackdropFilter: "blur(8px) saturate(1.4)",
-            backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-            border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`,
-          },
-          label: {
-            paddingLeft: 10,
-            paddingRight: 10,
-            fontSize: "0.76rem",
+            borderRadius: btnRadius,
+            height: uiDensity === "compact" ? 22 : 26,
+            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+            border: `1px solid ${borderColor}`,
           },
         },
       },
@@ -391,50 +300,32 @@ const buildMuiTheme = ({
         styleOverrides: {
           paper: {
             borderRadius: 0,
-            backgroundColor: isDark ? "rgba(8, 8, 12, 0.70)" : "rgba(255, 255, 255, 0.65)",
-            backdropFilter: "blur(40px) saturate(1.6)",
-            WebkitBackdropFilter: "blur(40px) saturate(1.6)",
-            borderRight: isDark
-              ? "1px solid rgba(255, 255, 255, 0.06)"
-              : "1px solid rgba(255, 255, 255, 0.50)",
-            boxShadow: isDark
-              ? "4px 0 24px rgba(0, 0, 0, 0.30)"
-              : "4px 0 24px rgba(0, 0, 0, 0.06)",
+            backgroundColor: isDark ? "#191919" : "#F7F7F5",
+            borderRight: `1px solid ${borderColor}`,
+            boxShadow: "none",
           },
         },
       },
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundColor: isDark ? "rgba(8, 8, 12, 0.55)" : "rgba(255, 255, 255, 0.55)",
-            backdropFilter: "blur(32px) saturate(1.5)",
-            WebkitBackdropFilter: "blur(32px) saturate(1.5)",
-            borderBottom: isDark
-              ? "1px solid rgba(255, 255, 255, 0.06)"
-              : "1px solid rgba(255, 255, 255, 0.50)",
-            boxShadow: isDark
-              ? "0 4px 16px rgba(0, 0, 0, 0.20)"
-              : "0 4px 16px rgba(0, 0, 0, 0.04)",
+            backgroundColor: palette.backgroundDefault,
+            borderBottom: `1px solid ${borderColor}`,
+            boxShadow: "none",
           },
         },
       },
       MuiDialog: {
         styleOverrides: {
           paper: {
-            backgroundColor: isDark ? glassDark(0.60) : glassLight(0.72),
-            backdropFilter: "blur(40px) saturate(1.6)",
-            WebkitBackdropFilter: "blur(40px) saturate(1.6)",
-            border: glassBorder,
-            boxShadow: isDark
-              ? "0 24px 80px rgba(0, 0, 0, 0.60), inset 0 1px 0 rgba(255, 255, 255, 0.05)"
-              : "0 24px 80px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.80)",
-            borderRadius: Math.max(16, borderRadius),
+            backgroundColor: paperBg,
+            border: `1px solid ${borderColor}`,
+            boxShadow: shadowMd,
+            borderRadius: cardRadius,
           },
           root: {
             "& .MuiBackdrop-root": {
-              backgroundColor: isDark ? "rgba(0,0,0,0.50)" : "rgba(0,0,0,0.25)",
-              backdropFilter: "blur(4px) saturate(1.4)",
-              WebkitBackdropFilter: "blur(4px) saturate(1.4)",
+              backgroundColor: isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.2)",
             },
           },
         },
@@ -442,16 +333,12 @@ const buildMuiTheme = ({
       MuiTooltip: {
         styleOverrides: {
           tooltip: {
-            backgroundColor: isDark ? "rgba(20, 20, 24, 0.85)" : "rgba(255, 255, 255, 0.90)",
-            color: palette.textPrimary,
-            backdropFilter: "blur(16px) saturate(1.4)",
-            WebkitBackdropFilter: "blur(16px) saturate(1.4)",
-            border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.06)",
-            boxShadow: isDark
-              ? "0 4px 16px rgba(0,0,0,0.40)"
-              : "0 4px 16px rgba(0,0,0,0.08)",
-            borderRadius: 8,
-            fontSize: "0.78rem",
+            backgroundColor: isDark ? "#333" : "#fff",
+            color: isDark ? "#fff" : "#333",
+            border: `1px solid ${borderColor}`,
+            boxShadow: shadowSm,
+            borderRadius: btnRadius,
+            fontSize: "0.75rem",
             fontWeight: 500,
           },
         },
@@ -459,20 +346,16 @@ const buildMuiTheme = ({
       MuiListItemButton: {
         styleOverrides: {
           root: {
-            borderRadius: Math.max(10, borderRadius - 6),
-            margin: "3px 6px",
-            padding: uiDensity === "compact" ? "7px 12px" : "9px 14px",
-            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-            border: "1px solid transparent",
+            borderRadius: btnRadius,
+            margin: "2px 8px",
+            padding: "6px 8px",
+            transition: "background-color 0.1s ease",
             "&:hover": {
-              backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+              backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
             },
             "&.Mui-selected": {
-              backgroundColor: `${palette.primary}15`,
-              borderColor: `${palette.primary}30`,
-              boxShadow: `0 0 0 1px ${palette.primary}20, 0 2px 8px ${palette.primary}18`,
-              "&:hover": { backgroundColor: `${palette.primary}20` },
+              backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+              "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.07)" },
             },
           },
         },
@@ -480,23 +363,20 @@ const buildMuiTheme = ({
       MuiMenu: {
         styleOverrides: {
           paper: {
-            backgroundColor: isDark ? glassDark(0.55) : glassLight(0.72),
-            backdropFilter: "blur(32px) saturate(1.5)",
-            WebkitBackdropFilter: "blur(32px) saturate(1.5)",
-            border: glassBorder,
-            boxShadow: isDark
-              ? "0 12px 40px rgba(0,0,0,0.50)"
-              : "0 12px 40px rgba(0,0,0,0.10)",
+            backgroundColor: paperBg,
+            border: `1px solid ${borderColor}`,
+            boxShadow: shadowMd,
+            borderRadius: cardRadius,
           },
         },
       },
       MuiPopover: {
         styleOverrides: {
           paper: {
-            backgroundColor: isDark ? glassDark(0.55) : glassLight(0.72),
-            backdropFilter: "blur(32px) saturate(1.5)",
-            WebkitBackdropFilter: "blur(32px) saturate(1.5)",
-            border: glassBorder,
+            backgroundColor: paperBg,
+            border: `1px solid ${borderColor}`,
+            boxShadow: shadowMd,
+            borderRadius: cardRadius,
           },
         },
       },
@@ -520,16 +400,17 @@ const buildMuiTheme = ({
       MuiDivider: {
         styleOverrides: {
           root: {
-            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+            borderColor: borderColor,
           },
         },
       },
       MuiIconButton: {
         styleOverrides: {
           root: {
-            transition: "all 0.2s ease",
+            transition: "background-color 0.1s ease",
+            borderRadius: btnRadius,
             "&:hover": {
-              backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+              backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
             },
           },
         },

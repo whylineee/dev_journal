@@ -72,36 +72,25 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
         selected={selected}
         onClick={onClick}
         sx={{
-          borderRadius: 2.5,
+          borderRadius: 1.5,
           alignItems: "center",
-          minHeight: 48,
+          minHeight: 36,
           px: 1.5,
-          py: 0.65,
+          py: 0.5,
           my: 0.25,
           mx: 0.5,
-          border: "1px solid",
-          borderColor: selected
-            ? alpha(theme.palette.primary.main, 0.30)
-            : "transparent",
-          backgroundColor: selected
-            ? alpha(theme.palette.primary.main, 0.10)
-            : "transparent",
-          backdropFilter: selected ? "blur(8px) saturate(1.4)" : "none",
-          WebkitBackdropFilter: selected ? "blur(8px) saturate(1.4)" : "none",
-          transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "background-color 0.15s ease",
           "&.Mui-selected": {
-            backgroundColor: alpha(theme.palette.primary.main, 0.12),
-            boxShadow: `0 0 16px ${alpha(theme.palette.primary.main, 0.10)}, inset 0 1px 0 ${alpha(theme.palette.primary.main, 0.08)}`,
+            backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
             "&:hover": {
-              backgroundColor: alpha(theme.palette.primary.main, 0.18),
+              backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
             },
           },
           "&.Mui-selected::before": {
             display: "none",
           },
           "&:hover": {
-            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
           },
         }}
       >
@@ -211,21 +200,13 @@ export const Layout = ({
   };
 
   const sectionBoxSx = {
-    borderRadius: 3,
-    border: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.60)",
-    mb: 1.5,
-    overflow: "hidden",
-    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
-    backdropFilter: "blur(8px) saturate(1.4)",
-    WebkitBackdropFilter: "blur(8px) saturate(1.4)",
+    mb: 2.5,
   };
 
   const sectionHeaderSx = {
     px: 1.5,
-    py: 0.9,
-    borderBottom: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+    py: 0.5,
+    mb: 0.5,
   };
 
   const drawerContent = (
@@ -241,13 +222,7 @@ export const Layout = ({
           sx={{
             px: 2,
             py: 1.5,
-            mb: 1.5,
-            borderRadius: 3,
-            border: "1px solid",
-            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.60)",
-            backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.35)",
-            backdropFilter: "blur(12px) saturate(1.4)",
-            WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+            mb: 2,
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
@@ -258,12 +233,12 @@ export const Layout = ({
                 display: "grid",
                 placeItems: "center",
                 borderRadius: 1.5,
-                background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
+                backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
               }}
             >
-              <EditNoteIcon sx={{ color: muiTheme.palette.primary.contrastText, fontSize: 16 }} />
+              <EditNoteIcon sx={{ color: muiTheme.palette.text.primary, fontSize: 16 }} />
             </Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: "0.9rem" }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
               {t("Dev Journal")}
             </Typography>
           </Box>
@@ -276,22 +251,18 @@ export const Layout = ({
               display: "grid",
               gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
               gap: 0.8,
-              mt: 1.25,
+              mt: 1.5,
             }}
           >
             {overviewStats.map((stat) => (
               <Box
                 key={stat.label}
                 sx={{
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                  borderRadius: 1.5,
                   px: 1,
                   py: 0.7,
                   minWidth: 0,
-                  backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
-                  backdropFilter: "blur(8px) saturate(1.4)",
-                  WebkitBackdropFilter: "blur(8px) saturate(1.4)",
+                  "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" },
                 }}
               >
                 <Typography
@@ -570,9 +541,7 @@ export const Layout = ({
           keepMounted: true,
           BackdropProps: {
             sx: {
-              backgroundColor: isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.20)",
-              backdropFilter: "blur(4px) saturate(1.4)",
-              WebkitBackdropFilter: "blur(4px) saturate(1.4)",
+              backgroundColor: isDark ? "rgba(0,0,0,0.60)" : "rgba(0,0,0,0.20)",
             },
           },
         }}
@@ -608,13 +577,10 @@ export const Layout = ({
             position: "absolute",
             inset: 0,
             pointerEvents: "none",
-            background: isDark
-              ? "radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.02), transparent 40%), radial-gradient(ellipse at 90% 5%, rgba(255,255,255,0.015), transparent 35%)"
-              : "radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.30), transparent 40%), radial-gradient(ellipse at 90% 5%, rgba(255,255,255,0.20), transparent 35%)",
           }}
         />
 
-        {/* Sticky content header — appears glassy on scroll */}
+        {/* Sticky content header */}
         <Box
           sx={{
             position: "sticky",
@@ -625,25 +591,11 @@ export const Layout = ({
             gap: 1,
             px: { xs: 1.5, sm: 2, md: 3.5 },
             minHeight: { xs: 48, md: 52 },
-            transition: "background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
+            transition: "background-color 0.15s ease",
             backgroundColor: scrolled
-              ? isDark
-                ? "rgba(10, 10, 18, 0.75)"
-                : "rgba(255, 255, 255, 0.70)"
+              ? muiTheme.palette.background.default
               : "transparent",
-            backdropFilter: scrolled ? "blur(20px) saturate(1.4)" : "none",
-            WebkitBackdropFilter: scrolled ? "blur(20px) saturate(1.4)" : "none",
-            borderBottom: "1px solid",
-            borderColor: scrolled
-              ? isDark
-                ? "rgba(255,255,255,0.06)"
-                : "rgba(255,255,255,0.50)"
-              : "transparent",
-            boxShadow: scrolled
-              ? isDark
-                ? "0 4px 24px rgba(0,0,0,0.30)"
-                : "0 4px 24px rgba(0,0,0,0.05)"
-              : "none",
+            borderBottom: scrolled ? `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` : "1px solid transparent",
           }}
         >
           {isMobile && (
@@ -681,22 +633,19 @@ export const Layout = ({
           <Box
             sx={{
               position: "relative",
-              borderRadius: 2,
+              borderRadius: 1.5,
               backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
               "&:hover": {
-                backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
+                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
               },
               flexShrink: 1,
               minWidth: { xs: 120, sm: 170 },
               maxWidth: { xs: 180, sm: 260, md: 320 },
               width: "100%",
-              border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-              transition: "border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease",
+              transition: "box-shadow 0.15s ease",
               "&:focus-within": {
-                borderColor: alpha(muiTheme.palette.primary.main, 0.35),
-                boxShadow: `0 0 0 2px ${alpha(muiTheme.palette.primary.main, 0.08)}`,
-                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
+                boxShadow: `0 0 0 2px ${muiTheme.palette.text.primary}40`,
+                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
               },
             }}
           >
