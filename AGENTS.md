@@ -1,6 +1,6 @@
 # Dev Journal Agent Guide
 
-Last updated: 2026-03-16
+Last updated: 2026-03-17
 
 This file is the project-level source of truth for AI agents and contributors working in this repository.
 
@@ -67,7 +67,14 @@ Important current behavior:
   - embedded Notion-style form database block via `{{FORM_DB:...}}` (URL-encoded JSON payload)
   - embedded Notion-style task tracker database via `{{TASK_TRACKER:<id>}}` token internally
 - Task blocks expose Notion-like views (`All Tasks`, `My Tasks`, `Checklist`) inside the `Tasks` section
+- Task Tracker view selection (`All Tasks` / `My Tasks` / `Checklist`) is persisted per page in `localStorage`
 - `Checklist` section provides a dedicated checklist editing surface (add/edit/toggle/remove) synced to markdown task-list lines
+- Checklist keyboard behavior:
+  - `Enter` creates a new checklist item below
+  - `Shift+Enter` inserts a soft line break inside the current checklist item
+  - `Backspace` on empty item removes that item
+- Task Tracker table has an inline ghost `+ New task` row at the bottom; pressing `Enter` creates a real row and focuses the new task-name field
+- Empty page editor state shows hints (`/ for commands`, Tasks tab databases, Checklist tab task-list) and never persists them to markdown
 - `pagePreviewEnabled` now controls inline live blocks below the editor, not a separate right-side pane
 - Editor surface hides internal block tokens; interactive blocks render below the markdown editor in a single continuous page flow
 - Embedded task/task-tracker databases use Notion-like view tabs with compact action controls in the block header
@@ -298,6 +305,7 @@ Meeting action items are stored as JSON and can be materialized into real tasks.
 - `{{TASK_TABLE}}` is a custom embedded block token
 - `{{FORM_DB:...}}` is a custom embedded form database token (self-contained schema + rows)
 - `{{TASK_TRACKER:<id>}}` is a custom embedded task tracker token used by the markdown/page engine
+- Checklist soft line breaks are persisted in markdown using `<br/>` inside checklist text and converted back to new lines in the checklist editor UI
 - The editor hides custom block tokens from visible text editing and keeps embedded blocks interactive below the editor
 - On save, task trackers are persisted into markdown as URL-encoded payload tokens and restored on load
 - Legacy URL-encoded tracker payload tokens are auto-migrated back to short token format in the editor
@@ -487,4 +495,4 @@ As of 2026-03-11, the app already includes these recent additions:
 - luminance-based button contrast text for all theme presets
 - hidden sidebar scrollbar with preserved scroll functionality
 - proper button active/focus-visible states to prevent visual artifacts
- - high-contrast “DJ + checkmark” app icon for easier identification in docks and app switchers
+ - blue notebook/code app icon set for clearer recognition in macOS Dock and Windows taskbar/start
