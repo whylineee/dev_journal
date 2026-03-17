@@ -155,27 +155,25 @@ const DroppableColumn = ({ status, children }: DroppableColumnProps) => {
   return (
     <Paper
       ref={setNodeRef}
+      variant="outlined"
       sx={{
         p: 2,
         flex: 1,
         minHeight: 340,
+        borderRadius: 2.5,
         borderStyle: isOver ? "dashed" : "solid",
         borderColor: (theme) =>
           isOver
-            ? theme.palette.mode === "dark"
-              ? "rgba(255,255,255,0.06)"
-              : "rgba(0,0,0,0.04)"
+            ? theme.palette.primary.main
             : theme.palette.mode === "dark"
-              ? "rgba(255,255,255,0.02)"
-              : "rgba(0,0,0,0.02)",
+              ? "rgba(255,255,255,0.07)"
+              : "rgba(0,0,0,0.07)",
         transition: "all 0.2s ease",
         backgroundColor: (theme) =>
           isOver
-            ? theme.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)"
+            ? theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.01)"
             : "transparent",
-        boxShadow: isOver
-          ? (theme) => `0 0 0 1px ${theme.palette.primary.main}`
-          : "none",
+        boxShadow: "none",
       }}
     >
       {children}
@@ -892,6 +890,7 @@ export const TasksBoard = () => {
                       variant="outlined"
                       sx={{
                         p: 1.5,
+                        borderRadius: 2,
                         borderColor: (theme) =>
                           overdue
                             ? "error.main"
@@ -901,11 +900,18 @@ export const TasksBoard = () => {
                         bgcolor: (theme) =>
                           theme.palette.mode === "dark"
                             ? "rgba(255,255,255,0.02)"
-                            : "rgba(0,0,0,0.02)",
+                            : "rgba(0,0,0,0.01)",
                         transition: "all 0.2s ease",
                         "&:hover": {
                           transform: "translateY(-1px)",
-                          boxShadow: "none",
+                          borderColor: (theme) =>
+                            theme.palette.mode === "dark"
+                              ? "rgba(255,255,255,0.15)"
+                              : "rgba(0,0,0,0.15)",
+                          boxShadow: (theme) =>
+                            theme.palette.mode === "dark"
+                              ? "0 2px 8px rgba(0,0,0,0.3)"
+                              : "0 2px 8px rgba(0,0,0,0.08)",
                         },
                       }}
                     >
@@ -1109,7 +1115,7 @@ export const TasksBoard = () => {
         </Stack>
       </DndContext>
 
-      <Paper sx={{ p: 2, mt: 2, borderRadius: 3 }}>
+      <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: 2.5, borderColor: (theme) => theme.palette.mode === "dark" ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           justifyContent="space-between"

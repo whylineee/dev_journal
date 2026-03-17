@@ -441,9 +441,14 @@ export const PlannerBoard = ({
   const plannerCardSx = {
     p: { xs: 2, sm: 2.5 },
     mb: 2,
-    borderRadius: 2,
-    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
-    border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+    borderRadius: 2.5,
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
+    border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+    transition: "all 0.2s ease",
+    "&:hover": {
+      borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
+      boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.08)",
+    },
   };
 
   const resetMeetingForm = () => {

@@ -267,7 +267,7 @@ export const HabitsBoard = () => {
           return (
             <Paper key={habit.id} variant="outlined" sx={{
               p: 2,
-              borderRadius: 3,
+              borderRadius: 2.5,
               borderColor: (theme) =>
                 theme.palette.mode === "dark"
                   ? "rgba(255,255,255,0.08)"
@@ -275,11 +275,18 @@ export const HabitsBoard = () => {
               bgcolor: (theme) =>
                 theme.palette.mode === "dark"
                   ? "rgba(255,255,255,0.02)"
-                  : "rgba(0,0,0,0.02)",
+                  : "rgba(0,0,0,0.01)",
               transition: "all 0.2s ease",
               "&:hover": {
                 transform: "translateY(-1px)",
-                boxShadow: "none",
+                borderColor: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "rgba(255,255,255,0.15)"
+                    : "rgba(0,0,0,0.15)",
+                boxShadow: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "0 2px 8px rgba(0,0,0,0.3)"
+                    : "0 2px 8px rgba(0,0,0,0.08)",
               },
             }}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">

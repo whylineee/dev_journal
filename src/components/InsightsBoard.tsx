@@ -301,9 +301,10 @@ export const InsightsBoard = () => {
   const glassSx = {
     p: { xs: 1.5, sm: 2 },
     mb: 2,
-    borderRadius: 2,
-    bgcolor: muiTheme.palette.background.paper,
-    border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+    borderRadius: 2.5,
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
+    border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+    transition: "all 0.2s ease",
   };
 
   const sectionHeader = (key: SectionKey, label: string, count: number, subtitle: string) => (
@@ -334,13 +335,14 @@ export const InsightsBoard = () => {
 
   const recordCardSx = {
     p: 1.5,
-    borderRadius: 2.5,
+    borderRadius: 2,
     border: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
+    borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.005)",
     transition: "all 0.2s ease",
     "&:hover": {
-      borderColor: alpha(muiTheme.palette.primary.main, 0.15),
+      borderColor: alpha(muiTheme.palette.primary.main, 0.25),
+      boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.08)",
     },
   };
 
