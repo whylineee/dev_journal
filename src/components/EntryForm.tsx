@@ -255,15 +255,11 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
     const isDark = muiTheme.palette.mode === "dark";
 
     const glassSx = {
-        borderRadius: 3.5,
-        border: "1px solid",
-        borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
-        bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
-        backdropFilter: "blur(20px) saturate(1.4)",
-        WebkitBackdropFilter: "blur(20px) saturate(1.4)",
-        boxShadow: isDark
-            ? "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)"
-            : "0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.60)",
+        p: { xs: 1.5, sm: 2 },
+        mb: { xs: 1.5, md: 2 },
+        borderRadius: 2,
+        bgcolor: muiTheme.palette.background.paper,
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
     };
 
     const toolbarBtnSx = {
@@ -382,6 +378,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                             value={projectId === "" ? "" : String(projectId)}
                             onChange={(e) => { const v = e.target.value; setProjectId(v === "" ? "" : Number(v)); }}
                             fullWidth SelectProps={{ native: true }}
+                            InputLabelProps={{ shrink: true }}
                         >
                             <option value="">{t("No project")}</option>
                             {projects.map((project) => (
@@ -393,6 +390,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                             value={energyTag ?? ""}
                             onChange={(e) => { const v = e.target.value as EnergyTag | ""; handleEnergyTagToggle(v === "" ? (energyTag ?? "focused") : v); }}
                             fullWidth SelectProps={{ native: true }}
+                            InputLabelProps={{ shrink: true }}
                         >
                             <option value="">{t("No tag")}</option>
                             {ENERGY_OPTIONS.map((opt) => (

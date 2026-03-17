@@ -299,15 +299,11 @@ export const InsightsBoard = () => {
   }, [entries, tasks, t]);
 
   const glassSx = {
-    borderRadius: 3.5,
-    border: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
-    bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
-    backdropFilter: "blur(20px) saturate(1.4)",
-    WebkitBackdropFilter: "blur(20px) saturate(1.4)",
-    boxShadow: isDark
-      ? "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)"
-      : "0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.60)",
+    p: { xs: 1.5, sm: 2 },
+    mb: 2,
+    borderRadius: 2,
+    bgcolor: muiTheme.palette.background.paper,
+    border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
   };
 
   const sectionHeader = (key: SectionKey, label: string, count: number, subtitle: string) => (
@@ -514,7 +510,7 @@ export const InsightsBoard = () => {
           <Stack spacing={1.5} sx={{ mt: 2 }}>
             <Stack direction="row" spacing={1.5}>
               <TextField label={t("Incident title")} value={incidentTitle} onChange={(e) => setIncidentTitle(e.target.value)} fullWidth size="small" />
-              <TextField select label={t("Severity")} value={incidentSeverity} onChange={(e) => setIncidentSeverity(e.target.value as IncidentRecord["severity"])} SelectProps={{ native: true }} size="small" sx={{ minWidth: 130 }}>
+              <TextField select label={t("Severity")} value={incidentSeverity} onChange={(e) => setIncidentSeverity(e.target.value as IncidentRecord["severity"])} SelectProps={{ native: true }} InputLabelProps={{ shrink: true }} size="small" sx={{ minWidth: 130 }}>
                 <option value="low">{t("Low")}</option>
                 <option value="medium">{t("Medium")}</option>
                 <option value="high">{t("High")}</option>

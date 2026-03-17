@@ -217,41 +217,31 @@ export const Layout = ({
           scrollbarWidth: "none",
           "&::-webkit-scrollbar": { display: "none" },
         }}>
-        {/* Overview stats card */}
-        <Box
-          sx={{
-            px: 2,
-            py: 1.5,
-            mb: 2,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+        {/* App header */}
+        <Box sx={{ px: 2, pt: 2, pb: 1.5, mb: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <Box
               sx={{
-                width: 28,
-                height: 28,
+                width: 32,
+                height: 32,
                 display: "grid",
                 placeItems: "center",
                 borderRadius: 1.5,
-                backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+                backgroundColor: isDark ? muiTheme.palette.primary.main : muiTheme.palette.primary.main,
               }}
             >
-              <EditNoteIcon sx={{ color: muiTheme.palette.text.primary, fontSize: 16 }} />
+              <EditNoteIcon sx={{ color: isDark ? "#000" : "#fff", fontSize: 18 }} />
             </Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
+            <Typography sx={{ fontWeight: 700, fontSize: "1rem", letterSpacing: "-0.01em" }}>
               {t("Dev Journal")}
             </Typography>
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.75rem", lineHeight: 1.4 }}>
-            {t("Daily command center for journal, tasks, goals, and habits.")}
-          </Typography>
 
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 0.8,
-              mt: 1.5,
+              gap: 1,
             }}
           >
             {overviewStats.map((stat) => (
@@ -259,20 +249,20 @@ export const Layout = ({
                 key={stat.label}
                 sx={{
                   borderRadius: 1.5,
-                  px: 1,
-                  py: 0.7,
+                  px: 1.25,
+                  py: 0.75,
                   minWidth: 0,
-                  "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" },
+                  bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
                 }}
               >
                 <Typography
                   variant="caption"
                   color="text.secondary"
-                  sx={{ display: "block", lineHeight: 1.1, fontSize: "0.64rem", letterSpacing: "0.04em" }}
+                  sx={{ display: "block", lineHeight: 1.1, fontSize: "0.63rem", letterSpacing: "0.04em", textTransform: "uppercase" }}
                 >
                   {stat.label}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.3, fontSize: "0.88rem" }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.4, fontSize: "0.9rem" }}>
                   {stat.value}
                 </Typography>
               </Box>
@@ -296,7 +286,6 @@ export const Layout = ({
               }}
               icon={<DashboardIcon fontSize="small" />}
               primary={t("Planner")}
-              secondary={t("Daily overview")}
             />
             <SideNavButton
               selected={activeTab === "focus"}
@@ -306,7 +295,6 @@ export const Layout = ({
               }}
               icon={<TimerOutlinedIcon fontSize="small" />}
               primary={t("Focus")}
-              secondary={t("Deep work timer")}
             />
           </List>
         </Box>
@@ -329,7 +317,6 @@ export const Layout = ({
               }}
               icon={<TodayIcon fontSize="small" />}
               primary={t("Today")}
-              secondary={t("Current daily report")}
               badge={
                 todayEntryExists ? (
                   <Chip label={t("Done")} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: "0.63rem" }} />
@@ -372,7 +359,6 @@ export const Layout = ({
               }}
               icon={<TaskAltIcon fontSize="small" />}
               primary={t("Tasks")}
-              secondary={t("Execution board")}
               badge={<Chip label={openTasksCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
@@ -383,7 +369,6 @@ export const Layout = ({
               }}
               icon={<FlagIcon fontSize="small" />}
               primary={t("Goals")}
-              secondary={t("Milestones")}
               badge={<Chip label={activeGoalsCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
@@ -394,7 +379,6 @@ export const Layout = ({
               }}
               icon={<RepeatIcon fontSize="small" />}
               primary={t("Habits")}
-              secondary={t("Daily consistency")}
               badge={<Chip label={`${completedHabitsToday}/${totalHabits}`} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
@@ -405,7 +389,6 @@ export const Layout = ({
               }}
               icon={<FolderOpenIcon fontSize="small" />}
               primary={t("Projects")}
-              secondary={t("Cross-functional scope")}
               badge={<Chip label={activeProjectsCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
@@ -416,7 +399,6 @@ export const Layout = ({
               }}
               icon={<InsightsIcon fontSize="small" />}
               primary={t("Insights")}
-              secondary={t("Decisions, incidents, retros")}
             />
           </List>
         </Box>
@@ -470,7 +452,6 @@ export const Layout = ({
               }}
               icon={<AddIcon fontSize="small" />}
               primary={t("New Page")}
-              secondary={t("Create note or doc")}
             />
 
             {pages?.map((page) => (
@@ -484,7 +465,6 @@ export const Layout = ({
                 }}
                 icon={<ArticleIcon fontSize="small" />}
                 primary={page.title || t("Untitled")}
-                secondary={t("Knowledge page")}
               />
             ))}
           </List>

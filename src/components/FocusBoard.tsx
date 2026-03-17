@@ -242,15 +242,11 @@ export const FocusBoard = () => {
   }, [updateTrayTimer]);
 
   const glassSx = {
-    borderRadius: 3.5,
-    border: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
-    bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
-    backdropFilter: "blur(20px) saturate(1.4)",
-    WebkitBackdropFilter: "blur(20px) saturate(1.4)",
-    boxShadow: isDark
-      ? "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)"
-      : "0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.60)",
+    p: { xs: 1.5, sm: 2 },
+    mb: 2,
+    borderRadius: 2,
+    bgcolor: muiTheme.palette.background.paper,
+    border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
   };
 
   const ringSize = 260;
@@ -372,15 +368,11 @@ export const FocusBoard = () => {
                   ? isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"
                   : `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
                 color: focusRunning ? "text.primary" : muiTheme.palette.primary.contrastText,
-                boxShadow: focusRunning
-                  ? "none"
-                  : `0 4px 20px ${alpha(muiTheme.palette.primary.main, 0.35)}`,
+                boxShadow: "none",
                 transition: "all 0.2s ease",
                 "&:hover": {
                   transform: "scale(1.08)",
-                  boxShadow: focusRunning
-                    ? `0 2px 12px ${alpha(muiTheme.palette.primary.main, 0.15)}`
-                    : `0 6px 28px ${alpha(muiTheme.palette.primary.main, 0.45)}`,
+                  boxShadow: "none",
                 },
               }}
             >
@@ -619,7 +611,7 @@ export const FocusBoard = () => {
                       : "rgba(0,0,0,0.06)",
                   transition: "height 0.3s ease",
                   ...(day.isToday && {
-                    boxShadow: `0 4px 16px ${alpha(muiTheme.palette.primary.main, 0.3)}`,
+                    boxShadow: "none",
                   }),
                 }}
               />

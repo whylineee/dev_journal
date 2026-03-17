@@ -439,16 +439,11 @@ export const PlannerBoard = ({
     [entries, today]
   );
   const plannerCardSx = {
-    p: { xs: 2.5, sm: 3 },
-    borderRadius: 3.5,
-    border: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
-    bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
-    backdropFilter: "blur(20px) saturate(1.3)",
-    WebkitBackdropFilter: "blur(20px) saturate(1.3)",
-    boxShadow: isDark
-      ? "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)"
-      : "0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.60)",
+    p: { xs: 2, sm: 2.5 },
+    mb: 2,
+    borderRadius: 2,
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
+    border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
   };
 
   const resetMeetingForm = () => {
@@ -731,12 +726,8 @@ export const PlannerBoard = ({
               sx={{
                 p: { xs: 0.9, sm: 1 },
                 minHeight: { xs: 64, sm: 72 },
-                borderRadius: 1.75,
-                border: "1px solid",
-                borderColor: isDark
-                  ? alpha(muiTheme.palette[card.tone].main, 0.2)
-                  : alpha(muiTheme.palette[card.tone].main, 0.15),
-                bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.40)",
+                borderRadius: 2,
+                bgcolor: isDark ? alpha(muiTheme.palette[card.tone].main, 0.08) : alpha(muiTheme.palette[card.tone].main, 0.05),
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
@@ -764,10 +755,8 @@ export const PlannerBoard = ({
             sx={{
               p: 1,
               minHeight: 90,
-              borderRadius: 1.75,
-              border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.35)",
-              bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
+              borderRadius: 2,
+              bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
             }}
           >
             <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.6, display: "block" }}>
@@ -799,10 +788,8 @@ export const PlannerBoard = ({
             sx={{
               p: 1,
               minHeight: 90,
-              borderRadius: 1.75,
-              border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.35)",
-              bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
+              borderRadius: 2,
+              bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
             }}
           >
             <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.6, display: "block" }}>
@@ -832,12 +819,9 @@ export const PlannerBoard = ({
         sx={{
           mb: { xs: 1.75, md: 2.25 },
           p: { xs: 1.5, md: 2 },
-          borderRadius: 3,
-          border: "1px solid",
-          borderColor: alpha(muiTheme.palette.primary.main, 0.12),
-          bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.35)",
-          backdropFilter: "blur(16px) saturate(1.3)",
-          WebkitBackdropFilter: "blur(16px) saturate(1.3)",
+          borderRadius: 2,
+          bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
+          border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
           overflow: "hidden",
           contain: "layout paint",
           position: "relative" as const,
@@ -1830,12 +1814,7 @@ export const PlannerBoard = ({
             cursor: "pointer",
             transition: "all 0.2s ease",
             "&:hover": {
-              borderColor: isDark
-                ? `${muiTheme.palette.primary.main}30`
-                : `${muiTheme.palette.primary.main}25`,
-              boxShadow: isDark
-                ? `0 8px 32px rgba(0,0,0,0.30), 0 0 0 1px ${muiTheme.palette.primary.main}15`
-                : `0 8px 32px rgba(0,0,0,0.08), 0 0 0 1px ${muiTheme.palette.primary.main}12`,
+              bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
             },
           }}
           onClick={onOpenFocus}

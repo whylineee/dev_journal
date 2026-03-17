@@ -71,14 +71,14 @@ import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 
 const columns: Array<{ status: TaskStatus; color: "default" | "warning" | "info" | "success" }> = [
-  { status: "todo", color: "warning" },
-  { status: "in_progress", color: "info" },
-  { status: "done", color: "success" },
+  { status: "todo", color: "default" },
+  { status: "in_progress", color: "default" },
+  { status: "done", color: "default" },
 ];
 
 const priorityColor: Record<TaskPriority, "default" | "info" | "warning" | "error"> = {
   low: "default",
-  medium: "info",
+  medium: "default",
   high: "warning",
   urgent: "error",
 };
@@ -162,19 +162,19 @@ const DroppableColumn = ({ status, children }: DroppableColumnProps) => {
         borderStyle: isOver ? "dashed" : "solid",
         borderColor: (theme) =>
           isOver
-            ? theme.palette.primary.main
-            : theme.palette.mode === "dark"
+            ? theme.palette.mode === "dark"
               ? "rgba(255,255,255,0.06)"
-              : "rgba(255,255,255,0.50)",
+              : "rgba(0,0,0,0.04)"
+            : theme.palette.mode === "dark"
+              ? "rgba(255,255,255,0.02)"
+              : "rgba(0,0,0,0.02)",
         transition: "all 0.2s ease",
         backgroundColor: (theme) =>
           isOver
-            ? theme.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)"
+            ? theme.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)"
             : "transparent",
-        backdropFilter: "blur(16px) saturate(1.4)",
-        WebkitBackdropFilter: "blur(16px) saturate(1.4)",
         boxShadow: isOver
-          ? (theme) => `0 0 24px ${theme.palette.primary.main}15`
+          ? (theme) => `0 0 0 1px ${theme.palette.primary.main}`
           : "none",
       }}
     >
@@ -722,7 +722,7 @@ export const TasksBoard = () => {
 
   return (
     <Box sx={{ maxWidth: 1280, mx: "auto", mt: 1 }}>
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
+      <Box sx={{ p: { xs: 1, md: 2 } }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
@@ -750,8 +750,8 @@ export const TasksBoard = () => {
 
         <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
           <Chip label={t("Total: {count}", { count: stats.total })} variant="outlined" size="small" />
-          <Chip label={t("Done: {count}", { count: stats.done })} color="success" variant="outlined" size="small" />
-          <Chip label={`${t("Due today")}: ${stats.dueToday}`} color="info" variant="outlined" size="small" />
+          <Chip label={t("Done: {count}", { count: stats.done })} color="default" variant="outlined" size="small" />
+          <Chip label={`${t("Due today")}: ${stats.dueToday}`} color="default" variant="outlined" size="small" />
           <Chip
             label={t("Overdue: {count}", { count: stats.overdue })}
             color={stats.overdue > 0 ? "error" : "default"}
@@ -788,6 +788,7 @@ export const TasksBoard = () => {
             onChange={(event) => setStatusFilter(event.target.value as "all" | TaskStatus)}
             sx={{ minWidth: 170 }}
             SelectProps={{ native: true }}
+            InputLabelProps={{ shrink: true }}
           >
             <option value="all">{t("All statuses")}</option>
             <option value="todo">{t("To Do")}</option>
@@ -802,6 +803,7 @@ export const TasksBoard = () => {
             onChange={(event) => setPriorityFilter(event.target.value as "all" | TaskPriority)}
             sx={{ minWidth: 170 }}
             SelectProps={{ native: true }}
+            InputLabelProps={{ shrink: true }}
           >
             <option value="all">{t("All priorities")}</option>
             <option value="urgent">{t("Urgent")}</option>
@@ -820,6 +822,7 @@ export const TasksBoard = () => {
             }}
             sx={{ minWidth: 190 }}
             SelectProps={{ native: true }}
+            InputLabelProps={{ shrink: true }}
           >
             <option value="all">{t("All projects")}</option>
             {projects.map((project) => (
@@ -838,7 +841,7 @@ export const TasksBoard = () => {
             {t("Overdue Only")}
           </Button>
         </Stack>
-      </Paper>
+      </Box>
 
       <DndContext
         sensors={dndSensors}
@@ -893,21 +896,16 @@ export const TasksBoard = () => {
                           overdue
                             ? "error.main"
                             : theme.palette.mode === "dark"
-                              ? "rgba(255,255,255,0.06)"
-                              : "rgba(255,255,255,0.45)",
+                              ? "rgba(255,255,255,0.08)"
+                              : "rgba(0,0,0,0.08)",
                         bgcolor: (theme) =>
                           theme.palette.mode === "dark"
                             ? "rgba(255,255,255,0.02)"
-                            : "rgba(255,255,255,0.40)",
-                        backdropFilter: "blur(12px) saturate(1.4)",
-                        WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+                            : "rgba(0,0,0,0.02)",
                         transition: "all 0.2s ease",
                         "&:hover": {
                           transform: "translateY(-1px)",
-                          boxShadow: (theme) =>
-                            theme.palette.mode === "dark"
-                              ? "0 4px 16px rgba(0,0,0,0.30)"
-                              : "0 4px 16px rgba(0,0,0,0.06)",
+                          boxShadow: "none",
                         },
                       }}
                     >
@@ -961,7 +959,7 @@ export const TasksBoard = () => {
                             <Chip
                               size="small"
                               label={projectNameById.get(task.project_id) ?? `#${task.project_id}`}
-                              color="info"
+                              color="default"
                               variant="outlined"
                             />
                           ) : null}
@@ -969,7 +967,7 @@ export const TasksBoard = () => {
                             <Chip
                               size="small"
                               label={goalNameById.get(task.goal_id) ?? `Goal #${task.goal_id}`}
-                              color="success"
+                              color="default"
                               variant="outlined"
                             />
                           ) : null}
@@ -989,7 +987,7 @@ export const TasksBoard = () => {
                             <Chip
                               size="small"
                               label={recurrenceLabel[task.recurrence]}
-                              color="secondary"
+                              color="default"
                               variant="outlined"
                             />
                           ) : null}
@@ -1448,6 +1446,7 @@ export const TasksBoard = () => {
                 setProjectId(nextValue === "" ? "" : Number(nextValue));
               }}
               SelectProps={{ native: true }}
+              InputLabelProps={{ shrink: true }}
               fullWidth
             >
               <option value="">{t("No project")}</option>
@@ -1467,6 +1466,7 @@ export const TasksBoard = () => {
                 setGoalId(nextValue === "" ? "" : Number(nextValue));
               }}
               SelectProps={{ native: true }}
+              InputLabelProps={{ shrink: true }}
               fullWidth
             >
               <option value="">{t("No goal")}</option>
@@ -1504,6 +1504,7 @@ export const TasksBoard = () => {
                 value={recurrence}
                 onChange={(event) => setRecurrence(event.target.value as TaskRecurrence)}
                 SelectProps={{ native: true }}
+                InputLabelProps={{ shrink: true }}
                 fullWidth
               >
                 <option value="none">{t("Does not repeat")}</option>
