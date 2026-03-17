@@ -291,6 +291,7 @@ export const SettingsScreen = ({
             onChange={(event) => setFontPreset(event.target.value as FontPreset)}
             fullWidth
             SelectProps={{ native: true }}
+            InputLabelProps={{ shrink: true }}
           >
             <option value="inter">Inter</option>
             <option value="roboto">Roboto</option>
@@ -305,6 +306,7 @@ export const SettingsScreen = ({
             onChange={(event) => setUiDensity(event.target.value as UiDensity)}
             fullWidth
             SelectProps={{ native: true }}
+            InputLabelProps={{ shrink: true }}
           >
             <option value="comfortable">{t("Comfortable")}</option>
             <option value="compact">{t("Compact")}</option>
@@ -333,6 +335,7 @@ export const SettingsScreen = ({
             onChange={(event) => setLanguage(event.target.value === "uk" ? "uk" : "en")}
             fullWidth
             SelectProps={{ native: true }}
+            InputLabelProps={{ shrink: true }}
           >
             <option value="en">{t("English")}</option>
             <option value="uk">{t("Ukrainian")}</option>
