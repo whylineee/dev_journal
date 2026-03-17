@@ -115,10 +115,8 @@ const buildMuiTheme = ({
   const isDark = appearanceMode === "dark";
 
   // Completely Flat, Clean Design Language
-  const borderColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)";
-  const paperBg = palette.backgroundPaper;
-  const shadowSm = isDark ? "none" : "0 1px 3px rgba(0,0,0,0.04)";
-  const shadowMd = isDark ? "0 4px 12px rgba(0,0,0,0.2)" : "0 4px 12px rgba(0,0,0,0.05)";
+  const borderColor = isDark ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)";
+  const paperBg = isDark ? "#1e1e1e" : "#ffffff";
   const cardRadius = Math.max(6, borderRadius - 6);
   const btnRadius = Math.max(4, borderRadius - 8);
 
@@ -187,8 +185,8 @@ const buildMuiTheme = ({
           root: {
             backgroundImage: "none",
             backgroundColor: paperBg,
-            border: `1px solid ${borderColor}`,
-            boxShadow: shadowSm,
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+            boxShadow: "none",
             borderRadius: cardRadius,
           },
         },
@@ -198,11 +196,12 @@ const buildMuiTheme = ({
           root: {
             borderRadius: cardRadius,
             backgroundColor: paperBg,
-            border: `1px solid ${borderColor}`,
-            boxShadow: shadowSm,
-            transition: "transform 0.15s ease, box-shadow 0.15s ease",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+            boxShadow: "none",
+            transition: "background-color 0.15s ease",
             "&:hover": {
-              boxShadow: shadowMd,
+              backgroundColor: isDark ? "#252525" : "#fafafa",
+              boxShadow: "none",
             },
           },
         },
@@ -223,11 +222,11 @@ const buildMuiTheme = ({
             transition: "all 0.15s ease",
           },
           containedPrimary: {
-            backgroundColor: isDark ? "#fff" : "#191919",
+            backgroundColor: palette.primary,
             color: isDark ? "#000" : "#fff",
             border: "1px solid transparent",
             "&:hover": {
-              backgroundColor: isDark ? "#e5e5e5" : "#3c3c3c",
+              backgroundColor: isDark ? `${palette.primary}cc` : `${palette.primary}e6`,
             },
             "&:active": {
               transform: "scale(0.97)",
@@ -291,8 +290,8 @@ const buildMuiTheme = ({
             fontWeight: 500,
             borderRadius: btnRadius,
             height: uiDensity === "compact" ? 22 : 26,
-            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
-            border: `1px solid ${borderColor}`,
+            backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
           },
         },
       },
@@ -300,8 +299,8 @@ const buildMuiTheme = ({
         styleOverrides: {
           paper: {
             borderRadius: 0,
-            backgroundColor: isDark ? "#191919" : "#F7F7F5",
-            borderRight: `1px solid ${borderColor}`,
+            backgroundColor: isDark ? "#141414" : "#f5f5f4",
+            borderRight: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
             boxShadow: "none",
           },
         },
@@ -318,9 +317,9 @@ const buildMuiTheme = ({
       MuiDialog: {
         styleOverrides: {
           paper: {
-            backgroundColor: paperBg,
+            backgroundColor: isDark ? "#1e1e1e" : "#ffffff",
             border: `1px solid ${borderColor}`,
-            boxShadow: shadowMd,
+            boxShadow: isDark ? "0 12px 40px rgba(0,0,0,0.6)" : "0 12px 40px rgba(0,0,0,0.12)",
             borderRadius: cardRadius,
           },
           root: {
@@ -333,10 +332,10 @@ const buildMuiTheme = ({
       MuiTooltip: {
         styleOverrides: {
           tooltip: {
-            backgroundColor: isDark ? "#333" : "#fff",
+            backgroundColor: isDark ? "#2a2a2a" : "#ffffff",
             color: isDark ? "#fff" : "#333",
             border: `1px solid ${borderColor}`,
-            boxShadow: shadowSm,
+            boxShadow: isDark ? "0 4px 16px rgba(0,0,0,0.4)" : "0 4px 16px rgba(0,0,0,0.08)",
             borderRadius: btnRadius,
             fontSize: "0.75rem",
             fontWeight: 500,
@@ -363,9 +362,9 @@ const buildMuiTheme = ({
       MuiMenu: {
         styleOverrides: {
           paper: {
-            backgroundColor: paperBg,
+            backgroundColor: isDark ? "#1e1e1e" : "#ffffff",
             border: `1px solid ${borderColor}`,
-            boxShadow: shadowMd,
+            boxShadow: isDark ? "0 6px 20px rgba(0,0,0,0.5)" : "0 6px 20px rgba(0,0,0,0.1)",
             borderRadius: cardRadius,
           },
         },
@@ -373,9 +372,9 @@ const buildMuiTheme = ({
       MuiPopover: {
         styleOverrides: {
           paper: {
-            backgroundColor: paperBg,
+            backgroundColor: isDark ? "#1e1e1e" : "#ffffff",
             border: `1px solid ${borderColor}`,
-            boxShadow: shadowMd,
+            boxShadow: isDark ? "0 6px 20px rgba(0,0,0,0.5)" : "0 6px 20px rgba(0,0,0,0.1)",
             borderRadius: cardRadius,
           },
         },
