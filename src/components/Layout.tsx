@@ -4,7 +4,6 @@ import {
   Chip,
   Drawer,
   IconButton,
-  InputBase,
   List,
   ListItem,
   ListItemButton,
@@ -15,7 +14,7 @@ import {
 } from "@mui/material";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@mui/material/styles";
-import { useEntries, useSearchEntries } from "../hooks/useEntries";
+import { useEntries } from "../hooks/useEntries";
 import { usePages } from "../hooks/usePages";
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
@@ -23,7 +22,7 @@ import { useHabits } from "../hooks/useHabits";
 import { useProjects } from "../hooks/useProjects";
 import { useI18n } from "../i18n/I18nContext";
 import { format, parseISO } from "date-fns";
-import SearchIcon from "@mui/icons-material/Search";
+
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import TodayIcon from "@mui/icons-material/Today";
 import EventNoteIcon from "@mui/icons-material/EventNote";
@@ -135,11 +134,11 @@ export const Layout = ({
   onSelectPage,
 }: LayoutProps) => {
   const muiTheme = useTheme();
-  const { language, setLanguage, t } = useI18n();
+  const { t } = useI18n();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const isDark = muiTheme.palette.mode === "dark";
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+
   const mainRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
@@ -152,14 +151,14 @@ export const Layout = ({
   }, []);
 
   const { data: allEntries } = useEntries();
-  const { data: searchResults } = useSearchEntries(searchQuery);
+
   const { data: pages } = usePages();
   const { data: tasks } = useTasks();
   const { data: goals } = useGoals();
   const { data: habits } = useHabits();
   const { data: projects } = useProjects();
 
-  const displayEntries = searchQuery ? searchResults : allEntries;
+  const displayEntries = allEntries;
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const todayEntryExists = Boolean(allEntries?.find((entry) => entry.date === todayStr));
   const openTasksCount = (tasks ?? []).filter((task) => task.status !== "done").length;
@@ -310,7 +309,6 @@ export const Layout = ({
             <SideNavButton
               selected={activeTab === "journal" && selectedDate === todayStr}
               onClick={() => {
-                setSearchQuery("");
                 onTabChange("journal");
                 onSelectDate(todayStr);
                 closeMobileDrawer();
@@ -609,83 +607,6 @@ export const Layout = ({
           </Typography>
 
           <Box sx={{ flexGrow: 1, minWidth: 16 }} />
-
-          <Box
-            sx={{
-              position: "relative",
-              borderRadius: 1.5,
-              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-              "&:hover": {
-                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-              },
-              flexShrink: 1,
-              minWidth: { xs: 120, sm: 170 },
-              maxWidth: { xs: 180, sm: 260, md: 320 },
-              width: "100%",
-              transition: "box-shadow 0.15s ease",
-              "&:focus-within": {
-                boxShadow: `0 0 0 2px ${muiTheme.palette.text.primary}40`,
-                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-              },
-            }}
-          >
-            <Box
-              sx={{
-                px: 1,
-                height: "100%",
-                position: "absolute",
-                pointerEvents: "none",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <SearchIcon sx={{ color: "text.secondary", fontSize: 16 }} />
-            </Box>
-            <InputBase
-              placeholder={isMobile ? t("Search...") : t("Search entries...")}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              sx={{
-                color: "text.primary",
-                width: "100%",
-                "& .MuiInputBase-input": {
-                  py: 0.65,
-                  px: 1,
-                  pl: "30px",
-                  width: "100%",
-                  fontSize: "0.82rem",
-                  "&::placeholder": {
-                    color: muiTheme.palette.text.secondary,
-                    opacity: 0.7,
-                  },
-                },
-              }}
-            />
-          </Box>
-
-          <IconButton
-            size="small"
-            onClick={() => setLanguage(language === "en" ? "uk" : "en")}
-            sx={{
-              width: 32,
-              height: 32,
-              flexShrink: 0,
-              color: "text.secondary",
-              fontSize: "0.72rem",
-              fontWeight: 600,
-              border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-              borderRadius: 1.5,
-              "&:hover": {
-                borderColor: alpha(muiTheme.palette.primary.main, 0.25),
-                color: "text.primary",
-              },
-            }}
-          >
-            <Typography sx={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.02em" }}>
-              {language === "en" ? "EN" : "UK"}
-            </Typography>
-          </IconButton>
         </Box>
 
         <Box
