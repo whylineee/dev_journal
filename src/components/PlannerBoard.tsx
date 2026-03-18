@@ -434,10 +434,6 @@ export const PlannerBoard = ({
   const dailyWins = dailyWinsMap[today] ?? [];
   const focusSessionsToday = focusSessionsMap[today] ?? 0;
   const isDark = muiTheme.palette.mode === "dark";
-  const hasTodayEntry = useMemo(
-    () => entries.some((entry) => entry.date === today),
-    [entries, today]
-  );
   const plannerCardSx = {
     p: { xs: 2, sm: 2.5 },
     mb: 2,
@@ -453,10 +449,7 @@ export const PlannerBoard = ({
   const plannerSurfaceSx = {
     ...plannerCardSx,
     borderRadius: 3.5,
-    bgcolor: isDark ? "rgba(255,255,255,0.024)" : "rgba(255,255,255,0.74)",
-    backdropFilter: "blur(24px)",
-    WebkitBackdropFilter: "blur(24px)",
-    boxShadow: isDark ? "0 18px 48px rgba(0,0,0,0.24)" : "0 18px 36px rgba(0,0,0,0.06)",
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.9)",
   };
   const plannerInsetCardSx = {
     p: 1.2,
@@ -465,14 +458,6 @@ export const PlannerBoard = ({
     border: "1px solid",
     borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
     bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.018)",
-  };
-  const plannerOverlineSx = {
-    display: "block",
-    mb: 0.45,
-    color: "text.secondary",
-    fontSize: "0.68rem",
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
   };
 
   const resetMeetingForm = () => {
@@ -720,11 +705,6 @@ export const PlannerBoard = ({
           ...plannerSurfaceSx,
           mb: { xs: 1.75, md: 2.25 },
           p: { xs: 1.6, md: 2 },
-          overflow: "hidden",
-          position: "relative",
-          background: isDark
-            ? `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.22)}, transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))`
-            : `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.12)}, transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.78))`,
         }}
       >
         <Stack
@@ -734,47 +714,24 @@ export const PlannerBoard = ({
           alignItems={{ xs: "stretch", lg: "center" }}
         >
           <Box sx={{ maxWidth: 760 }}>
-            <Typography sx={plannerOverlineSx}>{t("Today at a glance")}</Typography>
             <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: "-0.04em", mb: 0.45 }}>
               {t("Planner")}
             </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 640 }}>
-              {t("Daily command center for journal, tasks, goals, and habits.")}
-            </Typography>
           </Box>
 
-          <Stack direction="row" spacing={0.8} sx={{ flexWrap: "wrap", justifyContent: { lg: "flex-end" } }}>
-            <Chip
-              size="small"
-              icon={<CalendarMonthIcon sx={{ fontSize: "0.95rem !important" }} />}
-              label={`${format(new Date(), "EEE, MMM d")} · ${format(currentWeekInterval.start, "MMM d")} - ${format(currentWeekInterval.end, "MMM d")}`}
-              variant="outlined"
-            />
-            <Chip
-              size="small"
-              color={hasTodayEntry ? "success" : "warning"}
-              label={hasTodayEntry ? t("Journal ready") : t("Journal missing")}
-              variant="outlined"
-            />
-            <Chip
-              size="small"
-              color={focusSessionsToday > 0 ? "info" : "default"}
-              label={t("Focus today: {count}", { count: focusSessionsToday })}
-              variant="outlined"
-            />
-          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+            {format(new Date(), "EEE, MMM d")}
+          </Typography>
         </Stack>
       </Box>
 
       <Box sx={{ ...plannerSurfaceSx, p: { xs: 2, sm: 2.25 }, mb: { xs: 1.75, md: 2.25 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
           <Box>
-            <Typography sx={plannerOverlineSx}>{t("Command center")}</Typography>
             <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
               {t("Today Dashboard")}
             </Typography>
           </Box>
-          <Chip size="small" color={hasTodayEntry ? "success" : "warning"} variant="outlined" label={hasTodayEntry ? t("Journal today") : t("Missing")} />
         </Stack>
 
         <Box
@@ -796,10 +753,8 @@ export const PlannerBoard = ({
                 minHeight: { xs: 84, sm: 94 },
                 borderRadius: 2.6,
                 border: "1px solid",
-                borderColor: alpha(muiTheme.palette[card.tone].main, isDark ? 0.3 : 0.16),
-                background: isDark
-                  ? `linear-gradient(180deg, ${alpha(muiTheme.palette[card.tone].main, 0.12)}, rgba(255,255,255,0.02))`
-                  : `linear-gradient(180deg, ${alpha(muiTheme.palette[card.tone].main, 0.08)}, rgba(255,255,255,0.78))`,
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
@@ -893,18 +848,10 @@ export const PlannerBoard = ({
       >
         <Stack direction={{ xs: "column", md: "row" }} spacing={1.4} justifyContent="space-between" sx={{ mb: 1.2 }}>
           <Box>
-            <Typography sx={plannerOverlineSx}>{t("Fast lane")}</Typography>
             <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
               {t("Quick Capture")}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t("Drop a task into the board without losing your current context.")}
-            </Typography>
           </Box>
-          <Stack direction="row" spacing={0.8} sx={{ flexWrap: "wrap", alignItems: "flex-start" }}>
-            <Chip size="small" variant="outlined" label={t("Default due: {mode}", { mode: quickDueMode === "today" ? t("Today") : quickDueMode === "tomorrow" ? t("Tomorrow") : t("No date") })} />
-            <Chip size="small" variant="outlined" label={quickProjectId === "" ? t("No project") : projects.find((project) => project.id === quickProjectId)?.name ?? t("Project")} />
-          </Stack>
         </Stack>
         <Box
           sx={{

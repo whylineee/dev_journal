@@ -28,8 +28,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import TimerIcon from "@mui/icons-material/Timer";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import {
   closestCorners,
   DndContext,
@@ -333,10 +332,7 @@ export const TasksBoard = () => {
   const boardSurfaceSx = {
     border: "1px solid",
     borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
-    backgroundColor: isDark ? "rgba(255,255,255,0.024)" : "rgba(255,255,255,0.78)",
-    backdropFilter: "blur(22px)",
-    WebkitBackdropFilter: "blur(22px)",
-    boxShadow: isDark ? "0 18px 44px rgba(0,0,0,0.24)" : "0 16px 34px rgba(0,0,0,0.06)",
+    backgroundColor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.9)",
   };
 
   useEffect(() => {
@@ -739,9 +735,6 @@ export const TasksBoard = () => {
             ...boardSurfaceSx,
             p: { xs: 1.5, md: 1.9 },
             borderRadius: 4,
-            background: isDark
-              ? `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.2)}, transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))`
-              : `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.1)}, transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.8))`,
           }}
         >
           <Stack
@@ -751,34 +744,20 @@ export const TasksBoard = () => {
             alignItems={{ xs: "stretch", md: "center" }}
           >
             <Box>
-              <Typography sx={{ color: "text.secondary", fontSize: "0.68rem", letterSpacing: "0.12em", textTransform: "uppercase", mb: 0.45 }}>
-                {t("Execution board")}
-              </Typography>
               <Typography variant="h5" sx={{ fontWeight: 700 }}>
                 {t("Tasks Board")}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t("Plan, filter, and move work across the board without losing delivery context.")}
-              </Typography>
             </Box>
 
-            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", justifyContent: { md: "flex-end" } }}>
-              <Chip
-                size="small"
-                icon={<CalendarMonthOutlinedIcon sx={{ fontSize: "0.95rem !important" }} />}
-                label={t("Due today: {count}", { count: stats.dueToday })}
-                variant="outlined"
-              />
-              <Button
-                variant="contained"
-                startIcon={<AddTaskIcon />}
-                onClick={() => openCreateDialog()}
-                disabled={busy}
-                sx={{ minHeight: 42, px: 2.3, borderRadius: 2.8 }}
-              >
-                {t("Add Task")}
-              </Button>
-            </Stack>
+            <Button
+              variant="contained"
+              startIcon={<AddTaskIcon />}
+              onClick={() => openCreateDialog()}
+              disabled={busy}
+              sx={{ minHeight: 42, px: 2.3, borderRadius: 2.8 }}
+            >
+              {t("Add Task")}
+            </Button>
           </Stack>
 
           <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>

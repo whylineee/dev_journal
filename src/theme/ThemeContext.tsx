@@ -219,17 +219,14 @@ const buildMuiTheme = ({
             borderRadius: btnRadius,
             minHeight: uiDensity === "compact" ? 30 : 36,
             padding: uiDensity === "compact" ? "4px 12px" : "6px 16px",
-            transition: "all 0.15s ease",
+            transition: "background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease",
           },
           containedPrimary: {
             backgroundColor: palette.primary,
             color: isDark ? "#000" : "#fff",
-            border: "1px solid transparent",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
             "&:hover": {
               backgroundColor: isDark ? `${palette.primary}cc` : `${palette.primary}e6`,
-            },
-            "&:active": {
-              transform: "scale(0.97)",
             },
             "&.Mui-disabled": {
               backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",

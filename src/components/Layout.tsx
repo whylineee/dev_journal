@@ -1,5 +1,4 @@
 import {
-  alpha,
   Box,
   Chip,
   Drawer,
@@ -37,7 +36,6 @@ import InsightsIcon from "@mui/icons-material/Insights";
 import MenuIcon from "@mui/icons-material/Menu";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
-import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 
 const drawerWidth = 290;
 
@@ -72,8 +70,6 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
         selected={selected}
         onClick={onClick}
         sx={{
-          position: "relative",
-          overflow: "hidden",
           borderRadius: 2.5,
           alignItems: "center",
           minHeight: 42,
@@ -83,45 +79,40 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
           mx: 0.25,
           border: "1px solid",
           borderColor: selected
-            ? alpha(theme.palette.primary.main, isDark ? 0.36 : 0.2)
+            ? isDark
+              ? "rgba(255,255,255,0.12)"
+              : "rgba(0,0,0,0.12)"
             : isDark
               ? "rgba(255,255,255,0.04)"
               : "rgba(0,0,0,0.04)",
           backgroundColor: selected
             ? isDark
-              ? alpha(theme.palette.primary.main, 0.14)
-              : alpha(theme.palette.primary.main, 0.08)
+              ? "rgba(255,255,255,0.05)"
+              : "rgba(0,0,0,0.03)"
             : "transparent",
-          transition: "all 0.18s ease",
+          transition: "background-color 0.18s ease, border-color 0.18s ease",
           "&.Mui-selected": {
             backgroundColor: isDark
-              ? alpha(theme.palette.primary.main, 0.16)
-              : alpha(theme.palette.primary.main, 0.1),
+              ? "rgba(255,255,255,0.05)"
+              : "rgba(0,0,0,0.03)",
             "&:hover": {
               backgroundColor: isDark
-                ? alpha(theme.palette.primary.main, 0.2)
-                : alpha(theme.palette.primary.main, 0.12),
+                ? "rgba(255,255,255,0.07)"
+                : "rgba(0,0,0,0.045)",
             },
-          },
-          "&::before": {
-            content: '""',
-            position: "absolute",
-            inset: "8px auto 8px 8px",
-            width: 3,
-            borderRadius: 999,
-            background: selected ? theme.palette.primary.main : "transparent",
-            boxShadow: selected ? `0 0 18px ${alpha(theme.palette.primary.main, 0.45)}` : "none",
           },
           "&:hover": {
             borderColor: selected
-              ? alpha(theme.palette.primary.main, isDark ? 0.42 : 0.24)
+              ? isDark
+                ? "rgba(255,255,255,0.14)"
+                : "rgba(0,0,0,0.14)"
               : isDark
                 ? "rgba(255,255,255,0.08)"
                 : "rgba(0,0,0,0.08)",
             backgroundColor: selected
               ? isDark
-                ? alpha(theme.palette.primary.main, 0.2)
-                : alpha(theme.palette.primary.main, 0.12)
+                ? "rgba(255,255,255,0.07)"
+                : "rgba(0,0,0,0.045)"
               : isDark
                 ? "rgba(255,255,255,0.03)"
                 : "rgba(0,0,0,0.02)",
@@ -132,8 +123,7 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
           sx={{
             minWidth: 34,
             color: selected ? "text.primary" : "text.secondary",
-            transition: "all 0.18s ease",
-            transform: selected ? "scale(1.02)" : "scale(1)",
+            transition: "color 0.18s ease",
           }}
         >
           {icon}
@@ -227,33 +217,6 @@ export const Layout = ({
     }),
     [t]
   );
-  const selectedPageTitle = useMemo(() => {
-    if (selectedPageId === null) {
-      return t("Compose a fresh note, spec, or workspace.");
-    }
-
-    const currentPage = pages?.find((page) => page.id === selectedPageId);
-    if (!currentPage) {
-      return t("Open a page and keep your notes flowing.");
-    }
-
-    return currentPage.title?.trim() || t("Untitled page");
-  }, [pages, selectedPageId, t]);
-  const activeTabSubtitle = useMemo<Record<LayoutTab, string>>(
-    () => ({
-      planner: t("Your command center for today, this week, and what needs attention next."),
-      focus: t("A calmer space for one task, one timer, and clean momentum."),
-      journal: t("Capture the day clearly so the next one starts lighter."),
-      page: selectedPageTitle,
-      tasks: t("Track execution across tasks, priorities, and next actions."),
-      goals: t("Keep bigger outcomes visible without losing the milestones."),
-      habits: t("Stay consistent with routines that compound over time."),
-      projects: t("See active workspaces, branches, and delivery scope at a glance."),
-      insights: t("Read patterns in your work, progress, and consistency."),
-      settings: t("Tune the app, visuals, reminders, and backup behavior."),
-    }),
-    [selectedPageTitle, t]
-  );
 
   const closeMobileDrawer = () => {
     if (isMobile) {
@@ -268,9 +231,7 @@ export const Layout = ({
     borderRadius: 3,
     border: "1px solid",
     borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
-    bgcolor: isDark ? "rgba(255,255,255,0.022)" : "rgba(255,255,255,0.7)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.82)",
   };
 
   const sectionHeaderSx = {
@@ -294,14 +255,9 @@ export const Layout = ({
             pb: 1.55,
             mb: 1.35,
             borderRadius: 4,
-            position: "relative",
-            overflow: "hidden",
             border: "1px solid",
-            borderColor: alpha(muiTheme.palette.primary.main, isDark ? 0.24 : 0.16),
-            background: isDark
-              ? `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.3)}, transparent 42%), linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))`
-              : `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.18)}, transparent 42%), linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.72))`,
-            boxShadow: isDark ? "0 18px 50px rgba(0,0,0,0.28)" : "0 18px 40px rgba(0,0,0,0.08)",
+            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+            bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.9)",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
@@ -312,9 +268,8 @@ export const Layout = ({
                 display: "grid",
                 placeItems: "center",
                 borderRadius: 2.5,
-                color: isDark ? "#04111c" : "#fff",
-                background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${alpha(muiTheme.palette.secondary.main, 0.92)})`,
-                boxShadow: `0 12px 24px ${alpha(muiTheme.palette.primary.main, 0.28)}`,
+                color: "text.primary",
+                bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
               }}
             >
               <EditNoteIcon sx={{ fontSize: 20 }} />
@@ -332,7 +287,6 @@ export const Layout = ({
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1.35, flexWrap: "wrap" }}>
             <Chip
               size="small"
-              icon={<CalendarMonthOutlinedIcon sx={{ fontSize: "0.95rem !important" }} />}
               label={format(new Date(), "EEE, MMM d")}
               sx={{
                 height: 28,
@@ -552,9 +506,9 @@ export const Layout = ({
                 borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
                 borderRadius: 1.5,
                 "&:hover": {
-                  color: "primary.main",
-                  bgcolor: alpha(muiTheme.palette.primary.main, 0.10),
-                  borderColor: alpha(muiTheme.palette.primary.main, 0.25),
+                  color: "text.primary",
+                  bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                  borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
                 },
               }}
             >
@@ -625,8 +579,8 @@ export const Layout = ({
             width: 32,
             height: 32,
             "&:hover": {
-              borderColor: alpha(muiTheme.palette.primary.main, 0.25),
-              bgcolor: alpha(muiTheme.palette.primary.main, 0.08),
+              borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+              bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
             },
           }}
         >
@@ -675,9 +629,6 @@ export const Layout = ({
           position: "relative",
           scrollbarWidth: "none",
           "&::-webkit-scrollbar": { display: "none" },
-          background: isDark
-            ? "radial-gradient(circle at top right, rgba(59,130,246,0.1), transparent 24%), radial-gradient(circle at 20% 0%, rgba(16,185,129,0.06), transparent 28%)"
-            : "radial-gradient(circle at top right, rgba(59,130,246,0.08), transparent 22%), radial-gradient(circle at 20% 0%, rgba(16,185,129,0.05), transparent 26%)",
         }}
       >
         <Box
@@ -716,13 +667,8 @@ export const Layout = ({
                   ? "rgba(255,255,255,0.05)"
                   : "rgba(0,0,0,0.05)",
               backgroundColor: isDark ? "rgba(13,15,18,0.78)" : "rgba(255,255,255,0.78)",
-              backdropFilter: "blur(24px)",
-              WebkitBackdropFilter: "blur(24px)",
-              boxShadow: scrolled
-                ? isDark
-                  ? "0 14px 30px rgba(0,0,0,0.28)"
-                  : "0 14px 30px rgba(0,0,0,0.08)"
-                : "none",
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)",
             }}
           >
             {isMobile && (
@@ -745,19 +691,6 @@ export const Layout = ({
 
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  color: "text.secondary",
-                  fontSize: "0.67rem",
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  mb: 0.25,
-                }}
-              >
-                {t("Workspace")}
-              </Typography>
-              <Typography
                 variant="h6"
                 noWrap
                 sx={{
@@ -772,32 +705,7 @@ export const Layout = ({
               >
                 {activeTabLabel[activeTab]}
               </Typography>
-              <Typography
-                noWrap
-                sx={{
-                  color: "text.secondary",
-                  fontSize: { xs: "0.76rem", md: "0.82rem" },
-                  lineHeight: 1.35,
-                  mt: 0.15,
-                }}
-              >
-                {activeTabSubtitle[activeTab]}
-              </Typography>
             </Box>
-
-            <Chip
-              size="small"
-              icon={<CalendarMonthOutlinedIcon sx={{ fontSize: "0.95rem !important" }} />}
-              label={format(new Date(), "MMM d")}
-              sx={{
-                height: 32,
-                borderRadius: 999,
-                bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.035)",
-                border: "1px solid",
-                borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-                display: { xs: "none", sm: "inline-flex" },
-              }}
-            />
           </Box>
         </Box>
 

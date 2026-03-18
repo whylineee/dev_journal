@@ -22,7 +22,7 @@ import { useGoals } from "../hooks/useGoals";
 import { useProjects } from "../hooks/useProjects";
 import { useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
 import { motion } from "framer-motion";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import CodeIcon from '@mui/icons-material/Code';
@@ -54,7 +54,6 @@ interface PageEditorProps {
     onDeleteSuccess: () => void;
 }
 
-const countWords = (value: string) => value.split(/\s+/).filter((word) => word.length > 0).length;
 const TASK_TABLE_BLOCK = "{{TASK_TABLE}}";
 const FORM_DB_PREFIX = "{{FORM_DB:";
 const TASK_TRACKER_PREFIX = "{{TASK_TRACKER:";
@@ -1311,7 +1310,7 @@ const PageTaskTrackerDatabase = ({
     );
 };
 
-export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSuccess, onDeleteSuccess }: PageEditorProps) => {
+export const PageEditor = ({ pageId, autosaveEnabled, onSaveSuccess, onDeleteSuccess }: PageEditorProps) => {
     const muiTheme = useTheme();
     const { data: page, isLoading } = usePage(pageId);
     const { data: tasks = [] } = useTasks();
@@ -1593,7 +1592,6 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         setContent(page?.content ?? "");
     };
 
-    const words = countWords(content);
     const projectsById = useMemo(() => {
         const map = new Map<number, string>();
         projects.forEach((project) => map.set(project.id, project.name));
@@ -1728,10 +1726,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     const shellSurfaceSx = {
         border: "1px solid",
         borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
-        backgroundColor: isDark ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.76)",
-        backdropFilter: "blur(22px)",
-        WebkitBackdropFilter: "blur(22px)",
-        boxShadow: isDark ? "0 20px 48px rgba(0,0,0,0.24)" : "0 18px 40px rgba(0,0,0,0.06)",
+        backgroundColor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.9)",
     };
     const toolbarButtonSx = {
         color: "text.secondary",
@@ -1740,7 +1735,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         "&:hover": {
             color: "text.primary",
             bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-            borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
         },
     };
     const pageSectionButtonSx = (active: boolean) => ({
@@ -1749,22 +1744,24 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         px: 1.7,
         py: 0.7,
         color: active ? "text.primary" : "text.secondary",
-        background: active
-            ? `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.main, isDark ? 0.28 : 0.14)}, ${alpha(muiTheme.palette.secondary.main, isDark ? 0.18 : 0.08)})`
-            : "transparent",
+        bgcolor: active ? (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)") : "transparent",
         border: "1px solid",
         borderColor: active
-            ? alpha(muiTheme.palette.primary.main, isDark ? 0.36 : 0.2)
+            ? isDark
+                ? "rgba(255,255,255,0.1)"
+                : "rgba(0,0,0,0.1)"
             : "transparent",
-        fontWeight: 700,
+        fontWeight: 600,
         minHeight: 38,
-        transition: "all .18s ease",
+        transition: "background-color .18s ease, border-color .18s ease, color .18s ease",
         "&:hover": {
             bgcolor: active
-                ? `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.main, isDark ? 0.34 : 0.18)}, ${alpha(muiTheme.palette.secondary.main, isDark ? 0.22 : 0.1)})`
+                ? isDark
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(0,0,0,0.05)"
                 : isDark
-                    ? "rgba(255,255,255,0.05)"
-                    : "rgba(0,0,0,0.035)",
+                    ? "rgba(255,255,255,0.04)"
+                    : "rgba(0,0,0,0.03)",
             color: "text.primary",
         },
     });
@@ -1809,26 +1806,8 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                         mb: 1.6,
                         p: { xs: 1.4, md: 1.8 },
                         borderRadius: 4,
-                        position: "relative",
-                        overflow: "hidden",
-                        background: isDark
-                            ? `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.22)}, transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018))`
-                            : `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.12)}, transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.76))`,
                     }}
                 >
-                    <Typography
-                        sx={{
-                            display: "block",
-                            mb: 0.9,
-                            color: "text.secondary",
-                            fontSize: "0.72rem",
-                            letterSpacing: "0.18em",
-                            textTransform: "uppercase",
-                        }}
-                    >
-                        Page canvas
-                    </Typography>
-
                     <Box
                         display="flex"
                         justifyContent="space-between"
@@ -1856,9 +1835,6 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                     },
                                 }}
                             />
-                            <Typography sx={{ color: "text.secondary", fontSize: { xs: "0.92rem", md: "1rem" }, maxWidth: 720 }}>
-                                Write freely, drop in task databases when needed, and keep the page feeling like one continuous workspace.
-                            </Typography>
                         </Box>
 
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -1874,7 +1850,6 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                     minWidth: 150,
                                     minHeight: 42,
                                     borderRadius: 2.8,
-                                    boxShadow: `0 14px 28px ${alpha(muiTheme.palette.primary.main, 0.24)}`,
                                 }}
                             >
                                 {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
@@ -1941,13 +1916,6 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                 Checklist
                             </Button>
                         </Box>
-
-                        <Stack direction="row" spacing={0.7} sx={{ flexWrap: "wrap", alignItems: "center" }}>
-                            <Chip size="small" label={`${words} words`} variant="outlined" />
-                            <Chip size="small" label={autosaveEnabled ? "Autosave on" : "Autosave off"} variant="outlined" />
-                            <Chip size="small" label="Ctrl/Cmd+S" variant="outlined" />
-                            <Chip size="small" label={previewEnabled ? "Live blocks on" : "Live blocks off"} variant="outlined" />
-                        </Stack>
                     </Box>
 
                     <Stack
