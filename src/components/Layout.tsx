@@ -37,6 +37,7 @@ import InsightsIcon from "@mui/icons-material/Insights";
 import MenuIcon from "@mui/icons-material/Menu";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 
 const drawerWidth = 290;
 
@@ -71,33 +72,68 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
         selected={selected}
         onClick={onClick}
         sx={{
-          borderRadius: 1.5,
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: 2.5,
           alignItems: "center",
-          minHeight: 36,
-          px: 1.5,
-          py: 0.5,
-          my: 0.25,
-          mx: 0.5,
-          transition: "background-color 0.15s ease",
+          minHeight: 42,
+          px: 1.6,
+          py: 0.7,
+          my: 0.3,
+          mx: 0.25,
+          border: "1px solid",
+          borderColor: selected
+            ? alpha(theme.palette.primary.main, isDark ? 0.36 : 0.2)
+            : isDark
+              ? "rgba(255,255,255,0.04)"
+              : "rgba(0,0,0,0.04)",
+          backgroundColor: selected
+            ? isDark
+              ? alpha(theme.palette.primary.main, 0.14)
+              : alpha(theme.palette.primary.main, 0.08)
+            : "transparent",
+          transition: "all 0.18s ease",
           "&.Mui-selected": {
-            backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+            backgroundColor: isDark
+              ? alpha(theme.palette.primary.main, 0.16)
+              : alpha(theme.palette.primary.main, 0.1),
             "&:hover": {
-              backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
+              backgroundColor: isDark
+                ? alpha(theme.palette.primary.main, 0.2)
+                : alpha(theme.palette.primary.main, 0.12),
             },
           },
-          "&.Mui-selected::before": {
-            display: "none",
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: "8px auto 8px 8px",
+            width: 3,
+            borderRadius: 999,
+            background: selected ? theme.palette.primary.main : "transparent",
+            boxShadow: selected ? `0 0 18px ${alpha(theme.palette.primary.main, 0.45)}` : "none",
           },
           "&:hover": {
-            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+            borderColor: selected
+              ? alpha(theme.palette.primary.main, isDark ? 0.42 : 0.24)
+              : isDark
+                ? "rgba(255,255,255,0.08)"
+                : "rgba(0,0,0,0.08)",
+            backgroundColor: selected
+              ? isDark
+                ? alpha(theme.palette.primary.main, 0.2)
+                : alpha(theme.palette.primary.main, 0.12)
+              : isDark
+                ? "rgba(255,255,255,0.03)"
+                : "rgba(0,0,0,0.02)",
           },
         }}
       >
         <ListItemIcon
           sx={{
             minWidth: 34,
-            color: selected ? "primary.main" : "text.secondary",
-            transition: "color 0.2s ease",
+            color: selected ? "text.primary" : "text.secondary",
+            transition: "all 0.18s ease",
+            transform: selected ? "scale(1.02)" : "scale(1)",
           }}
         >
           {icon}
@@ -106,13 +142,13 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
           primary={primary}
           secondary={secondary}
           primaryTypographyProps={{
-            fontWeight: selected ? 650 : 500,
-            fontSize: "0.86rem",
+            fontWeight: selected ? 700 : 560,
+            fontSize: "0.88rem",
             lineHeight: 1.2,
             noWrap: true,
           }}
           secondaryTypographyProps={{
-            fontSize: "0.68rem",
+            fontSize: "0.7rem",
             color: "text.secondary",
             lineHeight: 1.2,
             noWrap: true,
@@ -191,6 +227,33 @@ export const Layout = ({
     }),
     [t]
   );
+  const selectedPageTitle = useMemo(() => {
+    if (selectedPageId === null) {
+      return t("Compose a fresh note, spec, or workspace.");
+    }
+
+    const currentPage = pages?.find((page) => page.id === selectedPageId);
+    if (!currentPage) {
+      return t("Open a page and keep your notes flowing.");
+    }
+
+    return currentPage.title?.trim() || t("Untitled page");
+  }, [pages, selectedPageId, t]);
+  const activeTabSubtitle = useMemo<Record<LayoutTab, string>>(
+    () => ({
+      planner: t("Your command center for today, this week, and what needs attention next."),
+      focus: t("A calmer space for one task, one timer, and clean momentum."),
+      journal: t("Capture the day clearly so the next one starts lighter."),
+      page: selectedPageTitle,
+      tasks: t("Track execution across tasks, priorities, and next actions."),
+      goals: t("Keep bigger outcomes visible without losing the milestones."),
+      habits: t("Stay consistent with routines that compound over time."),
+      projects: t("See active workspaces, branches, and delivery scope at a glance."),
+      insights: t("Read patterns in your work, progress, and consistency."),
+      settings: t("Tune the app, visuals, reminders, and backup behavior."),
+    }),
+    [selectedPageTitle, t]
+  );
 
   const closeMobileDrawer = () => {
     if (isMobile) {
@@ -199,69 +262,127 @@ export const Layout = ({
   };
 
   const sectionBoxSx = {
-    mb: 2.5,
+    mb: 1.35,
+    px: 1.05,
+    py: 1.05,
+    borderRadius: 3,
+    border: "1px solid",
+    borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+    bgcolor: isDark ? "rgba(255,255,255,0.022)" : "rgba(255,255,255,0.7)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
   };
 
   const sectionHeaderSx = {
-    px: 1.5,
-    py: 0.5,
-    mb: 0.5,
+    px: 1.2,
+    py: 0.4,
+    mb: 0.2,
   };
 
   const drawerContent = (
     <>
       <Box sx={{
-          px: 1.5, pt: 1.5, pb: 1.5,
+          px: 1.25, pt: 1.2, pb: 1.5,
           overflowY: "auto", overflowX: "hidden", flex: 1,
           scrollbarWidth: "none",
           "&::-webkit-scrollbar": { display: "none" },
         }}>
-        {/* App header */}
-        <Box sx={{ px: 2, pt: 2, pb: 1.5, mb: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+        <Box
+          sx={{
+            px: 1.55,
+            pt: 1.7,
+            pb: 1.55,
+            mb: 1.35,
+            borderRadius: 4,
+            position: "relative",
+            overflow: "hidden",
+            border: "1px solid",
+            borderColor: alpha(muiTheme.palette.primary.main, isDark ? 0.24 : 0.16),
+            background: isDark
+              ? `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.3)}, transparent 42%), linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))`
+              : `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.18)}, transparent 42%), linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.72))`,
+            boxShadow: isDark ? "0 18px 50px rgba(0,0,0,0.28)" : "0 18px 40px rgba(0,0,0,0.08)",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
             <Box
               sx={{
-                width: 32,
-                height: 32,
+                width: 40,
+                height: 40,
                 display: "grid",
                 placeItems: "center",
-                borderRadius: 1.5,
-                backgroundColor: isDark ? muiTheme.palette.primary.main : muiTheme.palette.primary.main,
+                borderRadius: 2.5,
+                color: isDark ? "#04111c" : "#fff",
+                background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${alpha(muiTheme.palette.secondary.main, 0.92)})`,
+                boxShadow: `0 12px 24px ${alpha(muiTheme.palette.primary.main, 0.28)}`,
               }}
             >
-              <EditNoteIcon sx={{ color: isDark ? "#000" : "#fff", fontSize: 18 }} />
+              <EditNoteIcon sx={{ fontSize: 20 }} />
             </Box>
-            <Typography sx={{ fontWeight: 700, fontSize: "1rem", letterSpacing: "-0.01em" }}>
-              {t("Dev Journal")}
-            </Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 800, fontSize: "1.05rem", letterSpacing: "-0.02em" }}>
+                {t("Dev Journal")}
+              </Typography>
+              <Typography sx={{ color: "text.secondary", fontSize: "0.76rem", lineHeight: 1.35 }}>
+                {t("Local-first planning for builders who like clarity.")}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1.35, flexWrap: "wrap" }}>
+            <Chip
+              size="small"
+              icon={<CalendarMonthOutlinedIcon sx={{ fontSize: "0.95rem !important" }} />}
+              label={format(new Date(), "EEE, MMM d")}
+              sx={{
+                height: 28,
+                borderRadius: 999,
+                bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)",
+                border: "1px solid",
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              }}
+            />
+            <Chip
+              size="small"
+              label={`${displayEntries?.length ?? 0} ${t("Entries")}`}
+              sx={{
+                height: 28,
+                borderRadius: 999,
+                bgcolor: "transparent",
+                border: "1px solid",
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              }}
+            />
           </Box>
 
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 1,
+              gap: 0.9,
             }}
           >
             {overviewStats.map((stat) => (
               <Box
                 key={stat.label}
                 sx={{
-                  borderRadius: 1.5,
-                  px: 1.25,
-                  py: 0.75,
+                  borderRadius: 2.4,
+                  px: 1.15,
+                  py: 0.95,
                   minWidth: 0,
-                  bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+                  border: "1px solid",
+                  borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+                  bgcolor: isDark ? "rgba(255,255,255,0.045)" : "rgba(255,255,255,0.75)",
                 }}
               >
                 <Typography
                   variant="caption"
                   color="text.secondary"
-                  sx={{ display: "block", lineHeight: 1.1, fontSize: "0.63rem", letterSpacing: "0.04em", textTransform: "uppercase" }}
+                  sx={{ display: "block", lineHeight: 1.1, fontSize: "0.62rem", letterSpacing: "0.08em", textTransform: "uppercase" }}
                 >
                   {stat.label}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.4, fontSize: "0.9rem" }}>
+                <Typography variant="body2" sx={{ fontWeight: 800, mt: 0.55, fontSize: "1rem", letterSpacing: "-0.03em" }}>
                   {stat.value}
                 </Typography>
               </Box>
@@ -276,7 +397,7 @@ export const Layout = ({
               {t("Overview")}
             </Typography>
           </Box>
-          <List disablePadding sx={{ py: 0.5 }}>
+          <List disablePadding sx={{ py: 0.35 }}>
             <SideNavButton
               selected={activeTab === "planner"}
               onClick={() => {
@@ -305,7 +426,7 @@ export const Layout = ({
               {t("Daily Journal")}
             </Typography>
           </Box>
-          <List disablePadding sx={{ py: 0.5 }}>
+          <List disablePadding sx={{ py: 0.35 }}>
             <SideNavButton
               selected={activeTab === "journal" && selectedDate === todayStr}
               onClick={() => {
@@ -348,7 +469,7 @@ export const Layout = ({
               {t("Management")}
             </Typography>
           </Box>
-          <List disablePadding sx={{ py: 0.5 }}>
+          <List disablePadding sx={{ py: 0.35 }}>
             <SideNavButton
               selected={activeTab === "tasks"}
               onClick={() => {
@@ -440,7 +561,7 @@ export const Layout = ({
               <AddIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Box>
-          <List disablePadding sx={{ py: 0.5 }}>
+          <List disablePadding sx={{ py: 0.35 }}>
             <SideNavButton
               selected={activeTab === "page" && selectedPageId === null}
               onClick={() => {
@@ -473,15 +594,21 @@ export const Layout = ({
         sx={{
           p: 1.5,
           borderTop: "1px solid",
-          borderColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+          borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 1,
         }}
       >
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.70rem" }}>
-          {t("Settings & Theme")}
-        </Typography>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {t("Settings & Theme")}
+          </Typography>
+          <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, mt: 0.15 }}>
+            {t("Tune your workspace")}
+          </Typography>
+        </Box>
         <IconButton
           aria-label={t("Open Settings")}
           title={t("Open Settings")}
@@ -548,6 +675,9 @@ export const Layout = ({
           position: "relative",
           scrollbarWidth: "none",
           "&::-webkit-scrollbar": { display: "none" },
+          background: isDark
+            ? "radial-gradient(circle at top right, rgba(59,130,246,0.1), transparent 24%), radial-gradient(circle at 20% 0%, rgba(16,185,129,0.06), transparent 28%)"
+            : "radial-gradient(circle at top right, rgba(59,130,246,0.08), transparent 22%), radial-gradient(circle at 20% 0%, rgba(16,185,129,0.05), transparent 26%)",
         }}
       >
         <Box
@@ -564,49 +694,111 @@ export const Layout = ({
             position: "sticky",
             top: 0,
             zIndex: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
             px: { xs: 1.5, sm: 2, md: 3.5 },
-            minHeight: { xs: 48, md: 52 },
-            transition: "background-color 0.15s ease",
-            backgroundColor: scrolled
-              ? muiTheme.palette.background.default
-              : "transparent",
-            borderBottom: scrolled ? `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` : "1px solid transparent",
+            pt: { xs: 1.1, md: 1.5 },
+            pb: { xs: 0.7, md: 0.9 },
           }}
         >
-          {isMobile && (
-            <IconButton
-              aria-label={t("Open navigation menu")}
-              title={t("Open navigation menu")}
-              color="inherit"
-              onClick={() => setMobileDrawerOpen(true)}
-              edge="start"
-              size="small"
-            >
-              <MenuIcon fontSize="small" />
-            </IconButton>
-          )}
-
-          <Typography
-            variant="h6"
-            noWrap
+          <Box
             sx={{
-              fontWeight: 700,
-              fontSize: { xs: "1rem", md: "1.1rem" },
-              letterSpacing: "-0.02em",
-              color: "text.primary",
-              flexShrink: 1,
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              display: "flex",
+              alignItems: "center",
+              gap: 1.2,
+              minHeight: { xs: 58, md: 68 },
+              px: { xs: 1.1, sm: 1.35, md: 1.6 },
+              borderRadius: 3.2,
+              border: "1px solid",
+              borderColor: scrolled
+                ? isDark
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.07)"
+                : isDark
+                  ? "rgba(255,255,255,0.05)"
+                  : "rgba(0,0,0,0.05)",
+              backgroundColor: isDark ? "rgba(13,15,18,0.78)" : "rgba(255,255,255,0.78)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
+              boxShadow: scrolled
+                ? isDark
+                  ? "0 14px 30px rgba(0,0,0,0.28)"
+                  : "0 14px 30px rgba(0,0,0,0.08)"
+                : "none",
             }}
           >
-            {activeTabLabel[activeTab]}
-          </Typography>
+            {isMobile && (
+              <IconButton
+                aria-label={t("Open navigation menu")}
+                title={t("Open navigation menu")}
+                color="inherit"
+                onClick={() => setMobileDrawerOpen(true)}
+                edge="start"
+                size="small"
+                sx={{
+                  border: "1px solid",
+                  borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+                  borderRadius: 2,
+                }}
+              >
+                <MenuIcon fontSize="small" />
+              </IconButton>
+            )}
 
-          <Box sx={{ flexGrow: 1, minWidth: 16 }} />
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  color: "text.secondary",
+                  fontSize: "0.67rem",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  mb: 0.25,
+                }}
+              >
+                {t("Workspace")}
+              </Typography>
+              <Typography
+                variant="h6"
+                noWrap
+                sx={{
+                  fontWeight: 800,
+                  fontSize: { xs: "1rem", md: "1.15rem" },
+                  letterSpacing: "-0.03em",
+                  color: "text.primary",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {activeTabLabel[activeTab]}
+              </Typography>
+              <Typography
+                noWrap
+                sx={{
+                  color: "text.secondary",
+                  fontSize: { xs: "0.76rem", md: "0.82rem" },
+                  lineHeight: 1.35,
+                  mt: 0.15,
+                }}
+              >
+                {activeTabSubtitle[activeTab]}
+              </Typography>
+            </Box>
+
+            <Chip
+              size="small"
+              icon={<CalendarMonthOutlinedIcon sx={{ fontSize: "0.95rem !important" }} />}
+              label={format(new Date(), "MMM d")}
+              sx={{
+                height: 32,
+                borderRadius: 999,
+                bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.035)",
+                border: "1px solid",
+                borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+                display: { xs: "none", sm: "inline-flex" },
+              }}
+            />
+          </Box>
         </Box>
 
         <Box

@@ -22,7 +22,7 @@ import { useGoals } from "../hooks/useGoals";
 import { useProjects } from "../hooks/useProjects";
 import { useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
 import { motion } from "framer-motion";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import CodeIcon from '@mui/icons-material/Code';
@@ -1725,26 +1725,46 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         return () => window.clearTimeout(timeout);
     }, [checklistBlockEntries, pageSection, pendingChecklistFocusIndex]);
     const isDark = muiTheme.palette.mode === "dark";
+    const shellSurfaceSx = {
+        border: "1px solid",
+        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
+        backgroundColor: isDark ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.76)",
+        backdropFilter: "blur(22px)",
+        WebkitBackdropFilter: "blur(22px)",
+        boxShadow: isDark ? "0 20px 48px rgba(0,0,0,0.24)" : "0 18px 40px rgba(0,0,0,0.06)",
+    };
     const toolbarButtonSx = {
         color: "text.secondary",
-        borderRadius: 2,
+        borderRadius: 2.2,
+        border: "1px solid transparent",
         "&:hover": {
             color: "text.primary",
             bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+            borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
         },
     };
     const pageSectionButtonSx = (active: boolean) => ({
         textTransform: "none",
         borderRadius: 99,
         px: 1.7,
-        py: 0.5,
+        py: 0.7,
         color: active ? "text.primary" : "text.secondary",
-        bgcolor: active ? (isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.1)") : "transparent",
-        fontWeight: 600,
-        minHeight: 34,
+        background: active
+            ? `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.main, isDark ? 0.28 : 0.14)}, ${alpha(muiTheme.palette.secondary.main, isDark ? 0.18 : 0.08)})`
+            : "transparent",
+        border: "1px solid",
+        borderColor: active
+            ? alpha(muiTheme.palette.primary.main, isDark ? 0.36 : 0.2)
+            : "transparent",
+        fontWeight: 700,
+        minHeight: 38,
         transition: "all .18s ease",
         "&:hover": {
-            bgcolor: active ? (isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.14)") : "action.hover",
+            bgcolor: active
+                ? `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.main, isDark ? 0.34 : 0.18)}, ${alpha(muiTheme.palette.secondary.main, isDark ? 0.22 : 0.1)})`
+                : isDark
+                    ? "rgba(255,255,255,0.05)"
+                    : "rgba(0,0,0,0.035)",
             color: "text.primary",
         },
     });
@@ -1773,171 +1793,236 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         >
             <Box
                 sx={{
-                    maxWidth: 1140,
+                    maxWidth: 1180,
                     mx: "auto",
                     width: '100%',
                     flex: 1,
                     display: 'flex',
                     flexDirection: 'column',
-                    px: { xs: 1.5, md: 2.5 },
-                    pb: 4,
+                    px: { xs: 1.5, md: 2.75 },
+                    pb: 5,
                 }}
             >
                 <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", md: "center" }}
-                    mb={0.75}
-                    gap={2}
-                    flexDirection={{ xs: "column", md: "row" }}
+                    sx={{
+                        ...shellSurfaceSx,
+                        mb: 1.6,
+                        p: { xs: 1.4, md: 1.8 },
+                        borderRadius: 4,
+                        position: "relative",
+                        overflow: "hidden",
+                        background: isDark
+                            ? `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.22)}, transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018))`
+                            : `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.12)}, transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.76))`,
+                    }}
                 >
-                    <InputBase
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Untitled"
+                    <Typography
                         sx={{
-                            typography: { xs: "h3", md: "h2" },
-                            fontWeight: 700,
-                            letterSpacing: '-0.03em',
-                            color: 'text.primary',
-                            flex: 1,
-                            minWidth: 0,
-                            width: "100%",
-                            "& input::placeholder": {
-                                color: "text.secondary",
-                                opacity: 1,
-                            },
+                            display: "block",
+                            mb: 0.9,
+                            color: "text.secondary",
+                            fontSize: "0.72rem",
+                            letterSpacing: "0.18em",
+                            textTransform: "uppercase",
                         }}
-                    />
+                    >
+                        Page canvas
+                    </Typography>
 
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        {draftRestored ? <Chip label="Draft restored" size="small" color="info" variant="outlined" /> : null}
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={<SaveIcon />}
-                            onClick={handleSave}
-                            disabled={createMutation.isPending || updateMutation.isPending}
-                            sx={{ px: 2.5, minWidth: 150 }}
+                    <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems={{ xs: "flex-start", md: "center" }}
+                        gap={2}
+                        flexDirection={{ xs: "column", md: "row" }}
+                    >
+                        <Box sx={{ minWidth: 0, flex: 1, width: "100%" }}>
+                            <InputBase
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Untitled"
+                                sx={{
+                                    typography: { xs: "h3", md: "h2" },
+                                    fontWeight: 800,
+                                    letterSpacing: '-0.04em',
+                                    color: 'text.primary',
+                                    flex: 1,
+                                    minWidth: 0,
+                                    width: "100%",
+                                    mb: 0.5,
+                                    "& input::placeholder": {
+                                        color: "text.secondary",
+                                        opacity: 1,
+                                    },
+                                }}
+                            />
+                            <Typography sx={{ color: "text.secondary", fontSize: { xs: "0.92rem", md: "1rem" }, maxWidth: 720 }}>
+                                Write freely, drop in task databases when needed, and keep the page feeling like one continuous workspace.
+                            </Typography>
+                        </Box>
+
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+                            {draftRestored ? <Chip label="Draft restored" size="small" color="info" variant="outlined" /> : null}
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<SaveIcon />}
+                                onClick={handleSave}
+                                disabled={createMutation.isPending || updateMutation.isPending}
+                                sx={{
+                                    px: 2.6,
+                                    minWidth: 150,
+                                    minHeight: 42,
+                                    borderRadius: 2.8,
+                                    boxShadow: `0 14px 28px ${alpha(muiTheme.palette.primary.main, 0.24)}`,
+                                }}
+                            >
+                                {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+                            </Button>
+                        </Stack>
+                    </Box>
+                </Box>
+
+                <Box
+                    sx={{
+                        ...shellSurfaceSx,
+                        mb: 2,
+                        p: 0.8,
+                        borderRadius: 3.2,
+                    }}
+                >
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: { xs: "stretch", md: "center" },
+                            justifyContent: "space-between",
+                            gap: 1,
+                            flexDirection: { xs: "column", md: "row" },
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                p: 0.35,
+                                display: "inline-flex",
+                                gap: 0.45,
+                                alignItems: "center",
+                                borderRadius: 99,
+                                border: "1px solid",
+                                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                                bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)",
+                                flexWrap: "wrap",
+                            }}
                         >
-                            {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+                            <Button
+                                size="small"
+                                startIcon={<NotesIcon fontSize="small" />}
+                                onClick={() => setPageSection("page")}
+                                sx={pageSectionButtonSx(pageSection === "page")}
+                                data-testid="page-editor-section-page"
+                            >
+                                Page
+                            </Button>
+                            <Button
+                                size="small"
+                                startIcon={<ViewAgendaOutlinedIcon fontSize="small" />}
+                                onClick={() => setPageSection("tasks")}
+                                sx={pageSectionButtonSx(pageSection === "tasks")}
+                                data-testid="page-editor-section-tasks"
+                            >
+                                Tasks
+                            </Button>
+                            <Button
+                                size="small"
+                                startIcon={<ChecklistRtlIcon fontSize="small" />}
+                                onClick={() => setPageSection("checklist")}
+                                sx={pageSectionButtonSx(pageSection === "checklist")}
+                                data-testid="page-editor-section-checklist"
+                            >
+                                Checklist
+                            </Button>
+                        </Box>
+
+                        <Stack direction="row" spacing={0.7} sx={{ flexWrap: "wrap", alignItems: "center" }}>
+                            <Chip size="small" label={`${words} words`} variant="outlined" />
+                            <Chip size="small" label={autosaveEnabled ? "Autosave on" : "Autosave off"} variant="outlined" />
+                            <Chip size="small" label="Ctrl/Cmd+S" variant="outlined" />
+                            <Chip size="small" label={previewEnabled ? "Live blocks on" : "Live blocks off"} variant="outlined" />
+                        </Stack>
+                    </Box>
+
+                    <Stack
+                        direction="row"
+                        spacing={0.35}
+                        sx={{
+                            mt: 1.15,
+                            pt: 1.15,
+                            borderTop: "1px solid",
+                            borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                        }}
+                    >
+                        <Tooltip title="Bold">
+                            <IconButton size="small" onClick={() => insertFormat('**', '**')} sx={toolbarButtonSx}>
+                                <FormatBoldIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Italic">
+                            <IconButton size="small" onClick={() => insertFormat('*', '*')} sx={toolbarButtonSx}>
+                                <FormatItalicIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Code">
+                            <IconButton size="small" onClick={() => insertFormat('`', '`')} sx={toolbarButtonSx}>
+                                <CodeIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Code Block">
+                            <IconButton size="small" onClick={insertCodeBlock} sx={toolbarButtonSx}>
+                                <DataObjectIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Bullet List">
+                            <IconButton size="small" onClick={() => insertFormat('- ', '')} sx={toolbarButtonSx}>
+                                <FormatListBulletedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Checklist">
+                            <IconButton size="small" onClick={insertChecklist} sx={toolbarButtonSx}>
+                                <CheckBoxOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Table">
+                            <IconButton size="small" onClick={insertTable} sx={toolbarButtonSx}>
+                                <TableChartOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Tasks Database">
+                            <IconButton size="small" onClick={insertTaskDatabase} sx={toolbarButtonSx}>
+                                <ViewAgendaOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Task Tracker">
+                            <IconButton size="small" onClick={insertTaskTrackerDatabase} sx={toolbarButtonSx}>
+                                <FactCheckOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Button size="small" onClick={insertTemplate} sx={{ ml: 0.3, borderRadius: 2.4 }}>
+                            Insert template
                         </Button>
                     </Stack>
                 </Box>
 
-                <Stack direction="row" spacing={0.7} sx={{ mb: 1.4, flexWrap: "wrap", alignItems: "center" }}>
-                    <Chip size="small" label={`${words} words`} variant="outlined" />
-                    <Chip size="small" label={autosaveEnabled ? "Autosave on" : "Autosave off"} variant="outlined" />
-                    <Chip size="small" label="Ctrl/Cmd+S" variant="outlined" />
-                    <Chip size="small" label={previewEnabled ? "Live blocks on" : "Live blocks off"} variant="outlined" />
-                </Stack>
-
-                <Box
-                    sx={{
-                        mb: 1.25,
-                        p: 0.45,
-                        display: "inline-flex",
-                        gap: 0.5,
-                        alignItems: "center",
-                        borderRadius: 99,
-                        border: "1px solid",
-                        borderColor: "divider",
-                        bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)",
-                    }}
-                >
-                    <Button
-                        size="small"
-                        startIcon={<NotesIcon fontSize="small" />}
-                        onClick={() => setPageSection("page")}
-                        sx={pageSectionButtonSx(pageSection === "page")}
-                        data-testid="page-editor-section-page"
-                    >
-                        Page
-                    </Button>
-                    <Button
-                        size="small"
-                        startIcon={<ViewAgendaOutlinedIcon fontSize="small" />}
-                        onClick={() => setPageSection("tasks")}
-                        sx={pageSectionButtonSx(pageSection === "tasks")}
-                        data-testid="page-editor-section-tasks"
-                    >
-                        Tasks
-                    </Button>
-                    <Button
-                        size="small"
-                        startIcon={<ChecklistRtlIcon fontSize="small" />}
-                        onClick={() => setPageSection("checklist")}
-                        sx={pageSectionButtonSx(pageSection === "checklist")}
-                        data-testid="page-editor-section-checklist"
-                    >
-                        Checklist
-                    </Button>
-                </Box>
-
-                <Stack
-                    direction="row"
-                    spacing={0.25}
-                    sx={{
-                        mb: 2.25,
-                        pb: 1.2,
-                        borderBottom: "1px solid",
-                        borderColor: "divider",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                    }}
-                >
-                    <Tooltip title="Bold">
-                        <IconButton size="small" onClick={() => insertFormat('**', '**')} sx={toolbarButtonSx}>
-                            <FormatBoldIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Italic">
-                        <IconButton size="small" onClick={() => insertFormat('*', '*')} sx={toolbarButtonSx}>
-                            <FormatItalicIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Code">
-                        <IconButton size="small" onClick={() => insertFormat('`', '`')} sx={toolbarButtonSx}>
-                            <CodeIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Code Block">
-                        <IconButton size="small" onClick={insertCodeBlock} sx={toolbarButtonSx}>
-                            <DataObjectIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Bullet List">
-                        <IconButton size="small" onClick={() => insertFormat('- ', '')} sx={toolbarButtonSx}>
-                            <FormatListBulletedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Checklist">
-                        <IconButton size="small" onClick={insertChecklist} sx={toolbarButtonSx}>
-                            <CheckBoxOutlinedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Table">
-                        <IconButton size="small" onClick={insertTable} sx={toolbarButtonSx}>
-                            <TableChartOutlinedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Tasks Database">
-                        <IconButton size="small" onClick={insertTaskDatabase} sx={toolbarButtonSx}>
-                            <ViewAgendaOutlinedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Task Tracker">
-                        <IconButton size="small" onClick={insertTaskTrackerDatabase} sx={toolbarButtonSx}>
-                            <FactCheckOutlinedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Button size="small" onClick={insertTemplate} sx={{ ml: 0.5 }}>
-                        Insert template
-                    </Button>
-                </Stack>
-
                 {pageSection === "page" ? (
-                    <Box sx={{ flex: 1, minHeight: 420 }}>
+                    <Box
+                        sx={{
+                            ...shellSurfaceSx,
+                            flex: 1,
+                            minHeight: 460,
+                            borderRadius: 4,
+                            p: { xs: 1.35, md: 1.7 },
+                        }}
+                    >
                         <TextField
                             multiline
                             fullWidth
@@ -1953,9 +2038,9 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                 sx: {
                                     alignItems: "flex-start",
                                     fontSize: { xs: 19, md: 21 },
-                                    lineHeight: 1.75,
+                                    lineHeight: 1.82,
                                     "& textarea": {
-                                        minHeight: "420px !important",
+                                        minHeight: "440px !important",
                                     },
                                 },
                             }}
@@ -1968,12 +2053,12 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                             <Paper
                                 variant="outlined"
                                 sx={{
-                                    mt: 1.6,
-                                    p: 1.25,
-                                    borderRadius: 2,
+                                    mt: 2,
+                                    p: 1.35,
+                                    borderRadius: 3,
                                     borderStyle: "dashed",
                                     borderColor: "divider",
-                                    bgcolor: "background.paper",
+                                    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
                                 }}
                             >
                                 <Stack spacing={0.4}>
@@ -2021,10 +2106,10 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                             <Paper
                                 variant="outlined"
                                 sx={{
-                                    p: 2.25,
-                                    borderRadius: 2.5,
+                                    ...shellSurfaceSx,
+                                    p: 2.4,
+                                    borderRadius: 3.4,
                                     borderColor: "divider",
-                                    bgcolor: "background.paper",
                                 }}
                             >
                                 <Typography variant="body1" sx={{ fontWeight: 600 }}>
@@ -2051,10 +2136,10 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                         <Paper
                             variant="outlined"
                             sx={{
-                                p: 1.5,
-                                borderRadius: 2.5,
+                                ...shellSurfaceSx,
+                                p: 1.65,
+                                borderRadius: 3.4,
                                 borderColor: "divider",
-                                bgcolor: "background.paper",
                             }}
                         >
                             <Stack spacing={0.45}>

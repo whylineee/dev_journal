@@ -450,6 +450,30 @@ export const PlannerBoard = ({
       boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.08)",
     },
   };
+  const plannerSurfaceSx = {
+    ...plannerCardSx,
+    borderRadius: 3.5,
+    bgcolor: isDark ? "rgba(255,255,255,0.024)" : "rgba(255,255,255,0.74)",
+    backdropFilter: "blur(24px)",
+    WebkitBackdropFilter: "blur(24px)",
+    boxShadow: isDark ? "0 18px 48px rgba(0,0,0,0.24)" : "0 18px 36px rgba(0,0,0,0.06)",
+  };
+  const plannerInsetCardSx = {
+    p: 1.2,
+    minHeight: 96,
+    borderRadius: 2.75,
+    border: "1px solid",
+    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+    bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.018)",
+  };
+  const plannerOverlineSx = {
+    display: "block",
+    mb: 0.45,
+    color: "text.secondary",
+    fontSize: "0.68rem",
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+  };
 
   const resetMeetingForm = () => {
     setEditingMeetingId(null);
@@ -691,27 +715,66 @@ export const PlannerBoard = ({
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: { xs: 1, md: 1.25 }, pb: 3 }}>
-      {/* ── Header ── */}
-      <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.25 }}>
-          {t("Planner")}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {t("Daily command center for journal, tasks, goals, and habits.")}
-        </Typography>
+      <Box
+        sx={{
+          ...plannerSurfaceSx,
+          mb: { xs: 1.75, md: 2.25 },
+          p: { xs: 1.6, md: 2 },
+          overflow: "hidden",
+          position: "relative",
+          background: isDark
+            ? `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.22)}, transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))`
+            : `radial-gradient(circle at top left, ${alpha(muiTheme.palette.primary.main, 0.12)}, transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.78))`,
+        }}
+      >
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", lg: "center" }}
+        >
+          <Box sx={{ maxWidth: 760 }}>
+            <Typography sx={plannerOverlineSx}>{t("Today at a glance")}</Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: "-0.04em", mb: 0.45 }}>
+              {t("Planner")}
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 640 }}>
+              {t("Daily command center for journal, tasks, goals, and habits.")}
+            </Typography>
+          </Box>
+
+          <Stack direction="row" spacing={0.8} sx={{ flexWrap: "wrap", justifyContent: { lg: "flex-end" } }}>
+            <Chip
+              size="small"
+              icon={<CalendarMonthIcon sx={{ fontSize: "0.95rem !important" }} />}
+              label={`${format(new Date(), "EEE, MMM d")} · ${format(currentWeekInterval.start, "MMM d")} - ${format(currentWeekInterval.end, "MMM d")}`}
+              variant="outlined"
+            />
+            <Chip
+              size="small"
+              color={hasTodayEntry ? "success" : "warning"}
+              label={hasTodayEntry ? t("Journal ready") : t("Journal missing")}
+              variant="outlined"
+            />
+            <Chip
+              size="small"
+              color={focusSessionsToday > 0 ? "info" : "default"}
+              label={t("Focus today: {count}", { count: focusSessionsToday })}
+              variant="outlined"
+            />
+          </Stack>
+        </Stack>
       </Box>
 
-      <Box sx={{ ...plannerCardSx, p: { xs: 2, sm: 2.25 }, mb: { xs: 1.75, md: 2.25 } }}>
+      <Box sx={{ ...plannerSurfaceSx, p: { xs: 2, sm: 2.25 }, mb: { xs: 1.75, md: 2.25 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {t("Today Dashboard")}
-          </Typography>
-          <Chip
-            size="small"
-            color={hasTodayEntry ? "success" : "warning"}
-            variant="outlined"
-            label={hasTodayEntry ? t("Journal Today") : t("Missing")}
-          />
+          <Box>
+            <Typography sx={plannerOverlineSx}>{t("Command center")}</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+              {t("Today Dashboard")}
+            </Typography>
+          </Box>
+          <Chip size="small" color={hasTodayEntry ? "success" : "warning"} variant="outlined" label={hasTodayEntry ? t("Journal today") : t("Missing")} />
         </Stack>
 
         <Box
@@ -720,28 +783,32 @@ export const PlannerBoard = ({
             gridTemplateColumns: {
               xs: "repeat(2, minmax(0, 1fr))",
               sm: "repeat(4, minmax(0, 1fr))",
-              lg: "repeat(8, minmax(0, 1fr))",
+              lg: "repeat(6, minmax(0, 1fr))",
             },
-            gap: 0.75,
+            gap: 0.95,
           }}
         >
           {[...todayDashboardCards, ...usageStatsCards].map((card) => (
             <Box
               key={card.label}
               sx={{
-                p: { xs: 0.9, sm: 1 },
-                minHeight: { xs: 64, sm: 72 },
-                borderRadius: 2,
-                bgcolor: isDark ? alpha(muiTheme.palette[card.tone].main, 0.08) : alpha(muiTheme.palette[card.tone].main, 0.05),
+                p: { xs: 1, sm: 1.1 },
+                minHeight: { xs: 84, sm: 94 },
+                borderRadius: 2.6,
+                border: "1px solid",
+                borderColor: alpha(muiTheme.palette[card.tone].main, isDark ? 0.3 : 0.16),
+                background: isDark
+                  ? `linear-gradient(180deg, ${alpha(muiTheme.palette[card.tone].main, 0.12)}, rgba(255,255,255,0.02))`
+                  : `linear-gradient(180deg, ${alpha(muiTheme.palette[card.tone].main, 0.08)}, rgba(255,255,255,0.78))`,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
               }}
             >
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.66rem", lineHeight: 1.15 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.64rem", lineHeight: 1.15, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 {card.label}
               </Typography>
-              <Typography variant="body1" sx={{ fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+              <Typography variant="body1" sx={{ fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: "tabular-nums", fontSize: { xs: "1.35rem", sm: "1.5rem" }, letterSpacing: "-0.04em" }}>
                 {card.value}
               </Typography>
             </Box>
@@ -758,13 +825,10 @@ export const PlannerBoard = ({
         >
           <Box
             sx={{
-              p: 1,
-              minHeight: 90,
-              borderRadius: 2,
-              bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+              ...plannerInsetCardSx,
             }}
           >
-            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.6, display: "block" }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.65, display: "block", letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary" }}>
               {t("Priority Stack")}
             </Typography>
             <Stack spacing={0.5}>
@@ -791,13 +855,10 @@ export const PlannerBoard = ({
 
           <Box
             sx={{
-              p: 1,
-              minHeight: 90,
-              borderRadius: 2,
-              bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+              ...plannerInsetCardSx,
             }}
           >
-            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.6, display: "block" }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.65, display: "block", letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary" }}>
               {t("Next Meeting")}
             </Typography>
             {todayMeetings[0] ? (
@@ -822,19 +883,29 @@ export const PlannerBoard = ({
       {/* ── Quick Capture (compact, inline) ── */}
       <Box
         sx={{
+          ...plannerSurfaceSx,
           mb: { xs: 1.75, md: 2.25 },
           p: { xs: 1.5, md: 2 },
-          borderRadius: 2,
-          bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
-          border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
           overflow: "hidden",
           contain: "layout paint",
           position: "relative" as const,
         }}
       >
-        <Typography variant="caption" sx={{ fontWeight: 700, mb: 1, display: "block", textTransform: "uppercase", letterSpacing: 0.5 }}>
-          {t("Quick Capture")}
-        </Typography>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.4} justifyContent="space-between" sx={{ mb: 1.2 }}>
+          <Box>
+            <Typography sx={plannerOverlineSx}>{t("Fast lane")}</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+              {t("Quick Capture")}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t("Drop a task into the board without losing your current context.")}
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={0.8} sx={{ flexWrap: "wrap", alignItems: "flex-start" }}>
+            <Chip size="small" variant="outlined" label={t("Default due: {mode}", { mode: quickDueMode === "today" ? t("Today") : quickDueMode === "tomorrow" ? t("Tomorrow") : t("No date") })} />
+            <Chip size="small" variant="outlined" label={quickProjectId === "" ? t("No project") : projects.find((project) => project.id === quickProjectId)?.name ?? t("Project")} />
+          </Stack>
+        </Stack>
         <Box
           sx={{
             mt: 0.5,
@@ -971,7 +1042,7 @@ export const PlannerBoard = ({
       )}
 
       {/* ── Meetings Planner ── */}
-      <Box sx={{ ...plannerCardSx, mb: { xs: 2, md: 2.5 } }}>
+      <Box sx={{ ...plannerSurfaceSx, mb: { xs: 2, md: 2.5 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {t("Meetings")}
