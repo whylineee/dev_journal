@@ -199,7 +199,7 @@ export const HabitsBoard = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 1 }}>
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
+      <Box sx={{ p: { xs: 1, md: 2 } }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
@@ -229,11 +229,11 @@ export const HabitsBoard = () => {
           <Chip label={t("Total: {count}", { count: stats.total })} variant="outlined" size="small" />
           <Chip
             label={t("Targets met: {count}", { count: stats.targetReached })}
-            color="success"
+            color="default"
             variant="outlined"
             size="small"
           />
-          <Chip label={t("Avg streak: {count}d", { count: stats.avgStreak })} color="info" variant="outlined" size="small" />
+          <Chip label={t("Avg streak: {count}d", { count: stats.avgStreak })} color="default" variant="outlined" size="small" />
         </Stack>
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mt: 2 }}>
@@ -258,7 +258,7 @@ export const HabitsBoard = () => {
             {t("Needs Attention")}
           </Button>
         </Stack>
-      </Paper>
+      </Box>
 
       <Stack spacing={1.5} sx={{ mt: 2 }}>
         {filteredHabits.map((habit) => {
@@ -267,24 +267,26 @@ export const HabitsBoard = () => {
           return (
             <Paper key={habit.id} variant="outlined" sx={{
               p: 2,
-              borderRadius: 3,
+              borderRadius: 2.5,
               borderColor: (theme) =>
                 theme.palette.mode === "dark"
-                  ? "rgba(255,255,255,0.06)"
-                  : "rgba(255,255,255,0.45)",
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.08)",
               bgcolor: (theme) =>
                 theme.palette.mode === "dark"
                   ? "rgba(255,255,255,0.02)"
-                  : "rgba(255,255,255,0.40)",
-              backdropFilter: "blur(12px) saturate(1.4)",
-              WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+                  : "rgba(0,0,0,0.01)",
               transition: "all 0.2s ease",
               "&:hover": {
                 transform: "translateY(-1px)",
+                borderColor: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "rgba(255,255,255,0.15)"
+                    : "rgba(0,0,0,0.15)",
                 boxShadow: (theme) =>
                   theme.palette.mode === "dark"
-                    ? "0 4px 16px rgba(0,0,0,0.30)"
-                    : "0 4px 16px rgba(0,0,0,0.06)",
+                    ? "0 2px 8px rgba(0,0,0,0.3)"
+                    : "0 2px 8px rgba(0,0,0,0.08)",
               },
             }}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">

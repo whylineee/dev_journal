@@ -434,21 +434,30 @@ export const PlannerBoard = ({
   const dailyWins = dailyWinsMap[today] ?? [];
   const focusSessionsToday = focusSessionsMap[today] ?? 0;
   const isDark = muiTheme.palette.mode === "dark";
-  const hasTodayEntry = useMemo(
-    () => entries.some((entry) => entry.date === today),
-    [entries, today]
-  );
   const plannerCardSx = {
-    p: { xs: 2.5, sm: 3 },
+    p: { xs: 2, sm: 2.5 },
+    mb: 2,
+    borderRadius: 2.5,
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
+    border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+    transition: "all 0.2s ease",
+    "&:hover": {
+      borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
+      boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.08)",
+    },
+  };
+  const plannerSurfaceSx = {
+    ...plannerCardSx,
     borderRadius: 3.5,
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.9)",
+  };
+  const plannerInsetCardSx = {
+    p: 1.2,
+    minHeight: 96,
+    borderRadius: 2.75,
     border: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
-    bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
-    backdropFilter: "blur(20px) saturate(1.3)",
-    WebkitBackdropFilter: "blur(20px) saturate(1.3)",
-    boxShadow: isDark
-      ? "0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)"
-      : "0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.60)",
+    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+    bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.018)",
   };
 
   const resetMeetingForm = () => {
@@ -691,27 +700,38 @@ export const PlannerBoard = ({
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: { xs: 1, md: 1.25 }, pb: 3 }}>
-      {/* ── Header ── */}
-      <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.25 }}>
-          {t("Planner")}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {t("Daily command center for journal, tasks, goals, and habits.")}
-        </Typography>
+      <Box
+        sx={{
+          ...plannerSurfaceSx,
+          mb: { xs: 1.75, md: 2.25 },
+          p: { xs: 1.6, md: 2 },
+        }}
+      >
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", lg: "center" }}
+        >
+          <Box sx={{ maxWidth: 760 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: "-0.04em", mb: 0.45 }}>
+              {t("Planner")}
+            </Typography>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+            {format(new Date(), "EEE, MMM d")}
+          </Typography>
+        </Stack>
       </Box>
 
-      <Box sx={{ ...plannerCardSx, p: { xs: 2, sm: 2.25 }, mb: { xs: 1.75, md: 2.25 } }}>
+      <Box sx={{ ...plannerSurfaceSx, p: { xs: 2, sm: 2.25 }, mb: { xs: 1.75, md: 2.25 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {t("Today Dashboard")}
-          </Typography>
-          <Chip
-            size="small"
-            color={hasTodayEntry ? "success" : "warning"}
-            variant="outlined"
-            label={hasTodayEntry ? t("Journal Today") : t("Missing")}
-          />
+          <Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+              {t("Today Dashboard")}
+            </Typography>
+          </Box>
         </Stack>
 
         <Box
@@ -720,32 +740,30 @@ export const PlannerBoard = ({
             gridTemplateColumns: {
               xs: "repeat(2, minmax(0, 1fr))",
               sm: "repeat(4, minmax(0, 1fr))",
-              lg: "repeat(8, minmax(0, 1fr))",
+              lg: "repeat(6, minmax(0, 1fr))",
             },
-            gap: 0.75,
+            gap: 0.95,
           }}
         >
           {[...todayDashboardCards, ...usageStatsCards].map((card) => (
             <Box
               key={card.label}
               sx={{
-                p: { xs: 0.9, sm: 1 },
-                minHeight: { xs: 64, sm: 72 },
-                borderRadius: 1.75,
+                p: { xs: 1, sm: 1.1 },
+                minHeight: { xs: 84, sm: 94 },
+                borderRadius: 2.6,
                 border: "1px solid",
-                borderColor: isDark
-                  ? alpha(muiTheme.palette[card.tone].main, 0.2)
-                  : alpha(muiTheme.palette[card.tone].main, 0.15),
-                bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.40)",
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
               }}
             >
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.66rem", lineHeight: 1.15 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.64rem", lineHeight: 1.15, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 {card.label}
               </Typography>
-              <Typography variant="body1" sx={{ fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+              <Typography variant="body1" sx={{ fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: "tabular-nums", fontSize: { xs: "1.35rem", sm: "1.5rem" }, letterSpacing: "-0.04em" }}>
                 {card.value}
               </Typography>
             </Box>
@@ -762,15 +780,10 @@ export const PlannerBoard = ({
         >
           <Box
             sx={{
-              p: 1,
-              minHeight: 90,
-              borderRadius: 1.75,
-              border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.35)",
-              bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
+              ...plannerInsetCardSx,
             }}
           >
-            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.6, display: "block" }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.65, display: "block", letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary" }}>
               {t("Priority Stack")}
             </Typography>
             <Stack spacing={0.5}>
@@ -797,15 +810,10 @@ export const PlannerBoard = ({
 
           <Box
             sx={{
-              p: 1,
-              minHeight: 90,
-              borderRadius: 1.75,
-              border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.35)",
-              bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
+              ...plannerInsetCardSx,
             }}
           >
-            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.6, display: "block" }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.65, display: "block", letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary" }}>
               {t("Next Meeting")}
             </Typography>
             {todayMeetings[0] ? (
@@ -830,22 +838,21 @@ export const PlannerBoard = ({
       {/* ── Quick Capture (compact, inline) ── */}
       <Box
         sx={{
+          ...plannerSurfaceSx,
           mb: { xs: 1.75, md: 2.25 },
           p: { xs: 1.5, md: 2 },
-          borderRadius: 3,
-          border: "1px solid",
-          borderColor: alpha(muiTheme.palette.primary.main, 0.12),
-          bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.35)",
-          backdropFilter: "blur(16px) saturate(1.3)",
-          WebkitBackdropFilter: "blur(16px) saturate(1.3)",
           overflow: "hidden",
           contain: "layout paint",
           position: "relative" as const,
         }}
       >
-        <Typography variant="caption" sx={{ fontWeight: 700, mb: 1, display: "block", textTransform: "uppercase", letterSpacing: 0.5 }}>
-          {t("Quick Capture")}
-        </Typography>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.4} justifyContent="space-between" sx={{ mb: 1.2 }}>
+          <Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+              {t("Quick Capture")}
+            </Typography>
+          </Box>
+        </Stack>
         <Box
           sx={{
             mt: 0.5,
@@ -982,7 +989,7 @@ export const PlannerBoard = ({
       )}
 
       {/* ── Meetings Planner ── */}
-      <Box sx={{ ...plannerCardSx, mb: { xs: 2, md: 2.5 } }}>
+      <Box sx={{ ...plannerSurfaceSx, mb: { xs: 2, md: 2.5 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {t("Meetings")}
@@ -1830,12 +1837,7 @@ export const PlannerBoard = ({
             cursor: "pointer",
             transition: "all 0.2s ease",
             "&:hover": {
-              borderColor: isDark
-                ? `${muiTheme.palette.primary.main}30`
-                : `${muiTheme.palette.primary.main}25`,
-              boxShadow: isDark
-                ? `0 8px 32px rgba(0,0,0,0.30), 0 0 0 1px ${muiTheme.palette.primary.main}15`
-                : `0 8px 32px rgba(0,0,0,0.08), 0 0 0 1px ${muiTheme.palette.primary.main}12`,
+              bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
             },
           }}
           onClick={onOpenFocus}

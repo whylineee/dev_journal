@@ -1,10 +1,8 @@
 import {
-  alpha,
   Box,
   Chip,
   Drawer,
   IconButton,
-  InputBase,
   List,
   ListItem,
   ListItemButton,
@@ -15,7 +13,7 @@ import {
 } from "@mui/material";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@mui/material/styles";
-import { useEntries, useSearchEntries } from "../hooks/useEntries";
+import { useEntries } from "../hooks/useEntries";
 import { usePages } from "../hooks/usePages";
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
@@ -23,7 +21,7 @@ import { useHabits } from "../hooks/useHabits";
 import { useProjects } from "../hooks/useProjects";
 import { useI18n } from "../i18n/I18nContext";
 import { format, parseISO } from "date-fns";
-import SearchIcon from "@mui/icons-material/Search";
+
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import TodayIcon from "@mui/icons-material/Today";
 import EventNoteIcon from "@mui/icons-material/EventNote";
@@ -74,42 +72,58 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
         sx={{
           borderRadius: 2.5,
           alignItems: "center",
-          minHeight: 48,
-          px: 1.5,
-          py: 0.65,
-          my: 0.25,
-          mx: 0.5,
+          minHeight: 42,
+          px: 1.6,
+          py: 0.7,
+          my: 0.3,
+          mx: 0.25,
           border: "1px solid",
           borderColor: selected
-            ? alpha(theme.palette.primary.main, 0.30)
-            : "transparent",
+            ? isDark
+              ? "rgba(255,255,255,0.12)"
+              : "rgba(0,0,0,0.12)"
+            : isDark
+              ? "rgba(255,255,255,0.04)"
+              : "rgba(0,0,0,0.04)",
           backgroundColor: selected
-            ? alpha(theme.palette.primary.main, 0.10)
+            ? isDark
+              ? "rgba(255,255,255,0.05)"
+              : "rgba(0,0,0,0.03)"
             : "transparent",
-          backdropFilter: selected ? "blur(8px) saturate(1.4)" : "none",
-          WebkitBackdropFilter: selected ? "blur(8px) saturate(1.4)" : "none",
-          transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "background-color 0.18s ease, border-color 0.18s ease",
           "&.Mui-selected": {
-            backgroundColor: alpha(theme.palette.primary.main, 0.12),
-            boxShadow: `0 0 16px ${alpha(theme.palette.primary.main, 0.10)}, inset 0 1px 0 ${alpha(theme.palette.primary.main, 0.08)}`,
+            backgroundColor: isDark
+              ? "rgba(255,255,255,0.05)"
+              : "rgba(0,0,0,0.03)",
             "&:hover": {
-              backgroundColor: alpha(theme.palette.primary.main, 0.18),
+              backgroundColor: isDark
+                ? "rgba(255,255,255,0.07)"
+                : "rgba(0,0,0,0.045)",
             },
           },
-          "&.Mui-selected::before": {
-            display: "none",
-          },
           "&:hover": {
-            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+            borderColor: selected
+              ? isDark
+                ? "rgba(255,255,255,0.14)"
+                : "rgba(0,0,0,0.14)"
+              : isDark
+                ? "rgba(255,255,255,0.08)"
+                : "rgba(0,0,0,0.08)",
+            backgroundColor: selected
+              ? isDark
+                ? "rgba(255,255,255,0.07)"
+                : "rgba(0,0,0,0.045)"
+              : isDark
+                ? "rgba(255,255,255,0.03)"
+                : "rgba(0,0,0,0.02)",
           },
         }}
       >
         <ListItemIcon
           sx={{
             minWidth: 34,
-            color: selected ? "primary.main" : "text.secondary",
-            transition: "color 0.2s ease",
+            color: selected ? "text.primary" : "text.secondary",
+            transition: "color 0.18s ease",
           }}
         >
           {icon}
@@ -118,13 +132,13 @@ const SideNavButton = ({ selected, icon, primary, secondary, badge, onClick }: N
           primary={primary}
           secondary={secondary}
           primaryTypographyProps={{
-            fontWeight: selected ? 650 : 500,
-            fontSize: "0.86rem",
+            fontWeight: selected ? 700 : 560,
+            fontSize: "0.88rem",
             lineHeight: 1.2,
             noWrap: true,
           }}
           secondaryTypographyProps={{
-            fontSize: "0.68rem",
+            fontSize: "0.7rem",
             color: "text.secondary",
             lineHeight: 1.2,
             noWrap: true,
@@ -146,11 +160,11 @@ export const Layout = ({
   onSelectPage,
 }: LayoutProps) => {
   const muiTheme = useTheme();
-  const { language, setLanguage, t } = useI18n();
+  const { t } = useI18n();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const isDark = muiTheme.palette.mode === "dark";
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+
   const mainRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
@@ -163,14 +177,14 @@ export const Layout = ({
   }, []);
 
   const { data: allEntries } = useEntries();
-  const { data: searchResults } = useSearchEntries(searchQuery);
+
   const { data: pages } = usePages();
   const { data: tasks } = useTasks();
   const { data: goals } = useGoals();
   const { data: habits } = useHabits();
   const { data: projects } = useProjects();
 
-  const displayEntries = searchQuery ? searchResults : allEntries;
+  const displayEntries = allEntries;
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const todayEntryExists = Boolean(allEntries?.find((entry) => entry.date === todayStr));
   const openTasksCount = (tasks ?? []).filter((task) => task.status !== "done").length;
@@ -211,97 +225,118 @@ export const Layout = ({
   };
 
   const sectionBoxSx = {
+    mb: 1.35,
+    px: 1.05,
+    py: 1.05,
     borderRadius: 3,
     border: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.60)",
-    mb: 1.5,
-    overflow: "hidden",
-    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
-    backdropFilter: "blur(8px) saturate(1.4)",
-    WebkitBackdropFilter: "blur(8px) saturate(1.4)",
+    borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.82)",
   };
 
   const sectionHeaderSx = {
-    px: 1.5,
-    py: 0.9,
-    borderBottom: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+    px: 1.2,
+    py: 0.4,
+    mb: 0.2,
   };
 
   const drawerContent = (
     <>
       <Box sx={{
-          px: 1.5, pt: 1.5, pb: 1.5,
+          px: 1.25, pt: 1.2, pb: 1.5,
           overflowY: "auto", overflowX: "hidden", flex: 1,
           scrollbarWidth: "none",
           "&::-webkit-scrollbar": { display: "none" },
         }}>
-        {/* Overview stats card */}
         <Box
           sx={{
-            px: 2,
-            py: 1.5,
-            mb: 1.5,
-            borderRadius: 3,
+            px: 1.55,
+            pt: 1.7,
+            pb: 1.55,
+            mb: 1.35,
+            borderRadius: 4,
             border: "1px solid",
-            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.60)",
-            backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.35)",
-            backdropFilter: "blur(12px) saturate(1.4)",
-            WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+            bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.9)",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
             <Box
               sx={{
-                width: 28,
-                height: 28,
+                width: 40,
+                height: 40,
                 display: "grid",
                 placeItems: "center",
-                borderRadius: 1.5,
-                background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
+                borderRadius: 2.5,
+                color: "text.primary",
+                bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
               }}
             >
-              <EditNoteIcon sx={{ color: muiTheme.palette.primary.contrastText, fontSize: 16 }} />
+              <EditNoteIcon sx={{ fontSize: 20 }} />
             </Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: "0.9rem" }}>
-              {t("Dev Journal")}
-            </Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 800, fontSize: "1.05rem", letterSpacing: "-0.02em" }}>
+                {t("Dev Journal")}
+              </Typography>
+              <Typography sx={{ color: "text.secondary", fontSize: "0.76rem", lineHeight: 1.35 }}>
+                {t("Local-first planning for builders who like clarity.")}
+              </Typography>
+            </Box>
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.75rem", lineHeight: 1.4 }}>
-            {t("Daily command center for journal, tasks, goals, and habits.")}
-          </Typography>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1.35, flexWrap: "wrap" }}>
+            <Chip
+              size="small"
+              label={format(new Date(), "EEE, MMM d")}
+              sx={{
+                height: 28,
+                borderRadius: 999,
+                bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)",
+                border: "1px solid",
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              }}
+            />
+            <Chip
+              size="small"
+              label={`${displayEntries?.length ?? 0} ${t("Entries")}`}
+              sx={{
+                height: 28,
+                borderRadius: 999,
+                bgcolor: "transparent",
+                border: "1px solid",
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              }}
+            />
+          </Box>
 
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 0.8,
-              mt: 1.25,
+              gap: 0.9,
             }}
           >
             {overviewStats.map((stat) => (
               <Box
                 key={stat.label}
                 sx={{
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                  px: 1,
-                  py: 0.7,
+                  borderRadius: 2.4,
+                  px: 1.15,
+                  py: 0.95,
                   minWidth: 0,
-                  backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.40)",
-                  backdropFilter: "blur(8px) saturate(1.4)",
-                  WebkitBackdropFilter: "blur(8px) saturate(1.4)",
+                  border: "1px solid",
+                  borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+                  bgcolor: isDark ? "rgba(255,255,255,0.045)" : "rgba(255,255,255,0.75)",
                 }}
               >
                 <Typography
                   variant="caption"
                   color="text.secondary"
-                  sx={{ display: "block", lineHeight: 1.1, fontSize: "0.64rem", letterSpacing: "0.04em" }}
+                  sx={{ display: "block", lineHeight: 1.1, fontSize: "0.62rem", letterSpacing: "0.08em", textTransform: "uppercase" }}
                 >
                   {stat.label}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.3, fontSize: "0.88rem" }}>
+                <Typography variant="body2" sx={{ fontWeight: 800, mt: 0.55, fontSize: "1rem", letterSpacing: "-0.03em" }}>
                   {stat.value}
                 </Typography>
               </Box>
@@ -316,7 +351,7 @@ export const Layout = ({
               {t("Overview")}
             </Typography>
           </Box>
-          <List disablePadding sx={{ py: 0.5 }}>
+          <List disablePadding sx={{ py: 0.35 }}>
             <SideNavButton
               selected={activeTab === "planner"}
               onClick={() => {
@@ -325,7 +360,6 @@ export const Layout = ({
               }}
               icon={<DashboardIcon fontSize="small" />}
               primary={t("Planner")}
-              secondary={t("Daily overview")}
             />
             <SideNavButton
               selected={activeTab === "focus"}
@@ -335,7 +369,6 @@ export const Layout = ({
               }}
               icon={<TimerOutlinedIcon fontSize="small" />}
               primary={t("Focus")}
-              secondary={t("Deep work timer")}
             />
           </List>
         </Box>
@@ -347,18 +380,16 @@ export const Layout = ({
               {t("Daily Journal")}
             </Typography>
           </Box>
-          <List disablePadding sx={{ py: 0.5 }}>
+          <List disablePadding sx={{ py: 0.35 }}>
             <SideNavButton
               selected={activeTab === "journal" && selectedDate === todayStr}
               onClick={() => {
-                setSearchQuery("");
                 onTabChange("journal");
                 onSelectDate(todayStr);
                 closeMobileDrawer();
               }}
               icon={<TodayIcon fontSize="small" />}
               primary={t("Today")}
-              secondary={t("Current daily report")}
               badge={
                 todayEntryExists ? (
                   <Chip label={t("Done")} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: "0.63rem" }} />
@@ -392,7 +423,7 @@ export const Layout = ({
               {t("Management")}
             </Typography>
           </Box>
-          <List disablePadding sx={{ py: 0.5 }}>
+          <List disablePadding sx={{ py: 0.35 }}>
             <SideNavButton
               selected={activeTab === "tasks"}
               onClick={() => {
@@ -401,7 +432,6 @@ export const Layout = ({
               }}
               icon={<TaskAltIcon fontSize="small" />}
               primary={t("Tasks")}
-              secondary={t("Execution board")}
               badge={<Chip label={openTasksCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
@@ -412,7 +442,6 @@ export const Layout = ({
               }}
               icon={<FlagIcon fontSize="small" />}
               primary={t("Goals")}
-              secondary={t("Milestones")}
               badge={<Chip label={activeGoalsCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
@@ -423,7 +452,6 @@ export const Layout = ({
               }}
               icon={<RepeatIcon fontSize="small" />}
               primary={t("Habits")}
-              secondary={t("Daily consistency")}
               badge={<Chip label={`${completedHabitsToday}/${totalHabits}`} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
@@ -434,7 +462,6 @@ export const Layout = ({
               }}
               icon={<FolderOpenIcon fontSize="small" />}
               primary={t("Projects")}
-              secondary={t("Cross-functional scope")}
               badge={<Chip label={activeProjectsCount} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.66rem" }} />}
             />
             <SideNavButton
@@ -445,7 +472,6 @@ export const Layout = ({
               }}
               icon={<InsightsIcon fontSize="small" />}
               primary={t("Insights")}
-              secondary={t("Decisions, incidents, retros")}
             />
           </List>
         </Box>
@@ -480,16 +506,16 @@ export const Layout = ({
                 borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
                 borderRadius: 1.5,
                 "&:hover": {
-                  color: "primary.main",
-                  bgcolor: alpha(muiTheme.palette.primary.main, 0.10),
-                  borderColor: alpha(muiTheme.palette.primary.main, 0.25),
+                  color: "text.primary",
+                  bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                  borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
                 },
               }}
             >
               <AddIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Box>
-          <List disablePadding sx={{ py: 0.5 }}>
+          <List disablePadding sx={{ py: 0.35 }}>
             <SideNavButton
               selected={activeTab === "page" && selectedPageId === null}
               onClick={() => {
@@ -499,7 +525,6 @@ export const Layout = ({
               }}
               icon={<AddIcon fontSize="small" />}
               primary={t("New Page")}
-              secondary={t("Create note or doc")}
             />
 
             {pages?.map((page) => (
@@ -513,7 +538,6 @@ export const Layout = ({
                 }}
                 icon={<ArticleIcon fontSize="small" />}
                 primary={page.title || t("Untitled")}
-                secondary={t("Knowledge page")}
               />
             ))}
           </List>
@@ -524,15 +548,21 @@ export const Layout = ({
         sx={{
           p: 1.5,
           borderTop: "1px solid",
-          borderColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+          borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 1,
         }}
       >
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.70rem" }}>
-          {t("Settings & Theme")}
-        </Typography>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {t("Settings & Theme")}
+          </Typography>
+          <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, mt: 0.15 }}>
+            {t("Tune your workspace")}
+          </Typography>
+        </Box>
         <IconButton
           aria-label={t("Open Settings")}
           title={t("Open Settings")}
@@ -549,8 +579,8 @@ export const Layout = ({
             width: 32,
             height: 32,
             "&:hover": {
-              borderColor: alpha(muiTheme.palette.primary.main, 0.25),
-              bgcolor: alpha(muiTheme.palette.primary.main, 0.08),
+              borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+              bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
             },
           }}
         >
@@ -570,9 +600,7 @@ export const Layout = ({
           keepMounted: true,
           BackdropProps: {
             sx: {
-              backgroundColor: isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.20)",
-              backdropFilter: "blur(4px) saturate(1.4)",
-              WebkitBackdropFilter: "blur(4px) saturate(1.4)",
+              backgroundColor: isDark ? "rgba(0,0,0,0.60)" : "rgba(0,0,0,0.20)",
             },
           },
         }}
@@ -608,155 +636,77 @@ export const Layout = ({
             position: "absolute",
             inset: 0,
             pointerEvents: "none",
-            background: isDark
-              ? "radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.02), transparent 40%), radial-gradient(ellipse at 90% 5%, rgba(255,255,255,0.015), transparent 35%)"
-              : "radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.30), transparent 40%), radial-gradient(ellipse at 90% 5%, rgba(255,255,255,0.20), transparent 35%)",
           }}
         />
 
-        {/* Sticky content header — appears glassy on scroll */}
+        {/* Sticky content header */}
         <Box
           sx={{
             position: "sticky",
             top: 0,
             zIndex: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
             px: { xs: 1.5, sm: 2, md: 3.5 },
-            minHeight: { xs: 48, md: 52 },
-            transition: "background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
-            backgroundColor: scrolled
-              ? isDark
-                ? "rgba(10, 10, 18, 0.75)"
-                : "rgba(255, 255, 255, 0.70)"
-              : "transparent",
-            backdropFilter: scrolled ? "blur(20px) saturate(1.4)" : "none",
-            WebkitBackdropFilter: scrolled ? "blur(20px) saturate(1.4)" : "none",
-            borderBottom: "1px solid",
-            borderColor: scrolled
-              ? isDark
-                ? "rgba(255,255,255,0.06)"
-                : "rgba(255,255,255,0.50)"
-              : "transparent",
-            boxShadow: scrolled
-              ? isDark
-                ? "0 4px 24px rgba(0,0,0,0.30)"
-                : "0 4px 24px rgba(0,0,0,0.05)"
-              : "none",
+            pt: { xs: 1.1, md: 1.5 },
+            pb: { xs: 0.7, md: 0.9 },
           }}
         >
-          {isMobile && (
-            <IconButton
-              aria-label={t("Open navigation menu")}
-              title={t("Open navigation menu")}
-              color="inherit"
-              onClick={() => setMobileDrawerOpen(true)}
-              edge="start"
-              size="small"
-            >
-              <MenuIcon fontSize="small" />
-            </IconButton>
-          )}
-
-          <Typography
-            variant="h6"
-            noWrap
-            sx={{
-              fontWeight: 700,
-              fontSize: { xs: "1rem", md: "1.1rem" },
-              letterSpacing: "-0.02em",
-              color: "text.primary",
-              flexShrink: 1,
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {activeTabLabel[activeTab]}
-          </Typography>
-
-          <Box sx={{ flexGrow: 1, minWidth: 16 }} />
-
           <Box
             sx={{
-              position: "relative",
-              borderRadius: 2,
-              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-              "&:hover": {
-                backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
-              },
-              flexShrink: 1,
-              minWidth: { xs: 120, sm: 170 },
-              maxWidth: { xs: 180, sm: 260, md: 320 },
-              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: 1.2,
+              minHeight: { xs: 58, md: 68 },
+              px: { xs: 1.1, sm: 1.35, md: 1.6 },
+              borderRadius: 3.2,
               border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-              transition: "border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease",
-              "&:focus-within": {
-                borderColor: alpha(muiTheme.palette.primary.main, 0.35),
-                boxShadow: `0 0 0 2px ${alpha(muiTheme.palette.primary.main, 0.08)}`,
-                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
-              },
+              borderColor: scrolled
+                ? isDark
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.07)"
+                : isDark
+                  ? "rgba(255,255,255,0.05)"
+                  : "rgba(0,0,0,0.05)",
+              backgroundColor: isDark ? "rgba(13,15,18,0.78)" : "rgba(255,255,255,0.78)",
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)",
             }}
           >
-            <Box
-              sx={{
-                px: 1,
-                height: "100%",
-                position: "absolute",
-                pointerEvents: "none",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <SearchIcon sx={{ color: "text.secondary", fontSize: 16 }} />
-            </Box>
-            <InputBase
-              placeholder={isMobile ? t("Search...") : t("Search entries...")}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              sx={{
-                color: "text.primary",
-                width: "100%",
-                "& .MuiInputBase-input": {
-                  py: 0.65,
-                  px: 1,
-                  pl: "30px",
-                  width: "100%",
-                  fontSize: "0.82rem",
-                  "&::placeholder": {
-                    color: muiTheme.palette.text.secondary,
-                    opacity: 0.7,
-                  },
-                },
-              }}
-            />
-          </Box>
+            {isMobile && (
+              <IconButton
+                aria-label={t("Open navigation menu")}
+                title={t("Open navigation menu")}
+                color="inherit"
+                onClick={() => setMobileDrawerOpen(true)}
+                edge="start"
+                size="small"
+                sx={{
+                  border: "1px solid",
+                  borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+                  borderRadius: 2,
+                }}
+              >
+                <MenuIcon fontSize="small" />
+              </IconButton>
+            )}
 
-          <IconButton
-            size="small"
-            onClick={() => setLanguage(language === "en" ? "uk" : "en")}
-            sx={{
-              width: 32,
-              height: 32,
-              flexShrink: 0,
-              color: "text.secondary",
-              fontSize: "0.72rem",
-              fontWeight: 600,
-              border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-              borderRadius: 1.5,
-              "&:hover": {
-                borderColor: alpha(muiTheme.palette.primary.main, 0.25),
-                color: "text.primary",
-              },
-            }}
-          >
-            <Typography sx={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.02em" }}>
-              {language === "en" ? "EN" : "UK"}
-            </Typography>
-          </IconButton>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography
+                variant="h6"
+                noWrap
+                sx={{
+                  fontWeight: 800,
+                  fontSize: { xs: "1rem", md: "1.15rem" },
+                  letterSpacing: "-0.03em",
+                  color: "text.primary",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {activeTabLabel[activeTab]}
+              </Typography>
+            </Box>
+          </Box>
         </Box>
 
         <Box

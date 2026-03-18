@@ -28,6 +28,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import TimerIcon from "@mui/icons-material/Timer";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import { useTheme } from "@mui/material/styles";
 import {
   closestCorners,
   DndContext,
@@ -71,14 +72,14 @@ import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 
 const columns: Array<{ status: TaskStatus; color: "default" | "warning" | "info" | "success" }> = [
-  { status: "todo", color: "warning" },
-  { status: "in_progress", color: "info" },
-  { status: "done", color: "success" },
+  { status: "todo", color: "default" },
+  { status: "in_progress", color: "default" },
+  { status: "done", color: "default" },
 ];
 
 const priorityColor: Record<TaskPriority, "default" | "info" | "warning" | "error"> = {
   low: "default",
-  medium: "info",
+  medium: "default",
   high: "warning",
   urgent: "error",
 };
@@ -155,27 +156,25 @@ const DroppableColumn = ({ status, children }: DroppableColumnProps) => {
   return (
     <Paper
       ref={setNodeRef}
+      variant="outlined"
       sx={{
         p: 2,
         flex: 1,
         minHeight: 340,
+        borderRadius: 2.5,
         borderStyle: isOver ? "dashed" : "solid",
         borderColor: (theme) =>
           isOver
             ? theme.palette.primary.main
             : theme.palette.mode === "dark"
-              ? "rgba(255,255,255,0.06)"
-              : "rgba(255,255,255,0.50)",
+              ? "rgba(255,255,255,0.07)"
+              : "rgba(0,0,0,0.07)",
         transition: "all 0.2s ease",
         backgroundColor: (theme) =>
           isOver
-            ? theme.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)"
+            ? theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.01)"
             : "transparent",
-        backdropFilter: "blur(16px) saturate(1.4)",
-        WebkitBackdropFilter: "blur(16px) saturate(1.4)",
-        boxShadow: isOver
-          ? (theme) => `0 0 24px ${theme.palette.primary.main}15`
-          : "none",
+        boxShadow: "none",
       }}
     >
       {children}
@@ -235,6 +234,7 @@ const persistTaskOutcomes = (value: TaskOutcomeMap) => {
 };
 
 export const TasksBoard = () => {
+  const muiTheme = useTheme();
   const { t } = useI18n();
   const { notify } = useAppNotifications();
   const statusLabel: Record<TaskStatus, string> = useMemo(
@@ -328,6 +328,12 @@ export const TasksBoard = () => {
       activationConstraint: { distance: 6 },
     })
   );
+  const isDark = muiTheme.palette.mode === "dark";
+  const boardSurfaceSx = {
+    border: "1px solid",
+    borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
+    backgroundColor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.9)",
+  };
 
   useEffect(() => {
     const interval = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -722,123 +728,133 @@ export const TasksBoard = () => {
 
   return (
     <Box sx={{ maxWidth: 1280, mx: "auto", mt: 1 }}>
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={2}
-          justifyContent="space-between"
-          alignItems={{ xs: "stretch", md: "center" }}
+      <Box sx={{ p: { xs: 1, md: 2 } }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            ...boardSurfaceSx,
+            p: { xs: 1.5, md: 1.9 },
+            borderRadius: 4,
+          }}
         >
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {t("Tasks Board")}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t("Switch to tasks management view")}
-            </Typography>
-          </Box>
-
-          <Button
-            variant="contained"
-            startIcon={<AddTaskIcon />}
-            onClick={() => openCreateDialog()}
-            disabled={busy}
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", md: "center" }}
           >
-            {t("Add Task")}
-          </Button>
-        </Stack>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                {t("Tasks Board")}
+              </Typography>
+            </Box>
 
-        <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
-          <Chip label={t("Total: {count}", { count: stats.total })} variant="outlined" size="small" />
-          <Chip label={t("Done: {count}", { count: stats.done })} color="success" variant="outlined" size="small" />
-          <Chip label={`${t("Due today")}: ${stats.dueToday}`} color="info" variant="outlined" size="small" />
-          <Chip
-            label={t("Overdue: {count}", { count: stats.overdue })}
-            color={stats.overdue > 0 ? "error" : "default"}
-            variant="outlined"
-            size="small"
-          />
-          <Chip
-            label={t("Active timers: {count}", { count: stats.activeTimers })}
-            color={stats.activeTimers > 0 ? "warning" : "default"}
-            variant="outlined"
-            size="small"
-          />
-        </Stack>
+            <Button
+              variant="contained"
+              startIcon={<AddTaskIcon />}
+              onClick={() => openCreateDialog()}
+              disabled={busy}
+              sx={{ minHeight: 42, px: 2.3, borderRadius: 2.8 }}
+            >
+              {t("Add Task")}
+            </Button>
+          </Stack>
 
-        <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
-          <TextField
-            placeholder={t("Search...")}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            fullWidth
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
+          <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
+            <Chip label={t("Total: {count}", { count: stats.total })} variant="outlined" size="small" />
+            <Chip label={t("Done: {count}", { count: stats.done })} color="default" variant="outlined" size="small" />
+            <Chip label={`${t("Due today")}: ${stats.dueToday}`} color="default" variant="outlined" size="small" />
+            <Chip
+              label={t("Overdue: {count}", { count: stats.overdue })}
+              color={stats.overdue > 0 ? "error" : "default"}
+              variant="outlined"
+              size="small"
+            />
+            <Chip
+              label={t("Active timers: {count}", { count: stats.activeTimers })}
+              color={stats.activeTimers > 0 ? "warning" : "default"}
+              variant="outlined"
+              size="small"
+            />
+          </Stack>
 
-          <TextField
-            select
-            label={t("Status")}
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as "all" | TaskStatus)}
-            sx={{ minWidth: 170 }}
-            SelectProps={{ native: true }}
-          >
-            <option value="all">{t("All statuses")}</option>
-            <option value="todo">{t("To Do")}</option>
-            <option value="in_progress">{t("In Progress")}</option>
-            <option value="done">{t("Done")}</option>
-          </TextField>
+          <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
+            <TextField
+              placeholder={t("Search...")}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
 
-          <TextField
-            select
-            label={t("Priority")}
-            value={priorityFilter}
-            onChange={(event) => setPriorityFilter(event.target.value as "all" | TaskPriority)}
-            sx={{ minWidth: 170 }}
-            SelectProps={{ native: true }}
-          >
-            <option value="all">{t("All priorities")}</option>
-            <option value="urgent">{t("Urgent")}</option>
-            <option value="high">{t("High")}</option>
-            <option value="medium">{t("Medium")}</option>
-            <option value="low">{t("Low")}</option>
-          </TextField>
+            <TextField
+              select
+              label={t("Status")}
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as "all" | TaskStatus)}
+              sx={{ minWidth: 170 }}
+              SelectProps={{ native: true }}
+              InputLabelProps={{ shrink: true }}
+            >
+              <option value="all">{t("All statuses")}</option>
+              <option value="todo">{t("To Do")}</option>
+              <option value="in_progress">{t("In Progress")}</option>
+              <option value="done">{t("Done")}</option>
+            </TextField>
 
-          <TextField
-            select
-            label={t("Project")}
-            value={projectFilter === "all" ? "all" : String(projectFilter)}
-            onChange={(event) => {
-              const value = event.target.value;
-              setProjectFilter(value === "all" ? "all" : Number(value));
-            }}
-            sx={{ minWidth: 190 }}
-            SelectProps={{ native: true }}
-          >
-            <option value="all">{t("All projects")}</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </TextField>
+            <TextField
+              select
+              label={t("Priority")}
+              value={priorityFilter}
+              onChange={(event) => setPriorityFilter(event.target.value as "all" | TaskPriority)}
+              sx={{ minWidth: 170 }}
+              SelectProps={{ native: true }}
+              InputLabelProps={{ shrink: true }}
+            >
+              <option value="all">{t("All priorities")}</option>
+              <option value="urgent">{t("Urgent")}</option>
+              <option value="high">{t("High")}</option>
+              <option value="medium">{t("Medium")}</option>
+              <option value="low">{t("Low")}</option>
+            </TextField>
 
-          <Button
-            variant={showOverdueOnly ? "contained" : "outlined"}
-            color={showOverdueOnly ? "error" : "inherit"}
-            onClick={() => setShowOverdueOnly((prev) => !prev)}
-            startIcon={<WarningAmberIcon />}
-          >
-            {t("Overdue Only")}
-          </Button>
-        </Stack>
-      </Paper>
+            <TextField
+              select
+              label={t("Project")}
+              value={projectFilter === "all" ? "all" : String(projectFilter)}
+              onChange={(event) => {
+                const value = event.target.value;
+                setProjectFilter(value === "all" ? "all" : Number(value));
+              }}
+              sx={{ minWidth: 190 }}
+              SelectProps={{ native: true }}
+              InputLabelProps={{ shrink: true }}
+            >
+              <option value="all">{t("All projects")}</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </TextField>
+
+            <Button
+              variant={showOverdueOnly ? "contained" : "outlined"}
+              color={showOverdueOnly ? "error" : "inherit"}
+              onClick={() => setShowOverdueOnly((prev) => !prev)}
+              startIcon={<WarningAmberIcon />}
+            >
+              {t("Overdue Only")}
+            </Button>
+          </Stack>
+        </Paper>
+      </Box>
 
       <DndContext
         sensors={dndSensors}
@@ -889,25 +905,28 @@ export const TasksBoard = () => {
                       variant="outlined"
                       sx={{
                         p: 1.5,
+                        borderRadius: 2,
                         borderColor: (theme) =>
                           overdue
                             ? "error.main"
                             : theme.palette.mode === "dark"
-                              ? "rgba(255,255,255,0.06)"
-                              : "rgba(255,255,255,0.45)",
+                              ? "rgba(255,255,255,0.08)"
+                              : "rgba(0,0,0,0.08)",
                         bgcolor: (theme) =>
                           theme.palette.mode === "dark"
                             ? "rgba(255,255,255,0.02)"
-                            : "rgba(255,255,255,0.40)",
-                        backdropFilter: "blur(12px) saturate(1.4)",
-                        WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+                            : "rgba(0,0,0,0.01)",
                         transition: "all 0.2s ease",
                         "&:hover": {
                           transform: "translateY(-1px)",
+                          borderColor: (theme) =>
+                            theme.palette.mode === "dark"
+                              ? "rgba(255,255,255,0.15)"
+                              : "rgba(0,0,0,0.15)",
                           boxShadow: (theme) =>
                             theme.palette.mode === "dark"
-                              ? "0 4px 16px rgba(0,0,0,0.30)"
-                              : "0 4px 16px rgba(0,0,0,0.06)",
+                              ? "0 2px 8px rgba(0,0,0,0.3)"
+                              : "0 2px 8px rgba(0,0,0,0.08)",
                         },
                       }}
                     >
@@ -961,7 +980,7 @@ export const TasksBoard = () => {
                             <Chip
                               size="small"
                               label={projectNameById.get(task.project_id) ?? `#${task.project_id}`}
-                              color="info"
+                              color="default"
                               variant="outlined"
                             />
                           ) : null}
@@ -969,7 +988,7 @@ export const TasksBoard = () => {
                             <Chip
                               size="small"
                               label={goalNameById.get(task.goal_id) ?? `Goal #${task.goal_id}`}
-                              color="success"
+                              color="default"
                               variant="outlined"
                             />
                           ) : null}
@@ -989,7 +1008,7 @@ export const TasksBoard = () => {
                             <Chip
                               size="small"
                               label={recurrenceLabel[task.recurrence]}
-                              color="secondary"
+                              color="default"
                               variant="outlined"
                             />
                           ) : null}
@@ -1111,7 +1130,7 @@ export const TasksBoard = () => {
         </Stack>
       </DndContext>
 
-      <Paper sx={{ p: 2, mt: 2, borderRadius: 3 }}>
+      <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: 2.5, borderColor: (theme) => theme.palette.mode === "dark" ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           justifyContent="space-between"
@@ -1448,6 +1467,7 @@ export const TasksBoard = () => {
                 setProjectId(nextValue === "" ? "" : Number(nextValue));
               }}
               SelectProps={{ native: true }}
+              InputLabelProps={{ shrink: true }}
               fullWidth
             >
               <option value="">{t("No project")}</option>
@@ -1467,6 +1487,7 @@ export const TasksBoard = () => {
                 setGoalId(nextValue === "" ? "" : Number(nextValue));
               }}
               SelectProps={{ native: true }}
+              InputLabelProps={{ shrink: true }}
               fullWidth
             >
               <option value="">{t("No goal")}</option>
@@ -1504,6 +1525,7 @@ export const TasksBoard = () => {
                 value={recurrence}
                 onChange={(event) => setRecurrence(event.target.value as TaskRecurrence)}
                 SelectProps={{ native: true }}
+                InputLabelProps={{ shrink: true }}
                 fullWidth
               >
                 <option value="none">{t("Does not repeat")}</option>

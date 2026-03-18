@@ -1,11 +1,8 @@
 import { ChangeEvent, useRef, useState } from "react";
 import {
-  alpha,
   Box,
   Button,
-  Divider,
   FormControlLabel,
-  Paper,
   Switch,
   TextField,
   Typography,
@@ -17,7 +14,6 @@ import {
   AppearanceMode,
   FontPreset,
   THEME_PRESETS,
-  ThemePresetId,
   UiDensity,
   useThemeContext,
 } from "../theme/ThemeContext";
@@ -152,98 +148,140 @@ export const SettingsScreen = ({
 
   return (
     <Box sx={{ maxWidth: 980, mx: "auto", mt: 1 }}>
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+      <Box sx={{ p: { xs: 1, md: 2 } }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.25 }}>
           {t("Settings")}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t("Customize Theme")}
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          {t("Customize how the app looks and behaves")}
         </Typography>
 
-        <TextField
-          select
-          size="small"
-          label={t("Theme preset")}
-          value={themePreset}
-          onChange={(event) => setThemePreset(event.target.value as ThemePresetId)}
-          sx={{ mt: 1, width: { xs: "100%", sm: 260 } }}
-          SelectProps={{ native: true }}
-        >
-          {THEME_PRESETS.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.name}
-            </option>
-          ))}
-        </TextField>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+          {t("Theme")}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {t("Choose a color palette for the app")}
+        </Typography>
 
-        <Box sx={{ mt: 2, display: "grid", gap: 1, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+        <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
           {THEME_PRESETS.map((preset) => {
             const active = preset.id === themePreset;
+            const modePalette = appearanceMode === "dark" ? preset.dark : preset.light;
             return (
               <Box
                 key={preset.id}
                 onClick={() => setThemePreset(preset.id)}
                 sx={{
                   borderRadius: 2.5,
-                  p: 1.25,
-                  border: active ? "2px solid" : "1px solid",
-                  borderColor: (theme) =>
-                    active
-                      ? "primary.main"
-                      : theme.palette.mode === "dark"
-                        ? "rgba(255,255,255,0.06)"
-                        : "rgba(255,255,255,0.45)",
-                  bgcolor: (theme) =>
-                    active
-                      ? alpha(theme.palette.primary.main, 0.06)
-                      : theme.palette.mode === "dark"
-                        ? "rgba(255,255,255,0.02)"
-                        : "rgba(255,255,255,0.35)",
-                  backdropFilter: "blur(8px) saturate(1.4)",
-                  WebkitBackdropFilter: "blur(8px) saturate(1.4)",
+                  overflow: "hidden",
+                  border: active ? "2px solid" : "2px solid transparent",
+                  borderColor: active ? modePalette.primary : "transparent",
+                  boxShadow: active ? `0 0 0 2px ${modePalette.primary}30` : "none",
                   cursor: "pointer",
-                  transition: "all 0.25s ease",
+                  transition: "all 0.2s ease",
+                  outline: (theme) => active ? "none" : `1px solid ${theme.palette.mode === "dark" ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.09)"}`,
                   "&:hover": {
-                    borderColor: "primary.main",
-                    transform: "translateY(-1px)",
-                    boxShadow: (theme) =>
-                      `0 4px 16px ${alpha(theme.palette.primary.main, 0.08)}`,
+                    transform: "translateY(-2px)",
+                    boxShadow: `0 6px 20px ${modePalette.primary}25`,
+                    outline: `1px solid ${modePalette.primary}50`,
                   },
                 }}
               >
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  {preset.name}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
-                  {preset.description}
-                </Typography>
+                {/* Color preview strip */}
+                <Box
+                  sx={{
+                    height: 72,
+                    bgcolor: modePalette.backgroundDefault,
+                    display: "flex",
+                    alignItems: "flex-end",
+                    pb: 1.5,
+                    px: 1.5,
+                    gap: 0.75,
+                    position: "relative",
+                  }}
+                >
+                  {/* mini UI mockup */}
+                  <Box sx={{ position: "absolute", top: 10, left: 12, right: 12, height: 8, borderRadius: 1, bgcolor: modePalette.backgroundPaper, opacity: 0.8 }} />
+                  <Box sx={{ position: "absolute", top: 24, left: 12, width: "55%", height: 6, borderRadius: 0.75, bgcolor: modePalette.textPrimary, opacity: 0.12 }} />
+                  <Box sx={{ position: "absolute", top: 36, left: 12, width: "35%", height: 4, borderRadius: 0.5, bgcolor: modePalette.textSecondary, opacity: 0.18 }} />
+                  {/* color swatches */}
+                  <Box sx={{ position: "absolute", bottom: 10, right: 10, display: "flex", gap: 0.5 }}>
+                    <Box sx={{ width: 18, height: 18, borderRadius: "50%", bgcolor: modePalette.primary, boxShadow: "0 1px 4px rgba(0,0,0,0.25)" }} />
+                    <Box sx={{ width: 18, height: 18, borderRadius: "50%", bgcolor: modePalette.secondary, boxShadow: "0 1px 4px rgba(0,0,0,0.25)" }} />
+                  </Box>
+                  {active && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        bgcolor: modePalette.primary,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Box component="span" sx={{ color: "#fff", fontSize: "10px", lineHeight: 1, fontWeight: 700 }}>✓</Box>
+                    </Box>
+                  )}
+                </Box>
+                {/* Label */}
+                <Box sx={{ px: 1.5, py: 1, bgcolor: (theme) => theme.palette.background.paper }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, display: "block", fontSize: "0.78rem" }}>
+                    {preset.name}
+                  </Typography>
+                </Box>
               </Box>
             );
           })}
         </Box>
 
-        <Divider sx={{ my: 3 }} />
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t("Appearance")}</Typography>
+        <Box sx={{ height: 32 }} />
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>{t("Appearance")}</Typography>
+
+        {/* Mode toggle - visual buttons */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{t("Theme mode")}</Typography>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            {(["light", "dark"] as AppearanceMode[]).map((mode) => (
+              <Box
+                key={mode}
+                onClick={() => setAppearanceMode(mode)}
+                sx={{
+                  flex: 1,
+                  borderRadius: 2,
+                  p: 1.5,
+                  border: appearanceMode === mode ? "2px solid" : "1px solid",
+                  borderColor: appearanceMode === mode
+                    ? "primary.main"
+                    : (th) => th.palette.mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+                  bgcolor: appearanceMode === mode
+                    ? (th) => `${th.palette.primary.main}12`
+                    : "transparent",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <Typography sx={{ fontSize: "1.2rem", mb: 0.25 }}>{mode === "light" ? "☀️" : "🌙"}</Typography>
+                <Typography variant="caption" sx={{ fontWeight: 600, textTransform: "capitalize" }}>
+                  {t(mode === "light" ? "Light" : "Dark")}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+
         <Box
           sx={{
-            mt: 1,
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
             gap: 1.25,
           }}
         >
-          <TextField
-            select
-            size="small"
-            label={t("Theme mode")}
-            value={appearanceMode}
-            onChange={(event) => setAppearanceMode(event.target.value as AppearanceMode)}
-            fullWidth
-            SelectProps={{ native: true }}
-          >
-            <option value="dark">{t("Dark")}</option>
-            <option value="light">{t("Light")}</option>
-          </TextField>
 
           <TextField
             select
@@ -253,6 +291,7 @@ export const SettingsScreen = ({
             onChange={(event) => setFontPreset(event.target.value as FontPreset)}
             fullWidth
             SelectProps={{ native: true }}
+            InputLabelProps={{ shrink: true }}
           >
             <option value="inter">Inter</option>
             <option value="roboto">Roboto</option>
@@ -267,6 +306,7 @@ export const SettingsScreen = ({
             onChange={(event) => setUiDensity(event.target.value as UiDensity)}
             fullWidth
             SelectProps={{ native: true }}
+            InputLabelProps={{ shrink: true }}
           >
             <option value="comfortable">{t("Comfortable")}</option>
             <option value="compact">{t("Compact")}</option>
@@ -295,13 +335,14 @@ export const SettingsScreen = ({
             onChange={(event) => setLanguage(event.target.value === "uk" ? "uk" : "en")}
             fullWidth
             SelectProps={{ native: true }}
+            InputLabelProps={{ shrink: true }}
           >
             <option value="en">{t("English")}</option>
             <option value="uk">{t("Ukrainian")}</option>
           </TextField>
         </Box>
 
-        <Divider sx={{ my: 3 }} />
+        <Box sx={{ height: 40 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t("Productivity")}</Typography>
         <FormControlLabel
           sx={{ mt: 1 }}
@@ -317,7 +358,7 @@ export const SettingsScreen = ({
           label={t("Enable draft autosave")}
         />
 
-        <Divider sx={{ my: 3 }} />
+        <Box sx={{ height: 40 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t("Reminders")}</Typography>
         <FormControlLabel
           sx={{ mt: 1 }}
@@ -341,7 +382,7 @@ export const SettingsScreen = ({
           inputProps={{ min: 0, max: 23, step: 1 }}
         />
 
-        <Divider sx={{ my: 3 }} />
+        <Box sx={{ height: 40 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t("Data")}</Typography>
         <Button onClick={exportBackup} startIcon={<DownloadIcon />} variant="outlined" sx={{ width: { xs: "100%", sm: "auto" } }}>
           {t("Export Backup (JSON)")}
@@ -376,7 +417,7 @@ export const SettingsScreen = ({
         <Box sx={{ mt: 4, display: "flex", justifyContent: "flex-end", gap: 1 }}>
           <Button onClick={resetTheme} color="inherit">{t("Reset")}</Button>
         </Box>
-      </Paper>
+      </Box>
     </Box>
   );
 };

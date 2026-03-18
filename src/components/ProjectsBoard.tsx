@@ -392,7 +392,7 @@ export const ProjectsBoard = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 1 }}>
-      <Paper sx={{ p: 3, borderRadius: 3.5 }}>
+      <Box sx={{ p: { xs: 1, md: 2 } }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
@@ -420,11 +420,11 @@ export const ProjectsBoard = () => {
 
         <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
           <Chip label={t("Total: {count}", { count: dashboardStats.total })} variant="outlined" size="small" />
-          <Chip label={t("Active: {count}", { count: dashboardStats.active })} color="info" variant="outlined" size="small" />
-          <Chip label={t("Paused: {count}", { count: dashboardStats.paused })} color="warning" variant="outlined" size="small" />
+          <Chip label={t("Active: {count}", { count: dashboardStats.active })} color="default" variant="outlined" size="small" />
+          <Chip label={t("Paused: {count}", { count: dashboardStats.paused })} color="default" variant="outlined" size="small" />
           <Chip
             label={t("Completed: {count}", { count: dashboardStats.completed })}
-            color="success"
+            color="default"
             variant="outlined"
             size="small"
           />
@@ -461,7 +461,7 @@ export const ProjectsBoard = () => {
             <option value="archived">{t("Archived")}</option>
           </TextField>
         </Stack>
-      </Paper>
+      </Box>
 
       <Stack spacing={1.5} sx={{ mt: 2 }}>
         {filteredProjects.map((project) => {
@@ -479,24 +479,26 @@ export const ProjectsBoard = () => {
           return (
             <Paper key={project.id} variant="outlined" sx={{
               p: 2,
-              borderRadius: 3,
+              borderRadius: 2.5,
               borderColor: (theme) =>
                 theme.palette.mode === "dark"
-                  ? "rgba(255,255,255,0.06)"
-                  : "rgba(255,255,255,0.45)",
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.08)",
               bgcolor: (theme) =>
                 theme.palette.mode === "dark"
                   ? "rgba(255,255,255,0.02)"
-                  : "rgba(255,255,255,0.40)",
-              backdropFilter: "blur(12px) saturate(1.4)",
-              WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+                  : "rgba(0,0,0,0.01)",
               transition: "all 0.2s ease",
               "&:hover": {
                 transform: "translateY(-1px)",
+                borderColor: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "rgba(255,255,255,0.15)"
+                    : "rgba(0,0,0,0.15)",
                 boxShadow: (theme) =>
                   theme.palette.mode === "dark"
-                    ? "0 4px 16px rgba(0,0,0,0.30)"
-                    : "0 4px 16px rgba(0,0,0,0.06)",
+                    ? "0 2px 8px rgba(0,0,0,0.3)"
+                    : "0 2px 8px rgba(0,0,0,0.08)",
               },
             }}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">

@@ -16,7 +16,7 @@ import {
     TableRow,
     Stack,
 } from "@mui/material";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { usePage, useCreatePage, useUpdatePage, useDeletePage } from "../hooks/usePages";
 import { useGoals } from "../hooks/useGoals";
 import { useProjects } from "../hooks/useProjects";
@@ -54,12 +54,12 @@ interface PageEditorProps {
     onDeleteSuccess: () => void;
 }
 
-const countWords = (value: string) => value.split(/\s+/).filter((word) => word.length > 0).length;
 const TASK_TABLE_BLOCK = "{{TASK_TABLE}}";
 const FORM_DB_PREFIX = "{{FORM_DB:";
 const TASK_TRACKER_PREFIX = "{{TASK_TRACKER:";
 const BLOCK_TOKEN_REGEX = /\{\{TASK_TABLE\}\}|\{\{FORM_DB:[^}]+\}\}|\{\{TASK_TRACKER:[^}]+\}\}/g;
 const TASK_TRACKER_EDITOR_MARKER_REGEX = /\[\[Task Tracker\]\]/g;
+const CHECKLIST_SOFT_BREAK_REGEX = /<br\s*\/?>/gi;
 
 type PageFormFieldType = "text" | "checkbox" | "date" | "status";
 
@@ -178,8 +178,8 @@ const parseFormToken = (token: string): PageFormData | null => {
 
 const createDefaultTaskTrackerData = (): TaskTrackerData => ({
     id: makeId(),
-    title: "30 days of JavaScript",
-    description: "Stay organized with tasks, your way.",
+    title: "Task Tracker",
+    description: "Track your items here.",
     rows: [],
 });
 
@@ -367,6 +367,9 @@ interface EditorBlock {
     checked?: boolean;
 }
 
+const decodeChecklistText = (value: string) => value.replace(CHECKLIST_SOFT_BREAK_REGEX, "\n");
+const encodeChecklistText = (value: string) => value.replace(/\n/g, "<br/>");
+
 const markdownToEditorBlocks = (value: string): EditorBlock[] => {
     const normalized = normalizeEditorMarkdown(value);
     if (normalized.length === 0) {
@@ -377,12 +380,12 @@ const markdownToEditorBlocks = (value: string): EditorBlock[] => {
     return lines.map((line) => {
         const checklistChecked = line.match(/^- \[x\]\s?(.*)$/i);
         if (checklistChecked) {
-            return { type: "checklist", text: checklistChecked[1] ?? "", checked: true };
+            return { type: "checklist", text: decodeChecklistText(checklistChecked[1] ?? ""), checked: true };
         }
 
         const checklistUnchecked = line.match(/^- \[ \]\s?(.*)$/);
         if (checklistUnchecked) {
-            return { type: "checklist", text: checklistUnchecked[1] ?? "", checked: false };
+            return { type: "checklist", text: decodeChecklistText(checklistUnchecked[1] ?? ""), checked: false };
         }
 
         const heading = line.match(/^##\s?(.*)$/);
@@ -408,7 +411,7 @@ const editorBlocksToMarkdown = (blocks: EditorBlock[]) => {
             return `- ${block.text}`.trimEnd();
         }
         if (block.type === "checklist") {
-            return `- [${block.checked ? "x" : " "}] ${block.text}`.trimEnd();
+            return `- [${block.checked ? "x" : " "}] ${encodeChecklistText(block.text)}`.trimEnd();
         }
         return block.text;
     });
@@ -420,11 +423,13 @@ const PageTaskTable = ({
     projectsById,
     goalsById,
     onToggleTask,
+    onDelete,
 }: {
     tasks: Task[];
     projectsById: Map<number, string>;
     goalsById: Map<number, string>;
     onToggleTask: (task: Task, checked: boolean) => void;
+    onDelete?: () => void;
 }) => {
     const [view, setView] = useState<"all" | "my" | "checklist">("all");
 
@@ -462,6 +467,18 @@ const PageTaskTable = ({
             }}
         >
             <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+                {onDelete && (
+                    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1.5 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary", lineHeight: 1.2 }}>
+                            Task Database
+                        </Typography>
+                        <Tooltip title="Delete block" placement="left">
+                            <IconButton size="small" onClick={onDelete} color="error" sx={{ opacity: 0.5, "&:hover": { opacity: 1 } }}>
+                                <DeleteIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
+                )}
                 <Stack
                     direction={{ xs: "column", md: "row" }}
                     justifyContent="space-between"
@@ -617,9 +634,11 @@ const PageTaskTable = ({
 const PageFormDatabase = ({
     formData,
     onChange,
+    onDelete,
 }: {
     formData: PageFormData;
     onChange: (nextFormData: PageFormData) => void;
+    onDelete?: () => void;
 }) => {
     const [view, setView] = useState<"builder" | "responses">("responses");
 
@@ -734,19 +753,26 @@ const PageFormDatabase = ({
             }}
         >
             <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
-                <Stack spacing={1}>
+                <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
                     <InputBase
                         value={formData.title}
                         onChange={(event) => emitChange({ ...formData, title: event.target.value })}
-                        sx={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}
+                        sx={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, width: "100%" }}
                     />
-                    <InputBase
-                        value={formData.description}
-                        placeholder="Add description"
-                        onChange={(event) => emitChange({ ...formData, description: event.target.value })}
-                        sx={{ color: "text.secondary", fontSize: 15 }}
-                    />
+                    {onDelete && (
+                        <Tooltip title="Delete block" placement="left">
+                            <IconButton size="small" onClick={onDelete} color="error" sx={{ mt: 0.5, opacity: 0.5, "&:hover": { opacity: 1 } }}>
+                                <DeleteIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
                 </Stack>
+                <InputBase
+                    value={formData.description}
+                    placeholder="Add description"
+                    onChange={(event) => emitChange({ ...formData, description: event.target.value })}
+                    sx={{ color: "text.secondary", fontSize: 15 }}
+                />
 
                 <Stack direction="row" spacing={0.75} sx={{ mt: 1.5, flexWrap: "wrap" }}>
                     <Chip
@@ -919,34 +945,42 @@ const nextPriority = (value: TrackerPriority): TrackerPriority => {
 
 const PageTaskTrackerDatabase = ({
     trackerData,
+    view,
+    onViewChange,
     onChange,
+    onDelete,
 }: {
     trackerData: TaskTrackerData;
+    view: "all" | "my" | "checklist";
+    onViewChange: (nextView: "all" | "my" | "checklist") => void;
     onChange: (nextTrackerData: TaskTrackerData) => void;
+    onDelete?: () => void;
 }) => {
-    const [view, setView] = useState<"all" | "my" | "checklist">("all");
+    const taskNameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+    const [pendingRowFocusId, setPendingRowFocusId] = useState<string | null>(null);
+    const [ghostTaskName, setGhostTaskName] = useState("");
 
     const emitChange = (nextTrackerData: TaskTrackerData) => {
         onChange(normalizeTaskTrackerData(nextTrackerData));
     };
 
-    const addRow = () => {
+    const addRow = (seed?: Partial<TaskTrackerRow>) => {
+        const nextRow: TaskTrackerRow = {
+            id: makeId(),
+            taskName: seed?.taskName ?? "",
+            status: seed?.status ?? "Not started",
+            assignee: seed?.assignee ?? (view === "my" ? "Me" : ""),
+            dueDate: seed?.dueDate ?? "",
+            priority: seed?.priority ?? "Medium",
+            done: seed?.done ?? false,
+        };
         emitChange({
             ...trackerData,
-            rows: [
-                ...trackerData.rows,
-                {
-                    id: makeId(),
-                    taskName: "",
-                    status: "Not started",
-                    assignee: "",
-                    dueDate: "",
-                    priority: "Medium",
-                    done: false,
-                },
-            ],
+            rows: [...trackerData.rows, nextRow],
         });
+        setPendingRowFocusId(nextRow.id);
     };
+    const addEmptyRow = () => addRow();
 
     const updateRow = (rowId: string, patch: Partial<TaskTrackerRow>) => {
         emitChange({
@@ -981,6 +1015,35 @@ const PageTaskTrackerDatabase = ({
         return trackerData.rows;
     }, [trackerData.rows, view]);
 
+    useEffect(() => {
+        if (!pendingRowFocusId || view === "checklist") {
+            return;
+        }
+
+        const focusInput = () => {
+            const target = taskNameInputRefs.current[pendingRowFocusId];
+            if (!target) {
+                return false;
+            }
+            target.focus();
+            target.setSelectionRange?.(target.value.length, target.value.length);
+            return true;
+        };
+
+        if (focusInput()) {
+            setPendingRowFocusId(null);
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            if (focusInput()) {
+                setPendingRowFocusId(null);
+            }
+        }, 0);
+
+        return () => window.clearTimeout(timeout);
+    }, [pendingRowFocusId, trackerData.rows, view]);
+
     const tabButtonSx = (active: boolean) => ({
         textTransform: "none",
         fontWeight: 600,
@@ -1008,14 +1071,23 @@ const PageTaskTrackerDatabase = ({
             }}
         >
             <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
-                <InputBase
-                    value={trackerData.title}
-                    onChange={(event) => emitChange({ ...trackerData, title: event.target.value })}
-                    sx={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, width: "100%" }}
-                />
+                <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
+                    <InputBase
+                        value={trackerData.title}
+                        onChange={(event) => emitChange({ ...trackerData, title: event.target.value })}
+                        sx={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, width: "100%" }}
+                    />
+                    {onDelete && (
+                        <Tooltip title="Delete block" placement="left">
+                            <IconButton size="small" onClick={onDelete} color="error" sx={{ mt: 0.5, opacity: 0.5, "&:hover": { opacity: 1 } }}>
+                                <DeleteIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </Stack>
                 <InputBase
                     value={trackerData.description}
-                    placeholder="Stay organized with tasks, your way."
+                    placeholder="Track your items here."
                     onChange={(event) => emitChange({ ...trackerData, description: event.target.value })}
                     sx={{ color: "text.secondary", fontSize: 15, mt: 0.5, width: "100%" }}
                 />
@@ -1028,13 +1100,13 @@ const PageTaskTrackerDatabase = ({
                     sx={{ mt: 1.5 }}
                 >
                     <Stack direction="row" spacing={0.4} sx={{ flexWrap: "wrap" }}>
-                        <Button size="small" startIcon={<StarBorderIcon fontSize="small" />} onClick={() => setView("all")} sx={tabButtonSx(view === "all")}>
+                        <Button size="small" startIcon={<StarBorderIcon fontSize="small" />} onClick={() => onViewChange("all")} sx={tabButtonSx(view === "all")} data-testid="page-task-tracker-tab-all">
                             All Tasks
                         </Button>
-                        <Button size="small" startIcon={<PersonOutlineIcon fontSize="small" />} onClick={() => setView("my")} sx={tabButtonSx(view === "my")}>
+                        <Button size="small" startIcon={<PersonOutlineIcon fontSize="small" />} onClick={() => onViewChange("my")} sx={tabButtonSx(view === "my")} data-testid="page-task-tracker-tab-my">
                             My Tasks
                         </Button>
-                        <Button size="small" startIcon={<ChecklistRtlIcon fontSize="small" />} onClick={() => setView("checklist")} sx={tabButtonSx(view === "checklist")}>
+                        <Button size="small" startIcon={<ChecklistRtlIcon fontSize="small" />} onClick={() => onViewChange("checklist")} sx={tabButtonSx(view === "checklist")} data-testid="page-task-tracker-tab-checklist">
                             Checklist
                         </Button>
                     </Stack>
@@ -1056,7 +1128,7 @@ const PageTaskTrackerDatabase = ({
                             size="small"
                             variant="contained"
                             endIcon={<ArrowDropDownIcon />}
-                            onClick={addRow}
+                            onClick={addEmptyRow}
                             sx={{ textTransform: "none", borderRadius: 2, ml: 0.35 }}
                         >
                             New
@@ -1098,7 +1170,7 @@ const PageTaskTrackerDatabase = ({
                             No tasks yet. Add a new row.
                         </Typography>
                     ) : null}
-                    <Button size="small" variant="outlined" onClick={addRow} sx={{ alignSelf: "flex-start" }}>
+                    <Button size="small" variant="outlined" onClick={addEmptyRow} sx={{ alignSelf: "flex-start" }}>
                         + New task
                     </Button>
                 </Stack>
@@ -1130,7 +1202,11 @@ const PageTaskTrackerDatabase = ({
                                         <InputBase
                                             value={row.taskName}
                                             onChange={(event) => updateRow(row.id, { taskName: event.target.value })}
+                                            inputRef={(node) => {
+                                                taskNameInputRefs.current[row.id] = node;
+                                            }}
                                             placeholder="Task name"
+                                            data-testid={`page-task-tracker-task-name-${row.id}`}
                                             sx={{
                                                 width: "100%",
                                                 fontWeight: 600,
@@ -1162,6 +1238,12 @@ const PageTaskTrackerDatabase = ({
                                             type="date"
                                             value={row.dueDate}
                                             onChange={(event) => updateRow(row.id, { dueDate: event.target.value })}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" && !event.shiftKey) {
+                                                    event.preventDefault();
+                                                    addRow();
+                                                }
+                                            }}
                                             variant="standard"
                                             InputLabelProps={{ shrink: true }}
                                             fullWidth
@@ -1192,18 +1274,43 @@ const PageTaskTrackerDatabase = ({
                                     </TableCell>
                                 </TableRow>
                             ) : null}
+                            <TableRow hover data-testid="page-task-tracker-ghost-row">
+                                <TableCell />
+                                <TableCell>
+                                    <InputBase
+                                        value={ghostTaskName}
+                                        onChange={(event) => setGhostTaskName(event.target.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter" && !event.shiftKey) {
+                                                event.preventDefault();
+                                                const nextTitle = ghostTaskName.trim();
+                                                if (nextTitle.length === 0) {
+                                                    return;
+                                                }
+                                                addRow({ taskName: nextTitle });
+                                                setGhostTaskName("");
+                                            }
+                                        }}
+                                        placeholder="+ New task"
+                                        inputProps={{ "data-testid": "page-task-tracker-ghost-input" }}
+                                        sx={{ width: "100%", color: "text.secondary", fontStyle: "italic" }}
+                                    />
+                                </TableCell>
+                                <TableCell />
+                                <TableCell />
+                                <TableCell />
+                                <TableCell />
+                                <TableCell />
+                            </TableRow>
                         </TableBody>
                     </Table>
-                    <Button size="small" variant="outlined" onClick={addRow} sx={{ mt: 1 }}>
-                        + New task
-                    </Button>
                 </Box>
             )}
         </Paper>
     );
 };
 
-export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSuccess, onDeleteSuccess }: PageEditorProps) => {
+export const PageEditor = ({ pageId, autosaveEnabled, onSaveSuccess, onDeleteSuccess }: PageEditorProps) => {
     const muiTheme = useTheme();
     const { data: page, isLoading } = usePage(pageId);
     const { data: tasks = [] } = useTasks();
@@ -1220,7 +1327,12 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     const [pageSection, setPageSection] = useState<"page" | "tasks" | "checklist">("page");
     const draftKey = useMemo(() => `devJournal_page_draft_${pageId ?? 'new'}`, [pageId]);
     const trackerStorageKey = useMemo(() => `devJournal_page_task_trackers_${pageId ?? "new"}`, [pageId]);
+    const trackerViewStorageKey = useMemo(() => `devJournal_page_task_tracker_view_${pageId ?? "new"}`, [pageId]);
     const [taskTrackerDataById, setTaskTrackerDataById] = useState<Record<string, TaskTrackerData>>({});
+    const [taskTrackerView, setTaskTrackerView] = useState<"all" | "my" | "checklist">("all");
+    const [isTrackerViewLoaded, setIsTrackerViewLoaded] = useState(false);
+    const checklistInputRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
+    const [pendingChecklistFocusIndex, setPendingChecklistFocusIndex] = useState<number | null>(null);
 
     useEffect(() => {
         const pageTitle = page?.title ?? "Untitled Page";
@@ -1291,6 +1403,32 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     useEffect(() => {
         localStorage.setItem(trackerStorageKey, JSON.stringify(taskTrackerDataById));
     }, [taskTrackerDataById, trackerStorageKey]);
+
+    useEffect(() => {
+        setIsTrackerViewLoaded(false);
+        let nextView: "all" | "my" | "checklist" = "all";
+        try {
+            const raw = localStorage.getItem(trackerViewStorageKey);
+            if (raw === "all" || raw === "my" || raw === "checklist") {
+                nextView = raw;
+            }
+        } catch {
+            nextView = "all";
+        }
+        setTaskTrackerView(nextView);
+        setIsTrackerViewLoaded(true);
+    }, [trackerViewStorageKey]);
+
+    useEffect(() => {
+        if (!isTrackerViewLoaded) {
+            return;
+        }
+        try {
+            localStorage.setItem(trackerViewStorageKey, taskTrackerView);
+        } catch {
+            // ignore storage write issues
+        }
+    }, [isTrackerViewLoaded, taskTrackerView, trackerViewStorageKey]);
 
     useEffect(() => {
         let changed = false;
@@ -1454,7 +1592,6 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         setContent(page?.content ?? "");
     };
 
-    const words = countWords(content);
     const projectsById = useMemo(() => {
         const map = new Map<number, string>();
         projects.forEach((project) => map.set(project.id, project.name));
@@ -1479,6 +1616,34 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
             [sanitizeTrackerId(trackerId)]: normalizeTaskTrackerData({ ...nextTrackerData, id: sanitizeTrackerId(trackerId) }),
         }));
     }, []);
+
+    const handleDeleteTaskTrackerBlock = useCallback((trackerId: string) => {
+        setContent((prev) => {
+            const target = sanitizeTrackerId(trackerId);
+            const lines = prev.split("\n");
+            return lines.filter((line) => !line.includes(`{{TASK_TRACKER:${target}`)).join("\n").trim();
+        });
+        setTaskTrackerDataById((prev) => {
+            const copy = { ...prev };
+            delete copy[sanitizeTrackerId(trackerId)];
+            return copy;
+        });
+    }, []);
+
+    const handleDeleteTaskTableBlock = useCallback(() => {
+        setContent((prev) => {
+            const lines = prev.split("\n");
+            return lines.filter((line) => !line.includes(TASK_TABLE_BLOCK)).join("\n").trim();
+        });
+    }, []);
+
+    const handleDeleteFormBlock = useCallback((token: string) => {
+        setContent((prev) => {
+            const lines = prev.split("\n");
+            return lines.filter((line) => !line.includes(token)).join("\n").trim();
+        });
+    }, []);
+
     const editorDisplayContent = useMemo(() => toEditorDisplayContent(content), [content]);
     const editorBlocks = useMemo(() => markdownToEditorBlocks(editorDisplayContent), [editorDisplayContent]);
     const checklistBlockEntries = useMemo(
@@ -1510,16 +1675,14 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         });
         commitEditorBlocks(nextBlocks);
     }, [commitEditorBlocks, editorBlocks]);
-    const insertEditorBlockAfter = useCallback((index: number, type: EditorBlockType = "paragraph") => {
+    const insertChecklistBlockAfter = useCallback((index: number) => {
         const nextBlocks = [...editorBlocks];
-        nextBlocks.splice(index + 1, 0, {
-            type,
-            text: "",
-            checked: type === "checklist" ? false : undefined,
-        });
+        nextBlocks.splice(index + 1, 0, { type: "checklist", text: "", checked: false });
+        setPendingChecklistFocusIndex(index + 1);
         commitEditorBlocks(nextBlocks);
     }, [commitEditorBlocks, editorBlocks]);
     const addChecklistBlock = useCallback(() => {
+        setPendingChecklistFocusIndex(editorBlocks.length);
         commitEditorBlocks([...editorBlocks, { type: "checklist", text: "", checked: false }]);
     }, [commitEditorBlocks, editorBlocks]);
     const removeEditorBlock = useCallback((index: number) => {
@@ -1530,28 +1693,79 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         const nextBlocks = editorBlocks.filter((_, idx) => idx !== index);
         commitEditorBlocks(nextBlocks);
     }, [commitEditorBlocks, editorBlocks]);
+    useEffect(() => {
+        if (pendingChecklistFocusIndex === null || pageSection !== "checklist") {
+            return;
+        }
+
+        const focusInput = () => {
+            const target = checklistInputRefs.current[pendingChecklistFocusIndex];
+            if (!target) {
+                return false;
+            }
+            target.focus();
+            const end = target.value.length;
+            target.setSelectionRange?.(end, end);
+            return true;
+        };
+
+        if (focusInput()) {
+            setPendingChecklistFocusIndex(null);
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            if (focusInput()) {
+                setPendingChecklistFocusIndex(null);
+            }
+        }, 0);
+
+        return () => window.clearTimeout(timeout);
+    }, [checklistBlockEntries, pageSection, pendingChecklistFocusIndex]);
     const isDark = muiTheme.palette.mode === "dark";
+    const shellSurfaceSx = {
+        border: "1px solid",
+        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
+        backgroundColor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.9)",
+    };
     const toolbarButtonSx = {
         color: "text.secondary",
-        borderRadius: 2,
+        borderRadius: 2.2,
+        border: "1px solid transparent",
         "&:hover": {
             color: "text.primary",
             bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
         },
     };
     const pageSectionButtonSx = (active: boolean) => ({
         textTransform: "none",
         borderRadius: 99,
-        px: 1.6,
-        py: 0.5,
+        px: 1.7,
+        py: 0.7,
         color: active ? "text.primary" : "text.secondary",
-        bgcolor: active ? "action.selected" : "transparent",
+        bgcolor: active ? (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)") : "transparent",
+        border: "1px solid",
+        borderColor: active
+            ? isDark
+                ? "rgba(255,255,255,0.1)"
+                : "rgba(0,0,0,0.1)"
+            : "transparent",
         fontWeight: 600,
+        minHeight: 38,
+        transition: "background-color .18s ease, border-color .18s ease, color .18s ease",
         "&:hover": {
-            bgcolor: active ? "action.selected" : "action.hover",
+            bgcolor: active
+                ? isDark
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(0,0,0,0.05)"
+                : isDark
+                    ? "rgba(255,255,255,0.04)"
+                    : "rgba(0,0,0,0.03)",
             color: "text.primary",
         },
     });
+    const isPageEditorEmpty = editorDisplayContent.trim().length === 0;
 
     const handleTaskToggle = (task: Task, checked: boolean) => {
         updateTaskStatus.mutate({
@@ -1576,159 +1790,207 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         >
             <Box
                 sx={{
-                    maxWidth: 1140,
+                    maxWidth: 1180,
                     mx: "auto",
                     width: '100%',
                     flex: 1,
                     display: 'flex',
                     flexDirection: 'column',
-                    px: { xs: 1.5, md: 2.5 },
-                    pb: 4,
+                    px: { xs: 1.5, md: 2.75 },
+                    pb: 5,
                 }}
             >
                 <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", md: "center" }}
-                    mb={0.75}
-                    gap={2}
-                    flexDirection={{ xs: "column", md: "row" }}
+                    sx={{
+                        ...shellSurfaceSx,
+                        mb: 1.6,
+                        p: { xs: 1.4, md: 1.8 },
+                        borderRadius: 4,
+                    }}
                 >
-                    <InputBase
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Untitled"
-                        sx={{
-                            typography: { xs: "h3", md: "h2" },
-                            fontWeight: 700,
-                            letterSpacing: '-0.03em',
-                            color: 'text.primary',
-                            flex: 1,
-                            minWidth: 0,
-                            width: "100%",
-                            "& input::placeholder": {
-                                color: "text.secondary",
-                                opacity: 1,
-                            },
-                        }}
-                    />
+                    <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems={{ xs: "flex-start", md: "center" }}
+                        gap={2}
+                        flexDirection={{ xs: "column", md: "row" }}
+                    >
+                        <Box sx={{ minWidth: 0, flex: 1, width: "100%" }}>
+                            <InputBase
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Untitled"
+                                sx={{
+                                    typography: { xs: "h3", md: "h2" },
+                                    fontWeight: 800,
+                                    letterSpacing: '-0.04em',
+                                    color: 'text.primary',
+                                    flex: 1,
+                                    minWidth: 0,
+                                    width: "100%",
+                                    mb: 0.5,
+                                    "& input::placeholder": {
+                                        color: "text.secondary",
+                                        opacity: 1,
+                                    },
+                                }}
+                            />
+                        </Box>
 
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        {draftRestored ? <Chip label="Draft restored" size="small" color="info" variant="outlined" /> : null}
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={<SaveIcon />}
-                            onClick={handleSave}
-                            disabled={createMutation.isPending || updateMutation.isPending}
-                            sx={{ px: 2.5, minWidth: 150 }}
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+                            {draftRestored ? <Chip label="Draft restored" size="small" color="info" variant="outlined" /> : null}
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<SaveIcon />}
+                                onClick={handleSave}
+                                disabled={createMutation.isPending || updateMutation.isPending}
+                                sx={{
+                                    px: 2.6,
+                                    minWidth: 150,
+                                    minHeight: 42,
+                                    borderRadius: 2.8,
+                                }}
+                            >
+                                {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+                            </Button>
+                        </Stack>
+                    </Box>
+                </Box>
+
+                <Box
+                    sx={{
+                        ...shellSurfaceSx,
+                        mb: 2,
+                        p: 0.8,
+                        borderRadius: 3.2,
+                    }}
+                >
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: { xs: "stretch", md: "center" },
+                            justifyContent: "space-between",
+                            gap: 1,
+                            flexDirection: { xs: "column", md: "row" },
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                p: 0.35,
+                                display: "inline-flex",
+                                gap: 0.45,
+                                alignItems: "center",
+                                borderRadius: 99,
+                                border: "1px solid",
+                                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                                bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)",
+                                flexWrap: "wrap",
+                            }}
                         >
-                            {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+                            <Button
+                                size="small"
+                                startIcon={<NotesIcon fontSize="small" />}
+                                onClick={() => setPageSection("page")}
+                                sx={pageSectionButtonSx(pageSection === "page")}
+                                data-testid="page-editor-section-page"
+                            >
+                                Page
+                            </Button>
+                            <Button
+                                size="small"
+                                startIcon={<ViewAgendaOutlinedIcon fontSize="small" />}
+                                onClick={() => setPageSection("tasks")}
+                                sx={pageSectionButtonSx(pageSection === "tasks")}
+                                data-testid="page-editor-section-tasks"
+                            >
+                                Tasks
+                            </Button>
+                            <Button
+                                size="small"
+                                startIcon={<ChecklistRtlIcon fontSize="small" />}
+                                onClick={() => setPageSection("checklist")}
+                                sx={pageSectionButtonSx(pageSection === "checklist")}
+                                data-testid="page-editor-section-checklist"
+                            >
+                                Checklist
+                            </Button>
+                        </Box>
+                    </Box>
+
+                    <Stack
+                        direction="row"
+                        spacing={0.35}
+                        sx={{
+                            mt: 1.15,
+                            pt: 1.15,
+                            borderTop: "1px solid",
+                            borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                        }}
+                    >
+                        <Tooltip title="Bold">
+                            <IconButton size="small" onClick={() => insertFormat('**', '**')} sx={toolbarButtonSx}>
+                                <FormatBoldIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Italic">
+                            <IconButton size="small" onClick={() => insertFormat('*', '*')} sx={toolbarButtonSx}>
+                                <FormatItalicIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Code">
+                            <IconButton size="small" onClick={() => insertFormat('`', '`')} sx={toolbarButtonSx}>
+                                <CodeIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Code Block">
+                            <IconButton size="small" onClick={insertCodeBlock} sx={toolbarButtonSx}>
+                                <DataObjectIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Bullet List">
+                            <IconButton size="small" onClick={() => insertFormat('- ', '')} sx={toolbarButtonSx}>
+                                <FormatListBulletedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Checklist">
+                            <IconButton size="small" onClick={insertChecklist} sx={toolbarButtonSx}>
+                                <CheckBoxOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Table">
+                            <IconButton size="small" onClick={insertTable} sx={toolbarButtonSx}>
+                                <TableChartOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Tasks Database">
+                            <IconButton size="small" onClick={insertTaskDatabase} sx={toolbarButtonSx}>
+                                <ViewAgendaOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Task Tracker">
+                            <IconButton size="small" onClick={insertTaskTrackerDatabase} sx={toolbarButtonSx}>
+                                <FactCheckOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Button size="small" onClick={insertTemplate} sx={{ ml: 0.3, borderRadius: 2.4 }}>
+                            Insert template
                         </Button>
                     </Stack>
                 </Box>
 
-                <Stack direction="row" spacing={0.7} sx={{ mb: 1.4, flexWrap: "wrap", alignItems: "center" }}>
-                    <Chip size="small" label={`${words} words`} variant="outlined" />
-                    <Chip size="small" label={autosaveEnabled ? "Autosave on" : "Autosave off"} variant="outlined" />
-                    <Chip size="small" label="Ctrl/Cmd+S" variant="outlined" />
-                    <Chip size="small" label={previewEnabled ? "Live blocks on" : "Live blocks off"} variant="outlined" />
-                </Stack>
-
-                <Stack direction="row" spacing={0.5} sx={{ mb: 1.25, flexWrap: "wrap", alignItems: "center" }}>
-                    <Button
-                        size="small"
-                        startIcon={<NotesIcon fontSize="small" />}
-                        onClick={() => setPageSection("page")}
-                        sx={pageSectionButtonSx(pageSection === "page")}
-                        data-testid="page-editor-section-page"
-                    >
-                        Page
-                    </Button>
-                    <Button
-                        size="small"
-                        startIcon={<ViewAgendaOutlinedIcon fontSize="small" />}
-                        onClick={() => setPageSection("tasks")}
-                        sx={pageSectionButtonSx(pageSection === "tasks")}
-                        data-testid="page-editor-section-tasks"
-                    >
-                        Tasks
-                    </Button>
-                    <Button
-                        size="small"
-                        startIcon={<ChecklistRtlIcon fontSize="small" />}
-                        onClick={() => setPageSection("checklist")}
-                        sx={pageSectionButtonSx(pageSection === "checklist")}
-                        data-testid="page-editor-section-checklist"
-                    >
-                        Checklist
-                    </Button>
-                </Stack>
-
-                <Stack
-                    direction="row"
-                    spacing={0.25}
-                    sx={{
-                        mb: 2.25,
-                        pb: 1.2,
-                        borderBottom: "1px solid",
-                        borderColor: "divider",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                    }}
-                >
-                    <Tooltip title="Bold">
-                        <IconButton size="small" onClick={() => insertFormat('**', '**')} sx={toolbarButtonSx}>
-                            <FormatBoldIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Italic">
-                        <IconButton size="small" onClick={() => insertFormat('*', '*')} sx={toolbarButtonSx}>
-                            <FormatItalicIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Code">
-                        <IconButton size="small" onClick={() => insertFormat('`', '`')} sx={toolbarButtonSx}>
-                            <CodeIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Code Block">
-                        <IconButton size="small" onClick={insertCodeBlock} sx={toolbarButtonSx}>
-                            <DataObjectIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Bullet List">
-                        <IconButton size="small" onClick={() => insertFormat('- ', '')} sx={toolbarButtonSx}>
-                            <FormatListBulletedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Checklist">
-                        <IconButton size="small" onClick={insertChecklist} sx={toolbarButtonSx}>
-                            <CheckBoxOutlinedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Table">
-                        <IconButton size="small" onClick={insertTable} sx={toolbarButtonSx}>
-                            <TableChartOutlinedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Tasks Database">
-                        <IconButton size="small" onClick={insertTaskDatabase} sx={toolbarButtonSx}>
-                            <ViewAgendaOutlinedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Task Tracker">
-                        <IconButton size="small" onClick={insertTaskTrackerDatabase} sx={toolbarButtonSx}>
-                            <FactCheckOutlinedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Button size="small" onClick={insertTemplate} sx={{ ml: 0.5 }}>
-                        Insert template
-                    </Button>
-                </Stack>
-
                 {pageSection === "page" ? (
-                    <Box sx={{ flex: 1, minHeight: 420 }}>
+                    <Box
+                        sx={{
+                            ...shellSurfaceSx,
+                            flex: 1,
+                            minHeight: 460,
+                            borderRadius: 4,
+                            p: { xs: 1.35, md: 1.7 },
+                        }}
+                    >
                         <TextField
                             multiline
                             fullWidth
@@ -1744,9 +2006,9 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                 sx: {
                                     alignItems: "flex-start",
                                     fontSize: { xs: 19, md: 21 },
-                                    lineHeight: 1.75,
+                                    lineHeight: 1.82,
                                     "& textarea": {
-                                        minHeight: "420px !important",
+                                        minHeight: "440px !important",
                                     },
                                 },
                             }}
@@ -1755,6 +2017,25 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                 "& textarea::placeholder": { color: "text.disabled", opacity: 1 },
                             }}
                         />
+                        {isPageEditorEmpty ? (
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    mt: 2,
+                                    p: 1.35,
+                                    borderRadius: 3,
+                                    borderStyle: "dashed",
+                                    borderColor: "divider",
+                                    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
+                                }}
+                            >
+                                <Stack spacing={0.4}>
+                                    <Typography variant="caption" color="text.secondary">/ for commands</Typography>
+                                    <Typography variant="caption" color="text.secondary">Tasks tab for databases</Typography>
+                                    <Typography variant="caption" color="text.secondary">Checklist tab for task-list</Typography>
+                                </Stack>
+                            </Paper>
+                        ) : null}
                     </Box>
                 ) : null}
 
@@ -1769,18 +2050,23 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                         projectsById={projectsById}
                                         goalsById={goalsById}
                                         onToggleTask={handleTaskToggle}
+                                        onDelete={handleDeleteTaskTableBlock}
                                     />
                                 ) : block.type === "form" ? (
                                     <PageFormDatabase
                                         key={`form-${index}`}
                                         formData={block.formData}
                                         onChange={(nextFormData) => handleFormBlockChange(block.token, nextFormData)}
+                                        onDelete={() => handleDeleteFormBlock(block.token)}
                                     />
                                 ) : (
                                     <PageTaskTrackerDatabase
                                         key={`tracker-${index}`}
                                         trackerData={block.trackerData}
+                                        view={taskTrackerView}
+                                        onViewChange={setTaskTrackerView}
                                         onChange={(nextTrackerData) => handleTaskTrackerBlockChange(block.trackerData.id, nextTrackerData)}
+                                        onDelete={() => handleDeleteTaskTrackerBlock(block.trackerData.id)}
                                     />
                                 )
                             )
@@ -1788,10 +2074,10 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                             <Paper
                                 variant="outlined"
                                 sx={{
-                                    p: 2.25,
-                                    borderRadius: 2.5,
+                                    ...shellSurfaceSx,
+                                    p: 2.4,
+                                    borderRadius: 3.4,
                                     borderColor: "divider",
-                                    bgcolor: "background.paper",
                                 }}
                             >
                                 <Typography variant="body1" sx={{ fontWeight: 600 }}>
@@ -1818,10 +2104,10 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                         <Paper
                             variant="outlined"
                             sx={{
-                                p: 1.5,
-                                borderRadius: 2.5,
+                                ...shellSurfaceSx,
+                                p: 1.65,
+                                borderRadius: 3.4,
                                 borderColor: "divider",
-                                bgcolor: "background.paper",
                             }}
                         >
                             <Stack spacing={0.45}>
@@ -1833,22 +2119,40 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                             onChange={(_, checked) => updateEditorBlock(blockIndex, { checked })}
                                         />
                                         <InputBase
+                                            multiline
                                             value={block.text}
+                                            inputRef={(node) => {
+                                                checklistInputRefs.current[blockIndex] = node;
+                                            }}
                                             onChange={(event) => updateEditorBlock(blockIndex, { text: event.target.value })}
                                             onKeyDown={(event) => {
+                                                if (event.key === "Enter" && event.shiftKey) {
+                                                    event.preventDefault();
+                                                    const target = event.currentTarget as HTMLTextAreaElement;
+                                                    const selectionStart = target.selectionStart ?? block.text.length;
+                                                    const selectionEnd = target.selectionEnd ?? selectionStart;
+                                                    const nextText = `${block.text.slice(0, selectionStart)}\n${block.text.slice(selectionEnd)}`;
+                                                    setPendingChecklistFocusIndex(blockIndex);
+                                                    updateEditorBlock(blockIndex, { text: nextText });
+                                                    return;
+                                                }
                                                 if (event.key === "Enter") {
                                                     event.preventDefault();
-                                                    insertEditorBlockAfter(blockIndex, "checklist");
-                                                } else if (event.key === "Backspace" && block.text.length === 0) {
+                                                    insertChecklistBlockAfter(blockIndex);
+                                                } else if (event.key === "Backspace" && block.text.trim().length === 0) {
                                                     event.preventDefault();
                                                     removeEditorBlock(blockIndex);
                                                 }
                                             }}
+                                            inputProps={{ "data-testid": `page-editor-checklist-input-${blockIndex}` }}
                                             placeholder="Checklist item"
                                             sx={{
                                                 flex: 1,
                                                 textDecoration: block.checked ? "line-through" : "none",
                                                 opacity: block.checked ? 0.65 : 1,
+                                                "& textarea": {
+                                                    lineHeight: 1.4,
+                                                },
                                             }}
                                         />
                                         <IconButton size="small" onClick={() => removeEditorBlock(blockIndex)} sx={{ color: "text.secondary" }}>
