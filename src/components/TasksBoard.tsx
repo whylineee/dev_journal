@@ -346,7 +346,13 @@ export const TasksBoard = () => {
 
   useEffect(() => {
     const handler = (event: Event) => {
-      const customEvent = event as CustomEvent<{ overdueOnly?: boolean }>;
+      const customEvent = event as CustomEvent<{ overdueOnly?: boolean; resetFilters?: boolean }>;
+      if (customEvent.detail?.resetFilters) {
+        setQuery("");
+        setStatusFilter("all");
+        setPriorityFilter("all");
+        setProjectFilter("all");
+      }
       setShowOverdueOnly(Boolean(customEvent.detail?.overdueOnly));
     };
 

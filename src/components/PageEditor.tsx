@@ -1310,7 +1310,7 @@ const PageTaskTrackerDatabase = ({
     );
 };
 
-export const PageEditor = ({ pageId, autosaveEnabled, onSaveSuccess, onDeleteSuccess }: PageEditorProps) => {
+export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSuccess, onDeleteSuccess }: PageEditorProps) => {
     const muiTheme = useTheme();
     const { data: page, isLoading } = usePage(pageId);
     const { data: tasks = [] } = useTasks();
@@ -1454,7 +1454,8 @@ export const PageEditor = ({ pageId, autosaveEnabled, onSaveSuccess, onDeleteSuc
                 let hasDiff = false;
                 const next = { ...prev };
                 Object.entries(extracted).forEach(([id, data]) => {
-                    if (!next[id]) {
+                    const existing = next[id];
+                    if (!existing || JSON.stringify(existing) !== JSON.stringify(data)) {
                         hasDiff = true;
                         next[id] = data;
                     }
@@ -1587,7 +1588,9 @@ export const PageEditor = ({ pageId, autosaveEnabled, onSaveSuccess, onDeleteSuc
 
     const clearDraft = () => {
         localStorage.removeItem(draftKey);
+        localStorage.removeItem(trackerStorageKey);
         setDraftRestored(false);
+        setTaskTrackerDataById({});
         setTitle(page?.title ?? "Untitled Page");
         setContent(page?.content ?? "");
     };
@@ -1602,7 +1605,10 @@ export const PageEditor = ({ pageId, autosaveEnabled, onSaveSuccess, onDeleteSuc
         goals.forEach((goal) => map.set(goal.id, goal.title));
         return map;
     }, [goals]);
-    const pagePreviewBlocks = useMemo(() => splitPageContent(content, taskTrackerDataById), [content, taskTrackerDataById]);
+    const pagePreviewBlocks = useMemo(
+        () => (previewEnabled ? splitPageContent(content, taskTrackerDataById) : []),
+        [content, previewEnabled, taskTrackerDataById]
+    );
     const interactiveBlocks = useMemo(
         () => pagePreviewBlocks.filter((block) => block.type !== "markdown"),
         [pagePreviewBlocks]
@@ -2041,7 +2047,24 @@ export const PageEditor = ({ pageId, autosaveEnabled, onSaveSuccess, onDeleteSuc
 
                 {pageSection === "tasks" ? (
                     <Box sx={{ mt: 0.8 }}>
-                        {interactiveBlocks.length > 0 ? (
+                        {!previewEnabled ? (
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    ...shellSurfaceSx,
+                                    p: 2.4,
+                                    borderRadius: 3.4,
+                                    borderColor: "divider",
+                                }}
+                            >
+                                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                    Live blocks are hidden
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Enable page markdown preview in Settings to interact with task databases, forms, and trackers on this page.
+                                </Typography>
+                            </Paper>
+                        ) : interactiveBlocks.length > 0 ? (
                             interactiveBlocks.map((block, index) =>
                                 block.type === "tasks" ? (
                                     <PageTaskTable

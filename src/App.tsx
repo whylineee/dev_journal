@@ -1,19 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "./components/Layout";
-import { EntryForm } from "./components/EntryForm";
-import { PageEditor } from "./components/PageEditor";
-import { GitCommits } from "./components/GitCommits";
-import { Stats } from "./components/Stats";
-import { TasksBoard } from "./components/TasksBoard";
-import { GoalsBoard } from "./components/GoalsBoard";
-import { HabitsBoard } from "./components/HabitsBoard";
-import { ProjectsBoard } from "./components/ProjectsBoard";
-import { PlannerBoard } from "./components/PlannerBoard";
-import { WeeklySummary } from "./components/WeeklySummary";
-import { CommandAction, CommandPalette } from "./components/CommandPalette";
-import { InsightsBoard } from "./components/InsightsBoard";
-import { FocusBoard } from "./components/FocusBoard";
-import { SettingsScreen } from "./components/SettingsScreen";
+import type { CommandAction } from "./components/CommandPalette";
 import { format } from "date-fns";
 import { Box, Container } from "@mui/material";
 import { useEntries } from "./hooks/useEntries";
@@ -28,8 +15,37 @@ import { isPermissionGranted, requestPermission, sendNotification } from '@tauri
 import { useAppNotifications } from "./notifications/AppNotifications";
 import { expandMeetingOccurrences } from "./utils/meetingUtils";
 
+const EntryForm = lazy(() => import("./components/EntryForm").then((module) => ({ default: module.EntryForm })));
+const PageEditor = lazy(() => import("./components/PageEditor").then((module) => ({ default: module.PageEditor })));
+const GitCommits = lazy(() => import("./components/GitCommits").then((module) => ({ default: module.GitCommits })));
+const Stats = lazy(() => import("./components/Stats").then((module) => ({ default: module.Stats })));
+const TasksBoard = lazy(() => import("./components/TasksBoard").then((module) => ({ default: module.TasksBoard })));
+const GoalsBoard = lazy(() => import("./components/GoalsBoard").then((module) => ({ default: module.GoalsBoard })));
+const HabitsBoard = lazy(() => import("./components/HabitsBoard").then((module) => ({ default: module.HabitsBoard })));
+const ProjectsBoard = lazy(() => import("./components/ProjectsBoard").then((module) => ({ default: module.ProjectsBoard })));
+const PlannerBoard = lazy(() => import("./components/PlannerBoard").then((module) => ({ default: module.PlannerBoard })));
+const WeeklySummary = lazy(() => import("./components/WeeklySummary").then((module) => ({ default: module.WeeklySummary })));
+const CommandPalette = lazy(() => import("./components/CommandPalette").then((module) => ({ default: module.CommandPalette })));
+const InsightsBoard = lazy(() => import("./components/InsightsBoard").then((module) => ({ default: module.InsightsBoard })));
+const FocusBoard = lazy(() => import("./components/FocusBoard").then((module) => ({ default: module.FocusBoard })));
+const SettingsScreen = lazy(() => import("./components/SettingsScreen").then((module) => ({ default: module.SettingsScreen })));
+
 const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
 const MEETING_REMINDER_STORAGE_KEY = "devJournal_meeting_reminders_sent";
+
+const ScreenFallback = () => (
+  <Box
+    sx={{
+      minHeight: "40vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "text.secondary",
+    }}
+  >
+    Loading...
+  </Box>
+);
 
 function App() {
   const [activeTab, setActiveTab] = useState<'planner' | 'focus' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'projects' | 'insights' | 'settings'>('planner');
@@ -63,6 +79,33 @@ function App() {
   const { language, setLanguage, t } = useI18n();
   const { notify } = useAppNotifications();
   const lastReminderDateRef = useRef<string | null>(localStorage.getItem("devJournal_lastReminderDate"));
+  const notificationPermissionRequestedRef = useRef(false);
+  const notificationPermissionDeniedRef = useRef(false);
+
+  const ensureNotificationPermission = useCallback(async () => {
+    try {
+      const permissionGranted = await isPermissionGranted();
+      if (permissionGranted) {
+        notificationPermissionDeniedRef.current = false;
+        notificationPermissionRequestedRef.current = true;
+        return true;
+      }
+
+      if (notificationPermissionDeniedRef.current || notificationPermissionRequestedRef.current) {
+        return false;
+      }
+
+      notificationPermissionRequestedRef.current = true;
+      const permission = await requestPermission();
+      const granted = permission === "granted";
+      notificationPermissionDeniedRef.current = !granted;
+
+      return granted;
+    } catch {
+      notificationPermissionDeniedRef.current = true;
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("devJournal_reminderEnabled", String(reminderEnabled));
@@ -109,11 +152,7 @@ function App() {
         return;
       }
 
-      let permissionGranted = await isPermissionGranted();
-      if (!permissionGranted) {
-        const permission = await requestPermission();
-        permissionGranted = permission === 'granted';
-      }
+      const permissionGranted = await ensureNotificationPermission();
 
       if (permissionGranted) {
         sendNotification({
@@ -137,7 +176,7 @@ function App() {
     checkTime();
 
     return () => clearInterval(interval);
-  }, [entries, notify, reminderEnabled, reminderHour, t]);
+  }, [ensureNotificationPermission, entries, notify, reminderEnabled, reminderHour, t]);
 
   useEffect(() => {
     const readReminderMap = (): Record<string, string> => {
@@ -165,11 +204,7 @@ function App() {
       const occurrences = expandMeetingOccurrences(meetings, new Date(), 2);
       const now = new Date();
       const reminderMap = readReminderMap();
-      let permissionGranted = await isPermissionGranted();
-      if (!permissionGranted) {
-        const permission = await requestPermission();
-        permissionGranted = permission === "granted";
-      }
+      const permissionGranted = await ensureNotificationPermission();
       if (!permissionGranted) {
         return;
       }
@@ -215,7 +250,7 @@ function App() {
     const interval = window.setInterval(checkMeetingReminders, 30000);
     checkMeetingReminders();
     return () => window.clearInterval(interval);
-  }, [meetings, notify, t]);
+  }, [ensureNotificationPermission, meetings, notify, t]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -334,7 +369,11 @@ function App() {
         keywords: ["tasks", "kanban"],
         onSelect: () => {
           localStorage.setItem("devJournal_tasks_overdue_only", "false");
-          window.dispatchEvent(new CustomEvent("devJournal:tasksFilter", { detail: { overdueOnly: false } }));
+          window.dispatchEvent(
+            new CustomEvent("devJournal:tasksFilter", {
+              detail: { overdueOnly: false, resetFilters: true },
+            })
+          );
           setActiveTab("tasks");
         },
       },
@@ -346,7 +385,11 @@ function App() {
         keywords: ["tasks", "overdue", "deadline"],
         onSelect: () => {
           localStorage.setItem("devJournal_tasks_overdue_only", "true");
-          window.dispatchEvent(new CustomEvent("devJournal:tasksFilter", { detail: { overdueOnly: true } }));
+          window.dispatchEvent(
+            new CustomEvent("devJournal:tasksFilter", {
+              detail: { overdueOnly: true, resetFilters: true },
+            })
+          );
           setActiveTab("tasks");
         },
       },
@@ -518,77 +561,81 @@ function App() {
         onSelectPage={setSelectedPageId}
       >
         <Container maxWidth="lg" sx={{ height: '100%', pb: 4 }}>
-          {activeTab === 'journal' ? (
-            <>
-              <EntryForm
-                date={selectedDate}
-                previewEnabled={journalPreviewEnabled}
-                autosaveEnabled={autosaveEnabled}
+          <Suspense fallback={<ScreenFallback />}>
+            {activeTab === 'journal' ? (
+              <>
+                <EntryForm
+                  date={selectedDate}
+                  previewEnabled={journalPreviewEnabled}
+                  autosaveEnabled={autosaveEnabled}
+                />
+                <Box sx={{ mt: 4 }}>
+                  <WeeklySummary />
+                </Box>
+                <Box sx={{ mt: 6 }}>
+                  <Stats />
+                </Box>
+                <Box sx={{ mt: 4 }}>
+                  <GitCommits />
+                </Box>
+              </>
+            ) : activeTab === 'planner' ? (
+              <PlannerBoard
+                onOpenTasks={() => setActiveTab("tasks")}
+                onOpenGoals={() => setActiveTab("goals")}
+                onOpenHabits={() => setActiveTab("habits")}
+                onOpenProjects={() => setActiveTab("projects")}
+                onOpenFocus={() => setActiveTab("focus")}
               />
-              <Box sx={{ mt: 4 }}>
-                <WeeklySummary />
-              </Box>
-              <Box sx={{ mt: 6 }}>
-                <Stats />
-              </Box>
-              <Box sx={{ mt: 4 }}>
-                <GitCommits />
-              </Box>
-            </>
-          ) : activeTab === 'planner' ? (
-            <PlannerBoard
-              onOpenTasks={() => setActiveTab("tasks")}
-              onOpenGoals={() => setActiveTab("goals")}
-              onOpenHabits={() => setActiveTab("habits")}
-              onOpenProjects={() => setActiveTab("projects")}
-              onOpenFocus={() => setActiveTab("focus")}
-            />
-          ) : activeTab === 'focus' ? (
-            <FocusBoard />
-          ) : activeTab === 'tasks' ? (
-            <TasksBoard />
-          ) : activeTab === 'goals' ? (
-            <GoalsBoard />
-          ) : activeTab === 'habits' ? (
-            <HabitsBoard />
-          ) : activeTab === 'projects' ? (
-            <ProjectsBoard />
-          ) : activeTab === 'insights' ? (
-            <InsightsBoard />
-          ) : activeTab === 'settings' ? (
-            <SettingsScreen
-              reminderEnabled={reminderEnabled}
-              onReminderEnabledChange={setReminderEnabled}
-              reminderHour={reminderHour}
-              onReminderHourChange={setReminderHour}
-              journalPreviewEnabled={journalPreviewEnabled}
-              onJournalPreviewEnabledChange={setJournalPreviewEnabled}
-              pagePreviewEnabled={pagePreviewEnabled}
-              onPagePreviewEnabledChange={setPagePreviewEnabled}
-              autosaveEnabled={autosaveEnabled}
-              onAutosaveEnabledChange={setAutosaveEnabled}
-            />
-          ) : (
-            <PageEditor
-              pageId={selectedPageId}
-              previewEnabled={pagePreviewEnabled}
-              autosaveEnabled={autosaveEnabled}
-              onSaveSuccess={(id) => {
-                setSelectedPageId(id);
-              }}
-              onDeleteSuccess={() => {
-                setSelectedPageId(null);
-              }}
-            />
-          )}
+            ) : activeTab === 'focus' ? (
+              <FocusBoard />
+            ) : activeTab === 'tasks' ? (
+              <TasksBoard />
+            ) : activeTab === 'goals' ? (
+              <GoalsBoard />
+            ) : activeTab === 'habits' ? (
+              <HabitsBoard />
+            ) : activeTab === 'projects' ? (
+              <ProjectsBoard />
+            ) : activeTab === 'insights' ? (
+              <InsightsBoard />
+            ) : activeTab === 'settings' ? (
+              <SettingsScreen
+                reminderEnabled={reminderEnabled}
+                onReminderEnabledChange={setReminderEnabled}
+                reminderHour={reminderHour}
+                onReminderHourChange={setReminderHour}
+                journalPreviewEnabled={journalPreviewEnabled}
+                onJournalPreviewEnabledChange={setJournalPreviewEnabled}
+                pagePreviewEnabled={pagePreviewEnabled}
+                onPagePreviewEnabledChange={setPagePreviewEnabled}
+                autosaveEnabled={autosaveEnabled}
+                onAutosaveEnabledChange={setAutosaveEnabled}
+              />
+            ) : (
+              <PageEditor
+                pageId={selectedPageId}
+                previewEnabled={pagePreviewEnabled}
+                autosaveEnabled={autosaveEnabled}
+                onSaveSuccess={(id) => {
+                  setSelectedPageId(id);
+                }}
+                onDeleteSuccess={() => {
+                  setSelectedPageId(null);
+                }}
+              />
+            )}
+          </Suspense>
         </Container>
       </Layout>
 
-      <CommandPalette
-        open={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        actions={commandActions}
-      />
+      <Suspense fallback={null}>
+        <CommandPalette
+          open={commandPaletteOpen}
+          onClose={() => setCommandPaletteOpen(false)}
+          actions={commandActions}
+        />
+      </Suspense>
     </>
   );
 }
