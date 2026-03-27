@@ -480,25 +480,18 @@ export const ProjectsBoard = () => {
             <Paper key={project.id} variant="outlined" sx={{
               p: 2,
               borderRadius: 2.5,
-              borderColor: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(0,0,0,0.08)",
-              bgcolor: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "rgba(255,255,255,0.02)"
-                  : "rgba(0,0,0,0.01)",
-              transition: "all 0.2s ease",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              transition: "border-color 0.15s ease, box-shadow 0.15s ease",
               "&:hover": {
-                transform: "translateY(-1px)",
                 borderColor: (theme) =>
                   theme.palette.mode === "dark"
-                    ? "rgba(255,255,255,0.15)"
+                    ? "rgba(255,255,255,0.16)"
                     : "rgba(0,0,0,0.15)",
                 boxShadow: (theme) =>
                   theme.palette.mode === "dark"
                     ? "0 2px 8px rgba(0,0,0,0.3)"
-                    : "0 2px 8px rgba(0,0,0,0.08)",
+                    : "0 2px 8px rgba(0,0,0,0.06)",
               },
             }}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">

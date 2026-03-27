@@ -454,24 +454,18 @@ export const GoalsBoard = () => {
                 borderColor: (theme) =>
                   overdue
                     ? "error.main"
-                    : theme.palette.mode === "dark"
-                      ? "rgba(255,255,255,0.08)"
-                      : "rgba(0,0,0,0.08)",
-                bgcolor: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "rgba(255,255,255,0.02)"
-                    : "rgba(0,0,0,0.01)",
-                transition: "all 0.2s ease",
+                    : theme.palette.divider,
+                bgcolor: "background.paper",
+                transition: "border-color 0.15s ease, box-shadow 0.15s ease",
                 "&:hover": {
-                  transform: "translateY(-1px)",
                   borderColor: (theme) =>
                     theme.palette.mode === "dark"
-                      ? "rgba(255,255,255,0.15)"
+                      ? "rgba(255,255,255,0.16)"
                       : "rgba(0,0,0,0.15)",
                   boxShadow: (theme) =>
                     theme.palette.mode === "dark"
                       ? "0 2px 8px rgba(0,0,0,0.3)"
-                      : "0 2px 8px rgba(0,0,0,0.08)",
+                      : "0 2px 8px rgba(0,0,0,0.06)",
                 },
               }}
             >
@@ -572,14 +566,11 @@ export const GoalsBoard = () => {
                       p: 1.25,
                       borderRadius: 2,
                       border: "1px solid",
-                      borderColor: (theme) =>
-                        theme.palette.mode === "dark"
-                          ? "rgba(255,255,255,0.08)"
-                          : "rgba(0,0,0,0.06)",
+                      borderColor: "divider",
                       bgcolor: (theme) =>
                         theme.palette.mode === "dark"
-                          ? "rgba(255,255,255,0.04)"
-                          : "rgba(0,0,0,0.02)",
+                          ? "rgba(255,255,255,0.03)"
+                          : "rgba(0,0,0,0.015)",
                     }}
                   >
                     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>

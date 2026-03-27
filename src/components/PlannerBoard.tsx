@@ -435,29 +435,25 @@ export const PlannerBoard = ({
   const focusSessionsToday = focusSessionsMap[today] ?? 0;
   const isDark = muiTheme.palette.mode === "dark";
   const plannerCardSx = {
-    p: { xs: 2, sm: 2.5 },
-    mb: 2,
-    borderRadius: 2.5,
-    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
-    border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
-    transition: "all 0.2s ease",
-    "&:hover": {
-      borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
-      boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.08)",
-    },
+    p: { xs: 1.5, sm: 2 },
+    mb: 1.5,
+    borderRadius: 2,
+    bgcolor: "background.paper",
+    border: "1px solid",
+    borderColor: "divider",
+    boxShadow: isDark ? "0 1px 2px rgba(0,0,0,0.3)" : "0 1px 2px rgba(0,0,0,0.04)",
   };
   const plannerSurfaceSx = {
     ...plannerCardSx,
-    borderRadius: 3.5,
-    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.9)",
+    borderRadius: 2.5,
   };
   const plannerInsetCardSx = {
     p: 1.2,
-    minHeight: 96,
-    borderRadius: 2.75,
+    minHeight: 80,
+    borderRadius: 1.5,
     border: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-    bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.018)",
+    borderColor: "divider",
+    bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
   };
 
   const resetMeetingForm = () => {
@@ -753,7 +749,7 @@ export const PlannerBoard = ({
                 minHeight: { xs: 84, sm: 94 },
                 borderRadius: 2.6,
                 border: "1px solid",
-                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                borderColor: "divider",
                 bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
                 display: "flex",
                 flexDirection: "column",
