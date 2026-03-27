@@ -246,7 +246,8 @@ export const FocusBoard = () => {
     mb: 2,
     borderRadius: 2,
     bgcolor: muiTheme.palette.background.paper,
-    border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+    border: "1px solid",
+    borderColor: isDark ? muiTheme.palette.divider : muiTheme.palette.divider,
   };
 
   const ringSize = 260;
@@ -282,7 +283,7 @@ export const FocusBoard = () => {
                 cy={ringSize / 2}
                 r={radius}
                 fill="none"
-                stroke={isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}
+                stroke={isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}
                 strokeWidth={strokeWidth}
               />
               <circle
@@ -347,7 +348,7 @@ export const FocusBoard = () => {
               height: 4,
               borderRadius: 2,
               mb: 3,
-              bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+              bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
               "& .MuiLinearProgress-bar": {
                 borderRadius: 2,
                 background: `linear-gradient(90deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
@@ -366,7 +367,7 @@ export const FocusBoard = () => {
                 height: 56,
                 background: focusRunning
                   ? isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"
-                  : `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
+                  : muiTheme.palette.primary.main,
                 color: focusRunning ? "text.primary" : muiTheme.palette.primary.contrastText,
                 boxShadow: "none",
                 transition: "all 0.2s ease",
@@ -400,8 +401,8 @@ export const FocusBoard = () => {
                 width: 42,
                 height: 42,
                 border: "1px solid",
-                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-                transition: "all 0.2s ease",
+                borderColor: muiTheme.palette.divider,
+                transition: "border-color 0.15s ease",
                 "&:hover": { borderColor: alpha(muiTheme.palette.primary.main, 0.3) },
               }}
               title={isBreakMode ? t("Skip break") : t("Mark complete")}
@@ -478,8 +479,8 @@ export const FocusBoard = () => {
                   p: 2,
                   borderRadius: 2.5,
                   border: "1px solid",
-                  borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-                  bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.30)",
+                  borderColor: "divider",
+                  bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
                 }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -607,8 +608,8 @@ export const FocusBoard = () => {
                   background: day.isToday
                     ? `linear-gradient(180deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`
                     : isDark
-                      ? "rgba(255,255,255,0.06)"
-                      : "rgba(0,0,0,0.06)",
+                      ? "rgba(255,255,255,0.08)"
+                      : "rgba(0,0,0,0.08)",
                   transition: "height 0.3s ease",
                   ...(day.isToday && {
                     boxShadow: "none",
@@ -647,7 +648,7 @@ export const FocusBoard = () => {
                   border: "1px solid",
                   borderColor: task.id === focusTaskId
                     ? alpha(muiTheme.palette.primary.main, 0.35)
-                    : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+                    : "divider",
                   bgcolor: task.id === focusTaskId
                     ? alpha(muiTheme.palette.primary.main, 0.06)
                     : "transparent",
@@ -659,7 +660,7 @@ export const FocusBoard = () => {
                   ...(!focusRunning && {
                     "&:hover": {
                       borderColor: alpha(muiTheme.palette.primary.main, 0.2),
-                      bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.25)",
+                      bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
                     },
                   }),
                 }}

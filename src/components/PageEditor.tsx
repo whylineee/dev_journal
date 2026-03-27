@@ -1731,8 +1731,8 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     const isDark = muiTheme.palette.mode === "dark";
     const shellSurfaceSx = {
         border: "1px solid",
-        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
-        backgroundColor: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.9)",
+        borderColor: "divider",
+        backgroundColor: "background.paper",
     };
     const toolbarButtonSx = {
         color: "text.secondary",
@@ -1740,8 +1740,8 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         border: "1px solid transparent",
         "&:hover": {
             color: "text.primary",
-            bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+            bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+            borderColor: "divider",
         },
     };
     const pageSectionButtonSx = (active: boolean) => ({
@@ -1750,7 +1750,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         px: 1.7,
         py: 0.7,
         color: active ? "text.primary" : "text.secondary",
-        bgcolor: active ? (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)") : "transparent",
+        bgcolor: active ? (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)") : "transparent",
         border: "1px solid",
         borderColor: active
             ? isDark
@@ -1763,10 +1763,10 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         "&:hover": {
             bgcolor: active
                 ? isDark
-                    ? "rgba(255,255,255,0.08)"
-                    : "rgba(0,0,0,0.05)"
+                    ? "rgba(255,255,255,0.1)"
+                    : "rgba(0,0,0,0.06)"
                 : isDark
-                    ? "rgba(255,255,255,0.04)"
+                    ? "rgba(255,255,255,0.05)"
                     : "rgba(0,0,0,0.03)",
             color: "text.primary",
         },
@@ -1889,8 +1889,8 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                 alignItems: "center",
                                 borderRadius: 99,
                                 border: "1px solid",
-                                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-                                bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)",
+                                borderColor: "divider",
+                                bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
                                 flexWrap: "wrap",
                             }}
                         >
@@ -1931,7 +1931,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                             mt: 1.15,
                             pt: 1.15,
                             borderTop: "1px solid",
-                            borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                            borderColor: "divider",
                             flexWrap: "wrap",
                             alignItems: "center",
                         }}
@@ -2032,7 +2032,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                     borderRadius: 3,
                                     borderStyle: "dashed",
                                     borderColor: "divider",
-                                    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
+                                    bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
                                 }}
                             >
                                 <Stack spacing={0.4}>

@@ -302,9 +302,9 @@ export const InsightsBoard = () => {
     p: { xs: 1.5, sm: 2 },
     mb: 2,
     borderRadius: 2.5,
-    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
-    border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
-    transition: "all 0.2s ease",
+    bgcolor: "background.paper",
+    border: "1px solid",
+    borderColor: "divider",
   };
 
   const sectionHeader = (key: SectionKey, label: string, count: number, subtitle: string) => (
@@ -337,12 +337,11 @@ export const InsightsBoard = () => {
     p: 1.5,
     borderRadius: 2,
     border: "1px solid",
-    borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.005)",
-    transition: "all 0.2s ease",
+    borderColor: "divider",
+    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
     "&:hover": {
       borderColor: alpha(muiTheme.palette.primary.main, 0.25),
-      boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.08)",
+      boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.06)",
     },
   };
 

@@ -258,9 +258,9 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
         p: { xs: 1.5, sm: 2 },
         mb: { xs: 1.5, md: 2 },
         borderRadius: 2.5,
-        bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
-        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
-        transition: "all 0.2s ease",
+        bgcolor: "background.paper",
+        border: "1px solid",
+        borderColor: "divider",
     };
 
     const toolbarBtnSx = {
@@ -271,7 +271,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
         transition: "all 0.2s ease",
         "&:hover": {
             color: "text.primary",
-            bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+            bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
         },
     };
 
@@ -342,7 +342,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                                 onClick={(e) => setMoreAnchor(e.currentTarget)}
                                 sx={{
                                     border: "1px solid",
-                                    borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+                                    borderColor: "divider",
                                     borderRadius: 1.5,
                                     width: 32,
                                     height: 32,
@@ -423,7 +423,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                     <AnimatePresence>
                         {previewEnabled && yesterday.length > 0 && (
                             <Box component={motion.div} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                                <Paper sx={{ mt: 1.5, p: 1.5, minHeight: 40, bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", borderRadius: 2 }} variant="outlined">
+                                <Paper sx={{ mt: 1.5, p: 1.5, minHeight: 40, bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)", borderRadius: 2 }} variant="outlined">
                                     <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1, mb: 0.5, display: "block", fontSize: "0.6rem" }}>
                                         {t("Preview")}
                                     </Typography>
@@ -456,7 +456,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                     <AnimatePresence>
                         {previewEnabled && today.length > 0 && (
                             <Box component={motion.div} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                                <Paper sx={{ mt: 1.5, p: 1.5, minHeight: 40, bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", borderRadius: 2 }} variant="outlined">
+                                <Paper sx={{ mt: 1.5, p: 1.5, minHeight: 40, bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)", borderRadius: 2 }} variant="outlined">
                                     <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1, mb: 0.5, display: "block", fontSize: "0.6rem" }}>
                                         {t("Preview")}
                                     </Typography>
