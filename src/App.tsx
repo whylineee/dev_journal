@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "./components/Layout";
 import type { CommandAction } from "./components/CommandPalette";
 import { format } from "date-fns";
@@ -14,38 +14,23 @@ import { useI18n } from "./i18n/I18nContext";
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { useAppNotifications } from "./notifications/AppNotifications";
 import { expandMeetingOccurrences } from "./utils/meetingUtils";
-
-const EntryForm = lazy(() => import("./components/EntryForm").then((module) => ({ default: module.EntryForm })));
-const PageEditor = lazy(() => import("./components/PageEditor").then((module) => ({ default: module.PageEditor })));
-const GitCommits = lazy(() => import("./components/GitCommits").then((module) => ({ default: module.GitCommits })));
-const Stats = lazy(() => import("./components/Stats").then((module) => ({ default: module.Stats })));
-const TasksBoard = lazy(() => import("./components/TasksBoard").then((module) => ({ default: module.TasksBoard })));
-const GoalsBoard = lazy(() => import("./components/GoalsBoard").then((module) => ({ default: module.GoalsBoard })));
-const HabitsBoard = lazy(() => import("./components/HabitsBoard").then((module) => ({ default: module.HabitsBoard })));
-const ProjectsBoard = lazy(() => import("./components/ProjectsBoard").then((module) => ({ default: module.ProjectsBoard })));
-const PlannerBoard = lazy(() => import("./components/PlannerBoard").then((module) => ({ default: module.PlannerBoard })));
-const WeeklySummary = lazy(() => import("./components/WeeklySummary").then((module) => ({ default: module.WeeklySummary })));
-const CommandPalette = lazy(() => import("./components/CommandPalette").then((module) => ({ default: module.CommandPalette })));
-const InsightsBoard = lazy(() => import("./components/InsightsBoard").then((module) => ({ default: module.InsightsBoard })));
-const FocusBoard = lazy(() => import("./components/FocusBoard").then((module) => ({ default: module.FocusBoard })));
-const SettingsScreen = lazy(() => import("./components/SettingsScreen").then((module) => ({ default: module.SettingsScreen })));
+import { EntryForm } from "./components/EntryForm";
+import { PageEditor } from "./components/PageEditor";
+import { GitCommits } from "./components/GitCommits";
+import { Stats } from "./components/Stats";
+import { TasksBoard } from "./components/TasksBoard";
+import { GoalsBoard } from "./components/GoalsBoard";
+import { HabitsBoard } from "./components/HabitsBoard";
+import { ProjectsBoard } from "./components/ProjectsBoard";
+import { PlannerBoard } from "./components/PlannerBoard";
+import { WeeklySummary } from "./components/WeeklySummary";
+import { CommandPalette } from "./components/CommandPalette";
+import { InsightsBoard } from "./components/InsightsBoard";
+import { FocusBoard } from "./components/FocusBoard";
+import { SettingsScreen } from "./components/SettingsScreen";
 
 const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
 const MEETING_REMINDER_STORAGE_KEY = "devJournal_meeting_reminders_sent";
-
-const ScreenFallback = () => (
-  <Box
-    sx={{
-      minHeight: "40vh",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "text.secondary",
-    }}
-  >
-    Loading...
-  </Box>
-);
 
 function App() {
   const [activeTab, setActiveTab] = useState<'planner' | 'focus' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'projects' | 'insights' | 'settings'>('planner');
@@ -561,8 +546,7 @@ function App() {
         onSelectPage={setSelectedPageId}
       >
         <Container maxWidth="lg" sx={{ height: '100%', pb: 4 }}>
-          <Suspense fallback={<ScreenFallback />}>
-            {activeTab === 'journal' ? (
+          {activeTab === 'journal' ? (
               <>
                 <EntryForm
                   date={selectedDate}
@@ -625,17 +609,14 @@ function App() {
                 }}
               />
             )}
-          </Suspense>
         </Container>
       </Layout>
 
-      <Suspense fallback={null}>
-        <CommandPalette
-          open={commandPaletteOpen}
-          onClose={() => setCommandPaletteOpen(false)}
-          actions={commandActions}
-        />
-      </Suspense>
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        actions={commandActions}
+      />
     </>
   );
 }
