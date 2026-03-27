@@ -127,6 +127,7 @@ Important current behavior:
 - journal preview toggle
 - page live blocks toggle
 - backup export/import
+- live palette/settings preview surface
 
 ## Architecture Overview
 
@@ -342,31 +343,32 @@ Key facts:
 - current `AppearanceMode` is `dark | light`
 - there is no persistent `system` mode toggle; system preference is only the initial fallback and reset target
 
-### Glassmorphism Design System (branch: `redesign/glassmorphism`)
+### Dashboard / Data-rich Design System
 
-The app uses a glassmorphism visual language across all surfaces:
+The app uses a clean dashboard visual language inspired by Raycast, Amie, and Things 3:
 
-- **Glass panels**: all MUI Paper, Card, Drawer, AppBar, Dialog, Menu, Popover, and Tooltip components use semi-transparent backgrounds (`rgba`) with `backdrop-filter: blur()` and `saturate()`
-- **Multi-layer shadows**: `box-shadow` values combine outer shadow + inner highlight (`inset 0 1px 0 ...`) for depth
-- **Glass borders**: light-mode uses `rgba(255,255,255,0.45)` borders; dark-mode uses `rgba(255,255,255,0.08)` borders
-- **Mesh gradients**: `bodyGradient` in each preset uses 3-layer `radial-gradient(ellipse ...)` patterns
-- **Preset palettes**: `backgroundPaper` values are `rgba()` rather than hex to enable transparency
-- **Blur hierarchy**: Drawer 40px > AppBar/Dialog 32-40px > Paper 24px > Cards/inner 12-16px > Buttons/Chips 8px
-- **`WebkitBackdropFilter`** is always set alongside `backdropFilter` for Safari compatibility
-- **Gradient buttons**: `containedPrimary` uses `linear-gradient(135deg, primary, secondary)` with a white-border highlight
-- **Button contrast text**: `gradientContrastText()` utility in `ThemeContext.tsx` computes WCAG-aware contrast color (`#0a0a0a` or `#ffffff`) based on the average luminance of `primary` and `secondary` palette colors. This is set as `contrastText` on both `palette.primary` and `palette.secondary`, and applied to `containedPrimary` button text and icons. No more hardcoded `isDark` check for button text.
-- **Button states**: `containedPrimary` defines explicit `&:active` (press-down with reduced shadow and slight darken) and `&:focus-visible` (outline ring instead of glow) states. `backdropFilter` is only applied to `outlined` buttons (which have semi-transparent backgrounds), not to `containedPrimary` (opaque gradient).
-- **Hover animations**: cards and list items use `translateY(-1px)` on hover for lift effect
-- **Scrollbars**: thin (6px) with transparent tracks and semi-transparent thumbs; sidebar navigation hides scrollbar visually (`scrollbarWidth: "none"` + `&::-webkit-scrollbar: { display: "none" }`) while keeping scroll functional
+- **Solid surfaces**: all MUI Paper, Card, Drawer, AppBar, Dialog, Menu, Popover, and Tooltip use opaque `background.paper` or `background.default` — no `backdrop-filter`, no blur, no transparency
+- **Three-level shadows**: `shadowSm` (1px), `shadowMd` (2-8px), `shadowLg` (8-24px) defined in `buildMuiTheme`
+- **Clean borders**: all borders use the `divider` palette token (solid hex color, not rgba)
+- **No body gradients**: `bodyGradient` is `"none"` in all presets; backgrounds are flat solid colors
+- **Opaque preset palettes**: `backgroundPaper` and `backgroundDefault` are solid hex values
+- **Flat primary buttons**: `containedPrimary` uses solid `palette.primary` background, no gradient
+- **Button contrast text**: `gradientContrastText()` utility in `ThemeContext.tsx` computes WCAG-aware contrast color based on average luminance of `primary` and `secondary`
+- **Hover behavior**: cards use `borderColor` + `boxShadow` transitions on hover — no `translateY` lift
+- **Pill chips**: `MuiChip` uses `borderRadius: 999` with no border
+- **Scrollbars**: 6px thin with transparent tracks and subtle thumbs
 - **Selection color**: theme-aware `::selection` via MuiCssBaseline overrides
-- **Helper functions**: `glassLight(opacity)`, `glassDark(opacity)`, `relativeLuminance(hex)`, and `gradientContrastText(colorA, colorB)` in ThemeContext.tsx
+- **Tab/Progress overrides**: `MuiTab`, `MuiTabs`, `MuiLinearProgress` have compact dashboard-style defaults
+- **Helper functions**: `relativeLuminance(hex)` and `gradientContrastText(colorA, colorB)` live in `ThemeContext.tsx`
 
-Component-level glass conventions:
-- `Layout.tsx` sidebar sections use shared `sectionBoxSx` and `sectionHeaderSx` objects for consistent glass sectioning
-- `PlannerBoard.tsx` uses a shared `plannerCardSx` object with glass props for all section cards; Quick Capture container uses `overflow: hidden` to clip button glow
-- `EntryForm.tsx` and `PageEditor.tsx` toolbars use frosted glass Paper with reduced blur
-- Board item cards (Goals, Habits, Projects, Tasks) use glass bg + hover lift + subtle shadow on hover
-- All board header Papers use `borderRadius: 3.5` for consistent rounding
+Layout conventions:
+- `Layout.tsx` uses a compact 240px sidebar with `NavItem` components (icon + label + optional count)
+- Sidebar is organized into sections: Overview, Management, Analytics, with Settings at bottom
+- Top bar shows page title + date; gains border-bottom on scroll
+- No stats block, entry list, or page list in sidebar — those live in their respective screens
+- `PlannerBoard.tsx` uses `plannerCardSx` with solid `background.paper` and `divider` borders
+- Board item cards (Goals, Habits, Projects, Tasks) use solid bg + hover border/shadow transitions
+- `SettingsScreen.tsx` is the reference control surface: live preview on top, grouped controls below
 
 ## Search, Notifications, and Local State
 
@@ -452,19 +454,20 @@ Before finishing work:
 
 ## UI/UX Direction
 
-The app is moving toward:
-- desktop-first productivity UI
-- glassmorphism aesthetic with translucent panels, blur effects, and soft shadows
+The app uses a dashboard / data-rich visual language:
+- desktop-first productivity UI inspired by Raycast, Amie, Things 3
+- solid opaque surfaces with subtle shadows (no glassmorphism / blur)
+- clean card-based layouts with clear visual hierarchy
 - Notion-inspired page experience
 - richer workspace-driven planning
-- Apple-style visual polish with gradient accents and glass surfaces
+- compact sidebar navigation (240px) with icon + label + count
 
 Avoid:
 - breaking existing functionality during redesign
 - describing partially implemented features as complete integrations
-- introducing visual changes that fight the glassmorphism design system
-- using opaque backgrounds on surfaces that should be glass (use rgba + backdrop-filter instead)
-- adding hard borders; prefer subtle rgba borders consistent with the glass conventions
+- using `backdrop-filter`, `blur()`, or semi-transparent `rgba` backgrounds on surfaces
+- adding `translateY` hover animations — use border-color/box-shadow transitions instead
+- using rgba for borders — use the `divider` theme token instead
 
 ## Known Technical Debt / Follow-ups
 
