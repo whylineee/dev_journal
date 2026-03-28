@@ -10,7 +10,7 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useState } from "react";
 import { useTheme } from "@mui/material/styles";
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
@@ -33,6 +33,7 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 
 const DRAWER_WIDTH = 240;
+const COMPACT_DRAWER_WIDTH = 216;
 
 type LayoutTab = "planner" | "focus" | "journal" | "page" | "tasks" | "goals" | "habits" | "projects" | "insights" | "settings";
 
@@ -51,10 +52,11 @@ interface NavItemProps {
   icon: ReactNode;
   label: string;
   count?: number | string;
+  compact?: boolean;
   onClick: () => void;
 }
 
-const NavItem = ({ selected, icon, label, count, onClick }: NavItemProps) => {
+const NavItem = ({ selected, icon, label, count, compact = false, onClick }: NavItemProps) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
@@ -65,9 +67,9 @@ const NavItem = ({ selected, icon, label, count, onClick }: NavItemProps) => {
         onClick={onClick}
         sx={{
           borderRadius: 1.5,
-          minHeight: 36,
-          px: 1.25,
-          py: 0.5,
+          minHeight: compact ? 34 : 36,
+          px: compact ? 1 : 1.25,
+          py: compact ? 0.4 : 0.5,
           my: 0.15,
           border: "none",
           backgroundColor: selected
@@ -86,9 +88,9 @@ const NavItem = ({ selected, icon, label, count, onClick }: NavItemProps) => {
       >
         <ListItemIcon
           sx={{
-            minWidth: 30,
+            minWidth: compact ? 28 : 30,
             color: selected ? "text.primary" : "text.secondary",
-            "& .MuiSvgIcon-root": { fontSize: "1.15rem" },
+            "& .MuiSvgIcon-root": { fontSize: compact ? "1.05rem" : "1.15rem" },
           }}
         >
           {icon}
@@ -97,7 +99,7 @@ const NavItem = ({ selected, icon, label, count, onClick }: NavItemProps) => {
           primary={label}
           primaryTypographyProps={{
             fontWeight: selected ? 600 : 500,
-            fontSize: "0.82rem",
+            fontSize: compact ? "0.78rem" : "0.82rem",
             lineHeight: 1.3,
             noWrap: true,
             color: selected ? "text.primary" : "text.secondary",
@@ -107,10 +109,10 @@ const NavItem = ({ selected, icon, label, count, onClick }: NavItemProps) => {
           <Typography
             component="span"
             sx={{
-              fontSize: "0.7rem",
+              fontSize: compact ? "0.66rem" : "0.7rem",
               fontWeight: 600,
               color: "text.secondary",
-              minWidth: 20,
+              minWidth: compact ? 18 : 20,
               textAlign: "right",
             }}
           >
@@ -122,14 +124,14 @@ const NavItem = ({ selected, icon, label, count, onClick }: NavItemProps) => {
   );
 };
 
-const SectionLabel = ({ children }: { children: ReactNode }) => (
+const SectionLabel = ({ children, compact = false }: { children: ReactNode; compact?: boolean }) => (
   <Typography
     variant="subtitle2"
     sx={{
-      px: 1.75,
-      pt: 1.5,
+      px: compact ? 1.45 : 1.75,
+      pt: compact ? 1.25 : 1.5,
       pb: 0.5,
-      fontSize: "0.65rem",
+      fontSize: compact ? "0.62rem" : "0.65rem",
       fontWeight: 600,
       letterSpacing: "0.08em",
       color: "text.secondary",
@@ -152,19 +154,10 @@ export const Layout = ({
   const muiTheme = useTheme();
   const { t } = useI18n();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const isCompactDesktop = useMediaQuery(muiTheme.breakpoints.between("md", "xl"));
   const isDark = muiTheme.palette.mode === "dark";
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-
-  const mainRef = useRef<HTMLElement>(null);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const el = mainRef.current;
-    if (!el) return;
-    const onScroll = () => setScrolled(el.scrollTop > 8);
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+  const drawerWidth = isCompactDesktop ? COMPACT_DRAWER_WIDTH : DRAWER_WIDTH;
 
   const { data: tasks } = useTasks();
   const { data: goals } = useGoals();
@@ -178,22 +171,6 @@ export const Layout = ({
   const totalHabits = habits?.length ?? 0;
   const activeProjectsCount = (projects ?? []).filter((project) => project.status === "active" || project.status === "paused").length;
 
-  const activeTabLabel = useMemo<Record<LayoutTab, string>>(
-    () => ({
-      planner: t("Planner"),
-      focus: t("Focus Session"),
-      journal: t("Journal"),
-      page: t("Pages"),
-      tasks: t("Tasks"),
-      goals: t("Goals"),
-      habits: t("Habits"),
-      projects: t("Projects"),
-      insights: t("Insights"),
-      settings: t("Settings"),
-    }),
-    [t]
-  );
-
   const closeMobileDrawer = () => {
     if (isMobile) setMobileDrawerOpen(false);
   };
@@ -201,11 +178,11 @@ export const Layout = ({
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Logo / branding */}
-      <Box sx={{ px: 1.75, pt: 1.5, pb: 0.5, display: "flex", alignItems: "center", gap: 1 }}>
+      <Box sx={{ px: isCompactDesktop ? 1.35 : 1.75, pt: isCompactDesktop ? 1.3 : 1.5, pb: 0.5, display: "flex", alignItems: "center", gap: 1 }}>
         <Box
           sx={{
-            width: 28,
-            height: 28,
+            width: isCompactDesktop ? 26 : 28,
+            height: isCompactDesktop ? 26 : 28,
             display: "grid",
             placeItems: "center",
             borderRadius: 1.5,
@@ -214,9 +191,9 @@ export const Layout = ({
             flexShrink: 0,
           }}
         >
-          <EditNoteIcon sx={{ fontSize: 16 }} />
+          <EditNoteIcon sx={{ fontSize: isCompactDesktop ? 15 : 16 }} />
         </Box>
-        <Typography sx={{ fontWeight: 700, fontSize: "0.9rem", letterSpacing: "-0.01em" }}>
+        <Typography sx={{ fontWeight: 700, fontSize: isCompactDesktop ? "0.84rem" : "0.9rem", letterSpacing: "-0.01em" }}>
           {t("Dev Journal")}
         </Typography>
       </Box>
@@ -233,27 +210,31 @@ export const Layout = ({
           "&::-webkit-scrollbar": { display: "none" },
         }}
       >
-        <SectionLabel>{t("Overview")}</SectionLabel>
+        <SectionLabel compact={isCompactDesktop}>{t("Overview")}</SectionLabel>
         <List disablePadding>
           <NavItem
+            compact={isCompactDesktop}
             selected={activeTab === "planner"}
             onClick={() => { onTabChange("planner"); closeMobileDrawer(); }}
             icon={<DashboardIcon />}
             label={t("Planner")}
           />
           <NavItem
+            compact={isCompactDesktop}
             selected={activeTab === "focus"}
             onClick={() => { onTabChange("focus"); closeMobileDrawer(); }}
             icon={<TimerOutlinedIcon />}
             label={t("Focus")}
           />
           <NavItem
+            compact={isCompactDesktop}
             selected={activeTab === "journal"}
             onClick={() => { onTabChange("journal"); onSelectDate(todayStr); closeMobileDrawer(); }}
             icon={<TodayIcon />}
             label={t("Journal")}
           />
           <NavItem
+            compact={isCompactDesktop}
             selected={activeTab === "page"}
             onClick={() => { onTabChange("page"); closeMobileDrawer(); }}
             icon={<ArticleIcon />}
@@ -261,9 +242,10 @@ export const Layout = ({
           />
         </List>
 
-        <SectionLabel>{t("Management")}</SectionLabel>
+        <SectionLabel compact={isCompactDesktop}>{t("Management")}</SectionLabel>
         <List disablePadding>
           <NavItem
+            compact={isCompactDesktop}
             selected={activeTab === "tasks"}
             onClick={() => { onTabChange("tasks"); closeMobileDrawer(); }}
             icon={<TaskAltIcon />}
@@ -271,6 +253,7 @@ export const Layout = ({
             count={openTasksCount || undefined}
           />
           <NavItem
+            compact={isCompactDesktop}
             selected={activeTab === "goals"}
             onClick={() => { onTabChange("goals"); closeMobileDrawer(); }}
             icon={<FlagIcon />}
@@ -278,6 +261,7 @@ export const Layout = ({
             count={activeGoalsCount || undefined}
           />
           <NavItem
+            compact={isCompactDesktop}
             selected={activeTab === "habits"}
             onClick={() => { onTabChange("habits"); closeMobileDrawer(); }}
             icon={<RepeatIcon />}
@@ -285,6 +269,7 @@ export const Layout = ({
             count={totalHabits ? `${completedHabitsToday}/${totalHabits}` : undefined}
           />
           <NavItem
+            compact={isCompactDesktop}
             selected={activeTab === "projects"}
             onClick={() => { onTabChange("projects"); closeMobileDrawer(); }}
             icon={<FolderOpenIcon />}
@@ -293,9 +278,10 @@ export const Layout = ({
           />
         </List>
 
-        <SectionLabel>{t("Analytics")}</SectionLabel>
+        <SectionLabel compact={isCompactDesktop}>{t("Analytics")}</SectionLabel>
         <List disablePadding>
           <NavItem
+            compact={isCompactDesktop}
             selected={activeTab === "insights"}
             onClick={() => { onTabChange("insights"); closeMobileDrawer(); }}
             icon={<InsightsIcon />}
@@ -315,6 +301,7 @@ export const Layout = ({
       >
         <List disablePadding>
           <NavItem
+            compact={isCompactDesktop}
             selected={activeTab === "settings"}
             onClick={() => { onTabChange("settings"); closeMobileDrawer(); }}
             icon={<SettingsIcon />}
@@ -340,10 +327,10 @@ export const Layout = ({
           },
         }}
         sx={{
-          width: { md: DRAWER_WIDTH },
+          width: { md: drawerWidth },
           flexShrink: 0,
           "& .MuiDrawer-paper": {
-            width: DRAWER_WIDTH,
+            width: drawerWidth,
             boxSizing: "border-box",
             backgroundImage: "none",
           },
@@ -354,36 +341,27 @@ export const Layout = ({
 
       <Box
         component="main"
-        ref={mainRef}
         sx={{
           flexGrow: 1,
           overflowY: "auto",
           overflowX: "hidden",
           position: "relative",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          "&::-webkit-scrollbar": {
+            display: "none",
+          },
         }}
       >
-        {/* Sticky top bar */}
+        {/* Content area */}
         <Box
           sx={{
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
-            px: { xs: 2, md: 3 },
-            borderBottom: "1px solid",
-            borderColor: scrolled ? "divider" : "transparent",
-            backgroundColor: scrolled ? "background.paper" : "background.default",
-            transition: "background-color 0.15s ease, border-color 0.15s ease",
+            px: { xs: 2, md: isCompactDesktop ? 2 : 3 },
+            py: { xs: 1.25, md: isCompactDesktop ? 1.5 : 2 },
           }}
         >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              minHeight: 52,
-            }}
-          >
-            {isMobile && (
+          {isMobile && (
+            <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 1 }}>
               <IconButton
                 aria-label={t("Open navigation menu")}
                 title={t("Open navigation menu")}
@@ -393,38 +371,8 @@ export const Layout = ({
               >
                 <MenuIcon fontSize="small" />
               </IconButton>
-            )}
-
-            <Typography
-              variant="h6"
-              noWrap
-              sx={{
-                fontWeight: 700,
-                fontSize: "1.05rem",
-                letterSpacing: "-0.02em",
-                color: "text.primary",
-                flex: 1,
-              }}
-            >
-              {activeTabLabel[activeTab]}
-            </Typography>
-
-            <Typography
-              variant="caption"
-              sx={{ color: "text.secondary", fontSize: "0.72rem", flexShrink: 0 }}
-            >
-              {format(new Date(), "EEE, MMM d")}
-            </Typography>
-          </Box>
-        </Box>
-
-        {/* Content area */}
-        <Box
-          sx={{
-            px: { xs: 2, md: 3 },
-            py: { xs: 1.5, md: 2 },
-          }}
-        >
+            </Box>
+          )}
           {children}
         </Box>
       </Box>

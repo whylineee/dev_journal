@@ -57,6 +57,7 @@ interface OptionTileProps {
   onClick: () => void;
   accent?: string;
   preview?: ReactNode;
+  radius?: string;
 }
 
 interface ToggleRowProps {
@@ -73,6 +74,7 @@ const SettingsOptionTile = ({
   onClick,
   accent,
   preview,
+  radius = "16px",
 }: OptionTileProps) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -83,17 +85,18 @@ const SettingsOptionTile = ({
       onClick={onClick}
       sx={{
         width: "100%",
-        borderRadius: 3,
+        borderRadius: radius,
         textAlign: "left",
         alignItems: "stretch",
+        overflow: "hidden",
       }}
     >
       <Box
         sx={{
           width: "100%",
-          minHeight: 110,
+          minHeight: 116,
           p: 1.35,
-          borderRadius: 3,
+          borderRadius: radius,
           border: "1px solid",
           borderColor: selected
             ? accent ?? "primary.main"
@@ -111,7 +114,7 @@ const SettingsOptionTile = ({
         }}
       >
         <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
-          <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
               {title}
             </Typography>
@@ -121,7 +124,7 @@ const SettingsOptionTile = ({
               </Typography>
             ) : null}
           </Box>
-          {selected ? <Chip size="small" label={t("Active")} color="primary" /> : null}
+          {selected ? <Chip size="small" label={t("Active")} color="primary" sx={{ flexShrink: 0, alignSelf: "flex-start" }} /> : null}
         </Box>
         {preview ? <Box sx={{ mt: 1.4 }}>{preview}</Box> : null}
       </Box>
@@ -202,6 +205,9 @@ export const SettingsScreen = ({
 
   const activePreset = THEME_PRESETS.find((preset) => preset.id === themePreset) ?? THEME_PRESETS[0];
   const activePalette = appearanceMode === "dark" ? activePreset.dark : activePreset.light;
+  const settingsTileRadius = `${Math.min(18, Math.max(12, borderRadius))}px`;
+  const settingsInsetRadius = `${Math.min(18, Math.max(12, borderRadius - 1))}px`;
+  const settingsSurfaceRadius = `${Math.min(24, Math.max(18, borderRadius + 2))}px`;
 
   const datasetStats = useMemo(
     () => [
@@ -306,7 +312,7 @@ export const SettingsScreen = ({
 
   const surfaceSx = {
     p: { xs: 1.5, md: 2.25 },
-    borderRadius: 4,
+    borderRadius: settingsSurfaceRadius,
     border: "1px solid",
     borderColor: "divider",
     bgcolor: "background.paper",
@@ -380,7 +386,7 @@ export const SettingsScreen = ({
                     sx={{
                       px: 1.2,
                       py: 1.1,
-                      borderRadius: 3,
+                      borderRadius: settingsInsetRadius,
                       border: "1px solid",
                       borderColor: "divider",
                       bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
@@ -400,7 +406,7 @@ export const SettingsScreen = ({
             <Box
               sx={{
                 minHeight: 220,
-                borderRadius: 4,
+                borderRadius: settingsSurfaceRadius,
                 p: 1.25,
                 border: "1px solid",
                 borderColor: "divider",
@@ -416,7 +422,7 @@ export const SettingsScreen = ({
                 sx={{
                   mt: 1.1,
                   flex: 1,
-                  borderRadius: 3,
+                  borderRadius: settingsInsetRadius,
                   p: 1.3,
                   border: "1px solid",
                   borderColor: alpha(activePalette.primary, isDark ? 0.32 : 0.2),
@@ -488,6 +494,7 @@ export const SettingsScreen = ({
                     selected={preset.id === themePreset}
                     onClick={() => setThemePreset(preset.id)}
                     accent={presetPalette.primary}
+                    radius={settingsTileRadius}
                     preview={
                       <Box sx={{ display: "flex", gap: 0.7 }}>
                         <Box sx={{ flex: 1, height: 40, borderRadius: 2, bgcolor: presetPalette.backgroundDefault, border: "1px solid", borderColor: alpha(presetPalette.primary, 0.16) }} />
@@ -508,6 +515,7 @@ export const SettingsScreen = ({
                 description={t("Brighter contrast for daytime planning and review.")}
                 selected={appearanceMode === "light"}
                 onClick={() => setAppearanceMode("light")}
+                radius={settingsTileRadius}
                 preview={<LightModeRoundedIcon fontSize="small" />}
               />
               <SettingsOptionTile
@@ -515,6 +523,7 @@ export const SettingsScreen = ({
                 description={t("Lower glare for long sessions and evening work.")}
                 selected={appearanceMode === "dark"}
                 onClick={() => setAppearanceMode("dark")}
+                radius={settingsTileRadius}
                 preview={<DarkModeRoundedIcon fontSize="small" />}
               />
             </Box>
@@ -539,6 +548,7 @@ export const SettingsScreen = ({
                       description={density === "compact" ? t("More data in view.") : t("More breathing room.")}
                       selected={uiDensity === density}
                       onClick={() => setUiDensity(density)}
+                      radius={settingsTileRadius}
                     />
                   ))}
                 </Box>
@@ -552,7 +562,7 @@ export const SettingsScreen = ({
                   sx={{
                     px: 1.35,
                     py: 1.2,
-                    borderRadius: 3,
+                    borderRadius: settingsInsetRadius,
                     border: "1px solid",
                     borderColor: "divider",
                     bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
@@ -560,7 +570,7 @@ export const SettingsScreen = ({
                 >
                   <Slider
                     min={6}
-                    max={24}
+                    max={18}
                     step={1}
                     value={borderRadius}
                     onChange={(_, value) => setBorderRadius(Array.isArray(value) ? value[0] : value)}
@@ -680,7 +690,7 @@ export const SettingsScreen = ({
               <Box
                 sx={{
                   p: 1.25,
-                  borderRadius: 3,
+                  borderRadius: settingsInsetRadius,
                   border: "1px solid",
                   borderColor: "divider",
                   bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",

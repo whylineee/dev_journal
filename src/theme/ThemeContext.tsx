@@ -42,6 +42,8 @@ interface ThemeContextType {
 const defaultFontPreset: FontPreset = "inter";
 const defaultUiDensity: UiDensity = "comfortable";
 const defaultBorderRadius = 16;
+const minBorderRadius = 6;
+const maxBorderRadius = 18;
 
 const STORAGE_KEYS = {
   themePreset: "devJournal_themePreset",
@@ -92,6 +94,13 @@ const resolveFontFamily = (preset: FontPreset) => {
   }
 
   return ["Inter", '"Helvetica Neue"', "Arial", "sans-serif"].join(",");
+};
+
+const clampBorderRadius = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return defaultBorderRadius;
+  }
+  return Math.min(maxBorderRadius, Math.max(minBorderRadius, Math.round(value)));
 };
 const parseHexColor = (value: string) => {
   const normalized = value.replace("#", "").trim();
@@ -151,6 +160,7 @@ const buildMuiTheme = ({
   const isDark = appearanceMode === "dark";
   const borderColor = palette.divider;
   const paperBg = palette.backgroundPaper;
+  const shapeRadiusBase = Math.max(2, Math.round(borderRadius / 3));
   const cardRadius = Math.max(8, borderRadius - 4);
   const btnRadius = Math.max(6, borderRadius - 8);
   const contrastText = gradientContrastText(palette.primary, palette.secondary);
@@ -183,7 +193,7 @@ const buildMuiTheme = ({
       },
       divider: palette.divider,
     },
-    shape: { borderRadius },
+    shape: { borderRadius: shapeRadiusBase },
     typography: {
       fontFamily,
       h4: { fontWeight: 800, letterSpacing: "-0.03em", fontSize: "1.75rem", lineHeight: 1.15 },
@@ -557,10 +567,12 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
   });
   const [borderRadius, setBorderRadius] = useState<number>(() => {
     const value = Number(localStorage.getItem(STORAGE_KEYS.borderRadius));
-    return Number.isFinite(value)
-      ? Math.min(24, Math.max(6, value))
-      : defaultBorderRadius;
+    return clampBorderRadius(value);
   });
+
+  const handleSetBorderRadius = (value: number) => {
+    setBorderRadius(clampBorderRadius(value));
+  };
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.themePreset, themePreset);
@@ -587,7 +599,7 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
     setAppearanceMode(resolveSystemAppearanceMode());
     setFontPreset(defaultFontPreset);
     setUiDensity(defaultUiDensity);
-    setBorderRadius(defaultBorderRadius);
+    handleSetBorderRadius(defaultBorderRadius);
   };
 
   const fontFamily = resolveFontFamily(fontPreset);
@@ -613,7 +625,7 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
         uiDensity,
         setUiDensity,
         borderRadius,
-        setBorderRadius,
+        setBorderRadius: handleSetBorderRadius,
         resetTheme,
       }}
     >

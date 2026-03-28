@@ -15,6 +15,7 @@ import {
     TableHead,
     TableRow,
     Stack,
+    useMediaQuery,
 } from "@mui/material";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { usePage, useCreatePage, useUpdatePage, useDeletePage } from "../hooks/usePages";
@@ -480,9 +481,9 @@ const PageTaskTable = ({
                     </Box>
                 )}
                 <Stack
-                    direction={{ xs: "column", md: "row" }}
+                    direction={{ xs: "column", lg: "row" }}
                     justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", md: "center" }}
+                    alignItems={{ xs: "flex-start", lg: "center" }}
                     spacing={1}
                 >
                     <Stack direction="row" spacing={0.4} sx={{ flexWrap: "wrap" }}>
@@ -1093,9 +1094,9 @@ const PageTaskTrackerDatabase = ({
                 />
 
                 <Stack
-                    direction={{ xs: "column", md: "row" }}
+                    direction={{ xs: "column", lg: "row" }}
                     justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", md: "center" }}
+                    alignItems={{ xs: "flex-start", lg: "center" }}
                     spacing={1}
                     sx={{ mt: 1.5 }}
                 >
@@ -1312,6 +1313,7 @@ const PageTaskTrackerDatabase = ({
 
 export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSuccess, onDeleteSuccess }: PageEditorProps) => {
     const muiTheme = useTheme();
+    const isCompactDesktop = useMediaQuery(muiTheme.breakpoints.between("md", "xl"));
     const { data: page, isLoading } = usePage(pageId);
     const { data: tasks = [] } = useTasks();
     const { data: projects = [] } = useProjects();
@@ -1796,13 +1798,13 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         >
             <Box
                 sx={{
-                    maxWidth: 1180,
+                    maxWidth: isCompactDesktop ? 1080 : 1180,
                     mx: "auto",
                     width: '100%',
                     flex: 1,
                     display: 'flex',
                     flexDirection: 'column',
-                    px: { xs: 1.5, md: 2.75 },
+                    px: { xs: 1, sm: 1.25, md: isCompactDesktop ? 1.75 : 2.75 },
                     pb: 5,
                 }}
             >
@@ -1810,16 +1812,16 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                     sx={{
                         ...shellSurfaceSx,
                         mb: 1.6,
-                        p: { xs: 1.4, md: 1.8 },
-                        borderRadius: 4,
+                        p: { xs: 1.2, md: isCompactDesktop ? 1.45 : 1.8 },
+                        borderRadius: isCompactDesktop ? 3.2 : 4,
                     }}
                 >
                     <Box
                         display="flex"
                         justifyContent="space-between"
-                        alignItems={{ xs: "flex-start", md: "center" }}
+                        alignItems={{ xs: "flex-start", lg: "center" }}
                         gap={2}
-                        flexDirection={{ xs: "column", md: "row" }}
+                        flexDirection={{ xs: "column", lg: "row" }}
                     >
                         <Box sx={{ minWidth: 0, flex: 1, width: "100%" }}>
                             <InputBase
@@ -1827,7 +1829,8 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder="Untitled"
                                 sx={{
-                                    typography: { xs: "h3", md: "h2" },
+                                    fontSize: { xs: "2rem", sm: "2.4rem", xl: "3rem" },
+                                    lineHeight: 1.05,
                                     fontWeight: 800,
                                     letterSpacing: '-0.04em',
                                     color: 'text.primary',
@@ -1843,7 +1846,16 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                             />
                         </Box>
 
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            sx={{
+                                flexWrap: "wrap",
+                                justifyContent: { xs: "flex-start", lg: "flex-end" },
+                                width: { xs: "100%", lg: "auto" },
+                            }}
+                        >
                             {draftRestored ? <Chip label="Draft restored" size="small" color="info" variant="outlined" /> : null}
                             <Button
                                 variant="contained"
@@ -1852,9 +1864,9 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                 onClick={handleSave}
                                 disabled={createMutation.isPending || updateMutation.isPending}
                                 sx={{
-                                    px: 2.6,
-                                    minWidth: 150,
-                                    minHeight: 42,
+                                    px: isCompactDesktop ? 2.1 : 2.6,
+                                    minWidth: isCompactDesktop ? 132 : 150,
+                                    minHeight: isCompactDesktop ? 40 : 42,
                                     borderRadius: 2.8,
                                 }}
                             >
@@ -1875,10 +1887,10 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                     <Box
                         sx={{
                             display: "flex",
-                            alignItems: { xs: "stretch", md: "center" },
+                            alignItems: { xs: "stretch", lg: "center" },
                             justifyContent: "space-between",
                             gap: 1,
-                            flexDirection: { xs: "column", md: "row" },
+                            flexDirection: { xs: "column", lg: "row" },
                         }}
                     >
                         <Box

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "./components/Layout";
 import type { CommandAction } from "./components/CommandPalette";
 import { format } from "date-fns";
-import { Box, Container } from "@mui/material";
+import { Box } from "@mui/material";
 import { useEntries } from "./hooks/useEntries";
 import { usePages } from "./hooks/usePages";
 import { useGoals } from "./hooks/useGoals";
@@ -545,7 +545,7 @@ function App() {
         selectedPageId={selectedPageId}
         onSelectPage={setSelectedPageId}
       >
-        <Container maxWidth="lg" sx={{ height: '100%', pb: 4 }}>
+        <Box sx={{ height: '100%', pb: 4, width: "100%" }}>
           {activeTab === 'journal' ? (
               <>
                 <EntryForm
@@ -609,7 +609,7 @@ function App() {
                 }}
               />
             )}
-        </Container>
+        </Box>
       </Layout>
 
       <CommandPalette

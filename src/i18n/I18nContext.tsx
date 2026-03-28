@@ -411,7 +411,7 @@ const ukTranslations: Record<string, string> = {
   "Branches": "Гілки",
   "Branch name": "Назва гілки",
   "Create branch": "Створити гілку",
-  "Open": "Відкрита",
+  "Open": "Відкрити",
   "Merged": "Змержена",
   "Mark as merged": "Позначити як змержену",
   "No branches yet.": "Гілок ще немає.",

@@ -20,7 +20,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { alpha, useTheme } from "@mui/material/styles";
-import { addDays, addMinutes, endOfWeek, format, isWithinInterval, parseISO, startOfDay, startOfWeek } from "date-fns";
+import { addDays, addMinutes, endOfWeek, format, isWithinInterval, parseISO, startOfWeek } from "date-fns";
 import { useEntries } from "../hooks/useEntries";
 import { useGoals } from "../hooks/useGoals";
 import { useHabits, useToggleHabitCompletion } from "../hooks/useHabits";
@@ -108,7 +108,7 @@ export const PlannerBoard = ({
   onOpenTasks,
   onOpenGoals,
   onOpenHabits,
-  onOpenProjects,
+  onOpenProjects: _onOpenProjects,
   onOpenFocus,
 }: PlannerBoardProps) => {
   const { t } = useI18n();
@@ -210,38 +210,10 @@ export const PlannerBoard = ({
     [tasks]
   );
 
-  const dueTomorrowTasks = useMemo(
-    () => tasks.filter((task) => task.due_date === tomorrow && task.status !== "done").slice(0, 6),
-    [tasks, tomorrow]
-  );
-
   const nearGoals = useMemo(
     () => goals.filter((goal) => isGoalNearDeadline(goal, 14)).slice(0, 6),
     [goals]
   );
-
-  const projectHubItems = useMemo(() => {
-    return projects
-      .filter((project) => project.status === "active" || project.status === "paused")
-      .map((project) => {
-        const projectTasks = tasks.filter((task) => task.project_id === project.id);
-        const openTasks = projectTasks.filter((task) => task.status !== "done").length;
-        const doneTasks = projectTasks.filter((task) => task.status === "done").length;
-        const projectGoals = goals.filter((goal) => goal.project_id === project.id).length;
-        const projectEntries = entries.filter((entry) => entry.project_id === project.id).length;
-        return {
-          id: project.id,
-          name: project.name,
-          color: project.color,
-          openTasks,
-          doneTasks,
-          projectGoals,
-          projectEntries,
-        };
-      })
-      .sort((a, b) => b.openTasks - a.openTasks)
-      .slice(0, 6);
-  }, [entries, goals, projects, tasks]);
 
   const habitsWithTodayState = useMemo(
     () =>
@@ -293,8 +265,6 @@ export const PlannerBoard = ({
     }));
   }, [weeklyMeetingOccurrences]);
 
-  const focusSessionsTodayCount = focusSessionsMap[today] ?? 0;
-
   const journalStreak = useMemo(() => {
     let streak = 0;
     const sortedDates = entries
@@ -313,26 +283,14 @@ export const PlannerBoard = ({
     return streak;
   }, [entries, today]);
 
-  const todayDashboardCards = useMemo(
+  const plannerOverviewStats = useMemo(
     () => [
       { label: t("Due today"), value: dueTodayTasks.length, tone: "info" as const },
       { label: t("Overdue"), value: overdueTasks.length, tone: "error" as const },
       { label: t("Meetings"), value: todayMeetings.length, tone: "primary" as const },
-      {
-        label: t("Habits done today"),
-        value: `${habitsWithTodayState.filter((habit) => habit.doneToday).length}/${habitsWithTodayState.length}`,
-        tone: "success" as const,
-      },
-    ],
-    [dueTodayTasks.length, overdueTasks.length, todayMeetings.length, habitsWithTodayState, t]
-  );
-
-  const usageStatsCards = useMemo(
-    () => [
-      { label: t("Focus sessions"), value: focusSessionsTodayCount, tone: "info" as const },
       { label: t("Journal streak"), value: `${journalStreak}d`, tone: "success" as const },
     ],
-    [focusSessionsTodayCount, journalStreak, t]
+    [dueTodayTasks.length, overdueTasks.length, journalStreak, todayMeetings.length, t]
   );
 
   const priorityTasks = useMemo(
@@ -696,38 +654,16 @@ export const PlannerBoard = ({
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: { xs: 1, md: 1.25 }, pb: 3 }}>
-      <Box
-        sx={{
-          ...plannerSurfaceSx,
-          mb: { xs: 1.75, md: 2.25 },
-          p: { xs: 1.6, md: 2 },
-        }}
-      >
-        <Stack
-          direction={{ xs: "column", lg: "row" }}
-          spacing={2}
-          justifyContent="space-between"
-          alignItems={{ xs: "stretch", lg: "center" }}
-        >
-          <Box sx={{ maxWidth: 760 }}>
-            <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: "-0.04em", mb: 0.45 }}>
-              {t("Planner")}
-            </Typography>
-          </Box>
-
-          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
-            {format(new Date(), "EEE, MMM d")}
-          </Typography>
-        </Stack>
-      </Box>
-
       <Box sx={{ ...plannerSurfaceSx, p: { xs: 2, sm: 2.25 }, mb: { xs: 1.75, md: 2.25 } }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
               {t("Today Dashboard")}
             </Typography>
           </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+            {format(new Date(), "EEE, MMM d")}
+          </Typography>
         </Stack>
 
         <Box
@@ -735,13 +671,12 @@ export const PlannerBoard = ({
             display: "grid",
             gridTemplateColumns: {
               xs: "repeat(2, minmax(0, 1fr))",
-              sm: "repeat(4, minmax(0, 1fr))",
-              lg: "repeat(6, minmax(0, 1fr))",
+              md: "repeat(4, minmax(0, 1fr))",
             },
             gap: 0.95,
           }}
         >
-          {[...todayDashboardCards, ...usageStatsCards].map((card) => (
+          {plannerOverviewStats.map((card) => (
             <Box
               key={card.label}
               sx={{
@@ -768,10 +703,10 @@ export const PlannerBoard = ({
 
         <Box
           sx={{
-            mt: 1.25,
+            mt: 1.5,
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1.2fr 1fr" },
-            gap: 1,
+            gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.2fr) minmax(320px, 0.9fr)" },
+            gap: 1.25,
           }}
         >
           <Box
@@ -782,13 +717,43 @@ export const PlannerBoard = ({
             <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.65, display: "block", letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary" }}>
               {t("Priority Stack")}
             </Typography>
-            <Stack spacing={0.5}>
-              {priorityTasks.slice(0, 2).map((task) => (
-                <Stack key={task.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                  <Typography variant="body2" noWrap sx={{ fontWeight: 600, minWidth: 0 }}>
-                    {task.title}
-                  </Typography>
-                  <Chip size="small" variant="outlined" label={task.status === "in_progress" ? "IP" : "TD"} sx={{ height: 20, fontSize: "0.6rem" }} />
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                {t("Open Tasks")}: {priorityTasks.length}
+              </Typography>
+              <Button size="small" onClick={onOpenTasks} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
+                {t("View All")}
+              </Button>
+            </Stack>
+            <Stack spacing={0.75}>
+              {priorityTasks.slice(0, 4).map((task) => (
+                <Stack key={task.id} direction="row" alignItems="center" spacing={1}>
+                  <Checkbox
+                    size="small"
+                    checked={task.status === "done"}
+                    disabled={busy}
+                    onChange={(event) =>
+                      updateTaskStatus.mutate({
+                        id: task.id,
+                        status: event.target.checked ? "done" : task.status === "done" ? "todo" : task.status,
+                      })
+                    }
+                  />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
+                      {task.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {task.due_date ? t("Due: {date}", { date: task.due_date }) : t(task.priority)}
+                    </Typography>
+                  </Box>
+                  <Chip
+                    size="small"
+                    variant={task.status === "in_progress" ? "filled" : "outlined"}
+                    color={task.status === "in_progress" ? "primary" : task.priority === "urgent" ? "error" : "default"}
+                    label={task.status === "in_progress" ? t("In Progress") : t(task.priority)}
+                    sx={{ height: 22 }}
+                  />
                 </Stack>
               ))}
               {priorityTasks.length === 0 && (
@@ -796,193 +761,167 @@ export const PlannerBoard = ({
                   {t("No open tasks to focus on right now.")}
                 </Typography>
               )}
-              {priorityTasks.length > 2 ? (
+              {priorityTasks.length > 4 ? (
                 <Typography variant="caption" color="text.secondary">
-                  +{priorityTasks.length - 2}
+                  +{priorityTasks.length - 4}
                 </Typography>
               ) : null}
             </Stack>
           </Box>
 
-          <Box
-            sx={{
-              ...plannerInsetCardSx,
-            }}
-          >
-            <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.65, display: "block", letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary" }}>
-              {t("Next Meeting")}
-            </Typography>
-            {todayMeetings[0] ? (
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  {todayMeetings[0].title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {format(todayMeetings[0].start, "HH:mm")} – {format(todayMeetings[0].end, "HH:mm")}
-                  {todayMeetings[0].meeting.participants.length > 0 && ` · ${todayMeetings[0].meeting.participants.slice(0, 2).join(", ")}`}
-                </Typography>
-              </Box>
-            ) : (
-              <Typography variant="caption" color="text.secondary">
-                {t("No meetings scheduled for today.")}
+          <Stack spacing={1.25}>
+            <Box sx={plannerInsetCardSx}>
+              <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.8, display: "block", letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary" }}>
+                {t("Quick Capture")}
               </Typography>
-            )}
-          </Box>
-        </Box>
-      </Box>
-
-      {/* ── Quick Capture (compact, inline) ── */}
-      <Box
-        sx={{
-          ...plannerSurfaceSx,
-          mb: { xs: 1.75, md: 2.25 },
-          p: { xs: 1.5, md: 2 },
-          overflow: "hidden",
-          contain: "layout paint",
-          position: "relative" as const,
-        }}
-      >
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1.4} justifyContent="space-between" sx={{ mb: 1.2 }}>
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-              {t("Quick Capture")}
-            </Typography>
-          </Box>
-        </Stack>
-        <Box
-          sx={{
-            mt: 0.5,
-            display: "grid",
-            gap: 1.25,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-              lg: "minmax(0, 2fr) minmax(180px, 1fr) minmax(140px, 0.8fr) auto",
-            },
-            alignItems: "center",
-          }}
-        >
-          <TextField
-            fullWidth
-            size="small"
-            value={quickTaskTitle}
-            onChange={(event) => setQuickTaskTitle(event.target.value)}
-            placeholder={t("Quick task title")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                handleQuickAddTask();
-              }
-            }}
-            sx={{
-              minWidth: 0,
-              gridColumn: { xs: "1", sm: "1 / -1", lg: "auto" },
-            }}
-          />
-          <TextField
-            select
-            size="small"
-            value={quickProjectId === "" ? "" : String(quickProjectId)}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              setQuickProjectId(nextValue === "" ? "" : Number(nextValue));
-            }}
-            SelectProps={{ native: true }}
-            sx={{ minWidth: { xs: "100%", md: 170 }, flex: { md: 0.8 } }}
-          >
-            <option value="">{t("No project")}</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label={t("Due")}
-            value={quickDueMode}
-            onChange={(event) => setQuickDueMode(event.target.value as "today" | "tomorrow" | "none")}
-            SelectProps={{ native: true }}
-            sx={{ minWidth: { xs: "100%", md: 130 }, flex: { md: 0.6 } }}
-          >
-            <option value="today">{t("Today")}</option>
-            <option value="tomorrow">{t("Tomorrow")}</option>
-            <option value="none">{t("No date")}</option>
-          </TextField>
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddTaskIcon />}
-            disabled={busy || quickTaskTitle.trim().length === 0}
-            onClick={handleQuickAddTask}
-            sx={{
-              minWidth: { xs: "100%", lg: 120 },
-              width: { xs: "100%", lg: "auto" },
-              whiteSpace: "nowrap",
-              justifySelf: { lg: "end" },
-              contain: "layout",
-            }}
-          >
-            {t("Add Task")}
-          </Button>
-        </Box>
-        {quickTaskFeedback ? (
-          <Typography variant="caption" color="success.main" sx={{ display: "block", mt: 1 }}>
-            {quickTaskFeedback}
-          </Typography>
-        ) : null}
-      </Box>
-
-      {/* ── Project Hub (only if projects exist) ── */}
-      {projectHubItems.length > 0 && (
-        <Box sx={{ mb: { xs: 2, md: 2.5 } }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t("Project Hub")}
-            </Typography>
-            <Button size="small" onClick={onOpenProjects} sx={{ textTransform: "none" }}>
-              {t("View All")} ({projects.length})
-            </Button>
-          </Stack>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" },
-              gap: 2,
-            }}
-          >
-            {projectHubItems.map((project) => (
               <Box
-                key={project.id}
                 sx={{
-                  p: 2,
-                  borderRadius: 2.5,
-                  border: "1px solid",
-                  borderColor: alpha(project.color || muiTheme.palette.divider, 0.4),
-                  borderLeft: `3px solid ${project.color || muiTheme.palette.primary.main}`,
-                  bgcolor: alpha(muiTheme.palette.background.paper, 0.6),
+                  display: "grid",
+                  gap: 1,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                  },
                 }}
               >
-                <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-                  {project.name}
-                </Typography>
-                <Stack direction="row" spacing={1.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    {t("Open Tasks")}: {project.openTasks}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t("Done")}: {project.doneTasks}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t("Goals")}: {project.projectGoals}
-                  </Typography>
-                </Stack>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={quickTaskTitle}
+                  onChange={(event) => setQuickTaskTitle(event.target.value)}
+                  placeholder={t("Quick task title")}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleQuickAddTask();
+                    }
+                  }}
+                  sx={{ gridColumn: { sm: "1 / -1" } }}
+                />
+                <TextField
+                  select
+                  size="small"
+                  value={quickProjectId === "" ? "" : String(quickProjectId)}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setQuickProjectId(nextValue === "" ? "" : Number(nextValue));
+                  }}
+                  SelectProps={{ native: true }}
+                >
+                  <option value="">{t("No project")}</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  size="small"
+                  label={t("Due")}
+                  value={quickDueMode}
+                  onChange={(event) => setQuickDueMode(event.target.value as "today" | "tomorrow" | "none")}
+                  SelectProps={{ native: true }}
+                >
+                  <option value="today">{t("Today")}</option>
+                  <option value="tomorrow">{t("Tomorrow")}</option>
+                  <option value="none">{t("No date")}</option>
+                </TextField>
               </Box>
-            ))}
-          </Box>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
+                {quickTaskFeedback ? (
+                  <Typography variant="caption" color="success.main">
+                    {quickTaskFeedback}
+                  </Typography>
+                ) : (
+                  <span />
+                )}
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<AddTaskIcon />}
+                  disabled={busy || quickTaskTitle.trim().length === 0}
+                  onClick={handleQuickAddTask}
+                >
+                  {t("Add Task")}
+                </Button>
+              </Stack>
+            </Box>
+
+            <Box sx={plannerInsetCardSx}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.8 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, display: "block", letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary" }}>
+                  {t("Next Meeting")}
+                </Typography>
+                <Button size="small" onClick={onOpenFocus} sx={{ textTransform: "none" }}>
+                  {t("Focus Session")}
+                </Button>
+              </Stack>
+              {todayMeetings[0] ? (
+                <Box sx={{ mb: 1.2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {todayMeetings[0].title}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {format(todayMeetings[0].start, "HH:mm")} – {format(todayMeetings[0].end, "HH:mm")}
+                    {todayMeetings[0].meeting.participants.length > 0 && ` · ${todayMeetings[0].meeting.participants.slice(0, 2).join(", ")}`}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.2 }}>
+                  {t("No meetings scheduled for today.")}
+                </Typography>
+              )}
+              <Typography variant="body2" color="text.secondary">
+                {t("Focus sessions today")}: {focusSessionsToday}
+              </Typography>
+            </Box>
+
+            <Box sx={plannerInsetCardSx}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.8 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, display: "block", letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary" }}>
+                  {t("Habits Today")}
+                </Typography>
+                <Button size="small" onClick={onOpenHabits} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
+                  {t("Track")}
+                </Button>
+              </Stack>
+              <Stack spacing={0.75}>
+                {habitsWithTodayState.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {t("No habits configured yet.")}
+                  </Typography>
+                ) : (
+                  habitsWithTodayState.slice(0, 4).map((habit) => (
+                    <Stack key={habit.id} direction="row" alignItems="center" spacing={1}>
+                      <Checkbox
+                        size="small"
+                        checked={habit.doneToday}
+                        disabled={busy}
+                        onChange={(event) =>
+                          toggleHabitCompletion.mutate({
+                            habit_id: habit.id,
+                            date: today,
+                            completed: event.target.checked,
+                          })
+                        }
+                      />
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="body2" noWrap>
+                          {habit.title}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {habit.this_week_count}/{habit.target_per_week} weekly · {habit.current_streak}d streak
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  ))
+                )}
+              </Stack>
+            </Box>
+          </Stack>
         </Box>
-      )}
+      </Box>
 
       {/* ── Meetings Planner ── */}
       <Box sx={{ ...plannerSurfaceSx, mb: { xs: 2, md: 2.5 } }}>
@@ -1006,16 +945,194 @@ export const PlannerBoard = ({
             sx={{
               mt: 2,
               display: "grid",
-              gap: 2.5,
+              gap: 2,
             }}
           >
             <Box
               sx={{
                 display: "grid",
-                gridTemplateColumns: { xs: "1fr", xl: "1.05fr 1.2fr" },
+                gridTemplateColumns: { xs: "1fr", xl: "1.1fr 1fr" },
                 gap: 2,
               }}
             >
+              <Box>
+                <Stack direction="row" spacing={0.8} sx={{ mb: 1.5, flexWrap: "wrap" }}>
+                  {meetingDayBuckets.map((bucket) => (
+                    <Chip
+                      key={bucket.day}
+                      size="small"
+                      variant={bucket.day === today ? "filled" : "outlined"}
+                      color={bucket.day === today ? "primary" : "default"}
+                      label={`${format(parseISO(bucket.day), "EEE d")} · ${bucket.count}`}
+                    />
+                  ))}
+                </Stack>
+
+                <Stack spacing={1}>
+                  {upcomingMeetings.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      {t("No meetings yet.")}
+                    </Typography>
+                  ) : (
+                    upcomingMeetings.map((occurrence) => {
+                      const meeting = occurrence.meeting;
+                      const meetingProject = projects.find((project) => project.id === meeting.project_id) ?? null;
+                      const calendarUrl =
+                        meeting.calendar_event_url ??
+                        buildGoogleCalendarLink({
+                          title: meeting.title,
+                          details: [meeting.agenda, meeting.notes, meeting.decisions].filter(Boolean).join("\n\n"),
+                          startAt: occurrence.start.toISOString(),
+                          endAt: occurrence.end.toISOString(),
+                          location: meeting.meet_url ?? undefined,
+                        });
+
+                      return (
+                        <Box
+                          key={occurrence.occurrence_id}
+                          sx={{
+                            borderRadius: 2,
+                            border: "1px solid",
+                            borderColor: "divider",
+                            p: 1.25,
+                            bgcolor: alpha(muiTheme.palette.background.paper, 0.45),
+                          }}
+                        >
+                          <Stack direction="row" justifyContent="space-between" spacing={1}>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                                {meeting.title}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {format(occurrence.start, "MMM d, HH:mm")} - {format(occurrence.end, "HH:mm")}
+                              </Typography>
+                              {meetingProject ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                  {t("Project")}: {meetingProject.name}
+                                </Typography>
+                              ) : null}
+                              {meeting.agenda ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.35 }}>
+                                  {meeting.agenda}
+                                </Typography>
+                              ) : null}
+                            </Box>
+                            <Stack alignItems="flex-end" spacing={0.5}>
+                              <Chip
+                                size="small"
+                                label={
+                                  occurrence.status === "done"
+                                    ? t("Done")
+                                    : occurrence.status === "live"
+                                      ? t("Live")
+                                      : occurrence.status === "missed"
+                                        ? t("Missed")
+                                        : occurrence.status === "cancelled"
+                                          ? t("Cancelled")
+                                          : t("Planned")
+                                }
+                                color={
+                                  occurrence.status === "done"
+                                    ? "success"
+                                    : occurrence.status === "live"
+                                      ? "warning"
+                                      : occurrence.status === "missed"
+                                        ? "error"
+                                        : occurrence.status === "cancelled"
+                                          ? "default"
+                                          : "primary"
+                                }
+                                variant={occurrence.status === "planned" ? "filled" : "outlined"}
+                              />
+                              {meeting.recurrence !== "none" ? (
+                                <Chip size="small" variant="outlined" label={t(meeting.recurrence === "weekdays" ? "Weekdays" : meeting.recurrence === "weekly" ? "Weekly" : "Daily")} />
+                              ) : null}
+                            </Stack>
+                          </Stack>
+
+                          <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap" }}>
+                            {meeting.participants.slice(0, 3).map((participant) => (
+                              <Chip key={participant} size="small" variant="outlined" label={participant} />
+                            ))}
+                            {meeting.action_items.length > 0 ? (
+                              <Chip size="small" variant="outlined" label={`${t("Action items")}: ${meeting.action_items.length}`} />
+                            ) : null}
+                            {meeting.reminder_minutes > 0 ? (
+                              <Chip size="small" variant="outlined" label={`${t("Reminder")}: ${meeting.reminder_minutes}m`} />
+                            ) : null}
+                          </Stack>
+
+                          <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap" }}>
+                            {meeting.meet_url ? (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<VideoCallIcon />}
+                                onClick={() => openExternalUrl(meeting.meet_url!, t("Unable to open meeting URL."))}
+                              >
+                                {t("Open Meet")}
+                              </Button>
+                            ) : null}
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<CalendarMonthIcon />}
+                              onClick={() => openExternalUrl(calendarUrl, t("Unable to open calendar URL."))}
+                            >
+                              {t("Open Calendar")}
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() =>
+                                materializeMeetingActionItems.mutate({
+                                  meeting_id: meeting.id,
+                                  due_date: format(occurrence.start, "yyyy-MM-dd"),
+                                })
+                              }
+                              disabled={busy || meeting.action_items.every((item) => item.task_id !== null)}
+                            >
+                              {t("Create tasks")}
+                            </Button>
+                            <Button size="small" onClick={() => loadMeetingIntoForm(meeting)} startIcon={<EditOutlinedIcon />}>
+                              {t("Edit")}
+                            </Button>
+                            {occurrence.status !== "live" && occurrence.status !== "done" ? (
+                              <Button size="small" onClick={() => setMeetingWorkflowStatus(meeting, "live")} disabled={busy}>
+                                {t("Go live")}
+                              </Button>
+                            ) : null}
+                            {occurrence.status !== "done" ? (
+                              <Button size="small" onClick={() => setMeetingWorkflowStatus(meeting, "done")} disabled={busy}>
+                                {t("Mark done")}
+                              </Button>
+                            ) : (
+                              <Button size="small" onClick={() => setMeetingWorkflowStatus(meeting, "planned")} disabled={busy}>
+                                {t("Reopen")}
+                              </Button>
+                            )}
+                            {meeting.status !== "cancelled" ? (
+                              <Button size="small" color="warning" onClick={() => cancelMeeting(meeting.id)} disabled={busy}>
+                                {t("Cancel")}
+                              </Button>
+                            ) : null}
+                            <Button
+                              size="small"
+                              color="error"
+                              startIcon={<DeleteOutlineIcon />}
+                              onClick={() => deleteMeeting.mutate(meeting.id)}
+                              disabled={busy}
+                            >
+                              {t("Delete")}
+                            </Button>
+                          </Stack>
+                        </Box>
+                      );
+                    })
+                  )}
+                </Stack>
+              </Box>
+
               <Box
                 sx={{
                   p: 1.5,
@@ -1218,509 +1335,12 @@ export const PlannerBoard = ({
                   ) : null}
                 </Stack>
               </Box>
-
-              <Box>
-                <Stack direction="row" spacing={0.8} sx={{ mb: 1.5, flexWrap: "wrap" }}>
-                  {meetingDayBuckets.map((bucket) => (
-                    <Chip
-                      key={bucket.day}
-                      size="small"
-                      variant={bucket.day === today ? "filled" : "outlined"}
-                      color={bucket.day === today ? "primary" : "default"}
-                      label={`${format(parseISO(bucket.day), "EEE d")} · ${bucket.count}`}
-                    />
-                  ))}
-                </Stack>
-
-                <Stack spacing={1}>
-                  {upcomingMeetings.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      {t("No meetings yet.")}
-                    </Typography>
-                  ) : (
-                    upcomingMeetings.map((occurrence) => {
-                      const meeting = occurrence.meeting;
-                      const meetingProject = projects.find((project) => project.id === meeting.project_id) ?? null;
-                      const calendarUrl =
-                        meeting.calendar_event_url ??
-                        buildGoogleCalendarLink({
-                          title: meeting.title,
-                          details: [meeting.agenda, meeting.notes, meeting.decisions].filter(Boolean).join("\n\n"),
-                          startAt: occurrence.start.toISOString(),
-                          endAt: occurrence.end.toISOString(),
-                          location: meeting.meet_url ?? undefined,
-                        });
-
-                      return (
-                        <Box
-                          key={occurrence.occurrence_id}
-                          sx={{
-                            borderRadius: 2,
-                            border: "1px solid",
-                            borderColor: "divider",
-                            p: 1.25,
-                            bgcolor: alpha(muiTheme.palette.background.paper, 0.45),
-                          }}
-                        >
-                          <Stack direction="row" justifyContent="space-between" spacing={1}>
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
-                                {meeting.title}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {format(occurrence.start, "MMM d, HH:mm")} - {format(occurrence.end, "HH:mm")}
-                              </Typography>
-                              {meetingProject ? (
-                                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                                  {t("Project")}: {meetingProject.name}
-                                </Typography>
-                              ) : null}
-                              {meeting.agenda ? (
-                                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.35 }}>
-                                  {meeting.agenda}
-                                </Typography>
-                              ) : null}
-                            </Box>
-                            <Stack alignItems="flex-end" spacing={0.5}>
-                              <Chip
-                                size="small"
-                                label={
-                                  occurrence.status === "done"
-                                    ? t("Done")
-                                    : occurrence.status === "live"
-                                      ? t("Live")
-                                      : occurrence.status === "missed"
-                                        ? t("Missed")
-                                        : occurrence.status === "cancelled"
-                                          ? t("Cancelled")
-                                          : t("Planned")
-                                }
-                                color={
-                                  occurrence.status === "done"
-                                    ? "success"
-                                    : occurrence.status === "live"
-                                      ? "warning"
-                                      : occurrence.status === "missed"
-                                        ? "error"
-                                        : occurrence.status === "cancelled"
-                                          ? "default"
-                                          : "primary"
-                                }
-                                variant={occurrence.status === "planned" ? "filled" : "outlined"}
-                              />
-                              {meeting.recurrence !== "none" ? (
-                                <Chip size="small" variant="outlined" label={t(meeting.recurrence === "weekdays" ? "Weekdays" : meeting.recurrence === "weekly" ? "Weekly" : "Daily")} />
-                              ) : null}
-                            </Stack>
-                          </Stack>
-
-                          <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap" }}>
-                            {meeting.participants.slice(0, 3).map((participant) => (
-                              <Chip key={participant} size="small" variant="outlined" label={participant} />
-                            ))}
-                            {meeting.action_items.length > 0 ? (
-                              <Chip size="small" variant="outlined" label={`${t("Action items")}: ${meeting.action_items.length}`} />
-                            ) : null}
-                            {meeting.reminder_minutes > 0 ? (
-                              <Chip size="small" variant="outlined" label={`${t("Reminder")}: ${meeting.reminder_minutes}m`} />
-                            ) : null}
-                          </Stack>
-
-                          <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap" }}>
-                            {meeting.meet_url ? (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                startIcon={<VideoCallIcon />}
-                                onClick={() => openExternalUrl(meeting.meet_url!, t("Unable to open meeting URL."))}
-                              >
-                                {t("Open Meet")}
-                              </Button>
-                            ) : null}
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={<CalendarMonthIcon />}
-                              onClick={() => openExternalUrl(calendarUrl, t("Unable to open calendar URL."))}
-                            >
-                              {t("Open Calendar")}
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() =>
-                                materializeMeetingActionItems.mutate({
-                                  meeting_id: meeting.id,
-                                  due_date: format(occurrence.start, "yyyy-MM-dd"),
-                                })
-                              }
-                              disabled={busy || meeting.action_items.every((item) => item.task_id !== null)}
-                            >
-                              {t("Create tasks")}
-                            </Button>
-                            <Button size="small" onClick={() => loadMeetingIntoForm(meeting)} startIcon={<EditOutlinedIcon />}>
-                              {t("Edit")}
-                            </Button>
-                            {occurrence.status !== "live" && occurrence.status !== "done" ? (
-                              <Button size="small" onClick={() => setMeetingWorkflowStatus(meeting, "live")} disabled={busy}>
-                                {t("Go live")}
-                              </Button>
-                            ) : null}
-                            {occurrence.status !== "done" ? (
-                              <Button size="small" onClick={() => setMeetingWorkflowStatus(meeting, "done")} disabled={busy}>
-                                {t("Mark done")}
-                              </Button>
-                            ) : (
-                              <Button size="small" onClick={() => setMeetingWorkflowStatus(meeting, "planned")} disabled={busy}>
-                                {t("Reopen")}
-                              </Button>
-                            )}
-                            {meeting.status !== "cancelled" ? (
-                              <Button size="small" color="warning" onClick={() => cancelMeeting(meeting.id)} disabled={busy}>
-                                {t("Cancel")}
-                              </Button>
-                            ) : null}
-                            <Button
-                              size="small"
-                              color="error"
-                              startIcon={<DeleteOutlineIcon />}
-                              onClick={() => deleteMeeting.mutate(meeting.id)}
-                              disabled={busy}
-                            >
-                              {t("Delete")}
-                            </Button>
-                          </Stack>
-                        </Box>
-                      );
-                    })
-                  )}
-                </Stack>
-              </Box>
-            </Box>
-
-            <Box
-              sx={{
-                borderRadius: 2,
-                border: "1px solid",
-                borderColor: "divider",
-                overflow: "hidden",
-              }}
-            >
-              <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  {t("Weekly calendar")}
-                </Typography>
-              </Box>
-              <Box sx={{ overflowX: "auto", overflowY: "hidden" }}>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "72px repeat(7, minmax(120px, 1fr))",
-                    minWidth: 912,
-                    minHeight: 540,
-                  }}
-                >
-                  <Box sx={{ borderRight: "1px solid", borderColor: "divider", bgcolor: alpha(muiTheme.palette.text.primary, 0.02) }}>
-                    {Array.from({ length: 14 }, (_, index) => 8 + index).map((hour) => (
-                      <Box key={hour} sx={{ height: 38, px: 1, pt: 0.4, borderBottom: "1px solid", borderColor: "divider" }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {String(hour).padStart(2, "0")}:00
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                  {Array.from({ length: 7 }, (_, index) => addDays(startOfDay(new Date()), index)).map((day) => {
-                    const dayOccurrences = weeklyMeetingOccurrences.filter(
-                      (occurrence) => format(occurrence.start, "yyyy-MM-dd") === format(day, "yyyy-MM-dd")
-                    );
-                    return (
-                      <Box key={day.toISOString()} sx={{ position: "relative", borderRight: "1px solid", borderColor: "divider" }}>
-                        <Box sx={{ height: 34, px: 1, py: 0.6, borderBottom: "1px solid", borderColor: "divider", bgcolor: format(day, "yyyy-MM-dd") === today ? alpha(muiTheme.palette.primary.main, 0.08) : "transparent" }}>
-                          <Typography variant="caption" color="text.secondary">
-                            {format(day, "EEE d")}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ position: "relative", height: 506 }}>
-                          {Array.from({ length: 14 }, (_, index) => (
-                            <Box
-                              key={`${day.toISOString()}-${index}`}
-                              sx={{
-                                height: 36,
-                                borderBottom: "1px solid",
-                                borderColor: alpha(muiTheme.palette.divider, 0.75),
-                              }}
-                            />
-                          ))}
-                          {dayOccurrences.map((occurrence) => {
-                            const top = Math.max(0, ((occurrence.start.getHours() + occurrence.start.getMinutes() / 60) - 8) * 36);
-                            const height = Math.max(28, ((occurrence.end.getTime() - occurrence.start.getTime()) / (60 * 60 * 1000)) * 36);
-                            return (
-                              <Box
-                                key={occurrence.occurrence_id}
-                                sx={{
-                                  position: "absolute",
-                                  left: 6,
-                                  right: 6,
-                                  top: `${top}px`,
-                                  height: `${height}px`,
-                                  borderRadius: 1.5,
-                                  px: 0.8,
-                                  py: 0.55,
-                                  overflow: "hidden",
-                                  bgcolor:
-                                    occurrence.status === "done"
-                                      ? alpha(muiTheme.palette.success.main, 0.18)
-                                      : occurrence.status === "live"
-                                        ? alpha(muiTheme.palette.warning.main, 0.2)
-                                        : occurrence.status === "missed"
-                                          ? alpha(muiTheme.palette.error.main, 0.16)
-                                          : alpha(muiTheme.palette.primary.main, 0.16),
-                                  border: "1px solid",
-                                  borderColor:
-                                    occurrence.status === "done"
-                                      ? "success.main"
-                                      : occurrence.status === "live"
-                                        ? "warning.main"
-                                        : occurrence.status === "missed"
-                                          ? "error.main"
-                                          : "primary.main",
-                                }}
-                              >
-                                <Typography variant="caption" sx={{ display: "block", fontWeight: 700, lineHeight: 1.15 }}>
-                                  {occurrence.title}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.1 }}>
-                                  {format(occurrence.start, "HH:mm")} - {format(occurrence.end, "HH:mm")}
-                                </Typography>
-                              </Box>
-                            );
-                          })}
-                        </Box>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              </Box>
             </Box>
           </Box>
         </Collapse>
       </Box>
 
-      {/* ── Dashboard Grid ── */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
-          gap: { xs: 1.5, md: 2 },
-        }}
-      >
-        {/* Tasks Due Today */}
-        <Box sx={{ ...plannerCardSx }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t("Tasks Due Today")}
-            </Typography>
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              <Button size="small" onClick={onOpenTasks} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
-                {t("View All")}
-              </Button>
-              {renderSectionToggle("tasksToday")}
-            </Stack>
-          </Stack>
-          <Collapse in={!isSectionCollapsed("tasksToday")} timeout="auto" unmountOnExit>
-            <Stack spacing={1} sx={{ mt: 2 }}>
-              {dueTodayTasks.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  {t("No tasks due today.")}
-                </Typography>
-              ) : (
-                dueTodayTasks.map((task) => (
-                  <Stack key={task.id} direction="row" alignItems="center" spacing={1}>
-                    <Checkbox
-                      size="small"
-                      checked={task.status === "done"}
-                      disabled={busy}
-                      onChange={(event) =>
-                        updateTaskStatus.mutate({
-                          id: task.id,
-                          status: event.target.checked ? "done" : "todo",
-                        })
-                      }
-                    />
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography
-                        variant="body2"
-                        noWrap
-                        sx={{ textDecoration: task.status === "done" ? "line-through" : "none" }}
-                      >
-                        {task.title}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {task.priority}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                ))
-              )}
-            </Stack>
-          </Collapse>
-        </Box>
-
-        {/* Overdue Tasks */}
-        <Box sx={{ ...plannerCardSx }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t("Overdue Tasks")}
-            </Typography>
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              <Button size="small" onClick={onOpenTasks} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
-                {t("Resolve")}
-              </Button>
-              {renderSectionToggle("overdueTasks")}
-            </Stack>
-          </Stack>
-          <Collapse in={!isSectionCollapsed("overdueTasks")} timeout="auto" unmountOnExit>
-            <Stack spacing={1} sx={{ mt: 2 }}>
-              {overdueTasks.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  {t("No overdue tasks.")}
-                </Typography>
-              ) : (
-                overdueTasks.map((task) => (
-                  <Stack key={task.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                    <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
-                      {task.title}
-                    </Typography>
-                    <Chip label={task.due_date ?? t("No date")} color="error" variant="outlined" size="small" />
-                  </Stack>
-                ))
-              )}
-            </Stack>
-          </Collapse>
-        </Box>
-
-        {/* Goals Near Deadline */}
-        <Box sx={{ ...plannerCardSx }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t("Goals Near Deadline")}
-            </Typography>
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              <Button size="small" onClick={onOpenGoals} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
-                {t("Manage")}
-              </Button>
-              {renderSectionToggle("goalsNearDeadline")}
-            </Stack>
-          </Stack>
-          <Collapse in={!isSectionCollapsed("goalsNearDeadline")} timeout="auto" unmountOnExit>
-            <Stack spacing={1} sx={{ mt: 2 }}>
-              {nearGoals.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  {t("No active goals with deadlines in next 14 days.")}
-                </Typography>
-              ) : (
-                nearGoals.map((goal) => (
-                  <Stack key={goal.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" noWrap>
-                        {goal.title}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {goal.progress}%
-                      </Typography>
-                    </Box>
-                    <Chip label={goal.target_date ?? t("No date")} variant="outlined" size="small" />
-                  </Stack>
-                ))
-              )}
-            </Stack>
-          </Collapse>
-        </Box>
-
-        {/* Habits Today */}
-        <Box sx={{ ...plannerCardSx }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t("Habits Today")}
-            </Typography>
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              <Button size="small" onClick={onOpenHabits} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
-                {t("Track")}
-              </Button>
-              {renderSectionToggle("habitsToday")}
-            </Stack>
-          </Stack>
-          <Collapse in={!isSectionCollapsed("habitsToday")} timeout="auto" unmountOnExit>
-            <Stack spacing={1} sx={{ mt: 2 }}>
-              {habitsWithTodayState.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  {t("No habits configured yet.")}
-                </Typography>
-              ) : (
-                habitsWithTodayState.map((habit) => (
-                  <Stack key={habit.id} direction="row" alignItems="center" spacing={1}>
-                    <Checkbox
-                      size="small"
-                      checked={habit.doneToday}
-                      disabled={busy}
-                      onChange={(event) =>
-                        toggleHabitCompletion.mutate({
-                          habit_id: habit.id,
-                          date: today,
-                          completed: event.target.checked,
-                        })
-                      }
-                    />
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography variant="body2" noWrap>
-                        {habit.title}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {habit.this_week_count}/{habit.target_per_week} weekly · {habit.current_streak}d streak
-                      </Typography>
-                    </Box>
-                  </Stack>
-                ))
-              )}
-            </Stack>
-          </Collapse>
-        </Box>
-      </Box>
-
-      {/* ── Tomorrow Plan ── */}
-      <Box sx={{ ...plannerCardSx, mt: { xs: 1.5, md: 2 } }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {t("Tomorrow Plan")}
-          </Typography>
-          <Stack direction="row" spacing={0.5} alignItems="center">
-            <Typography variant="caption" color="text.secondary">
-              {dueTomorrowTasks.length} {t("Tasks")}
-            </Typography>
-            {renderSectionToggle("tomorrowPlan")}
-          </Stack>
-        </Stack>
-        <Collapse in={!isSectionCollapsed("tomorrowPlan")} timeout="auto" unmountOnExit>
-          <Stack spacing={1} sx={{ mt: 2 }}>
-            {dueTomorrowTasks.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                {t("No tasks planned for tomorrow yet.")}
-              </Typography>
-            ) : (
-              dueTomorrowTasks.map((task) => (
-                <Stack key={task.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                  <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
-                    {task.title}
-                  </Typography>
-                  <Chip size="small" variant="outlined" label={task.priority} />
-                </Stack>
-              ))
-            )}
-          </Stack>
-        </Collapse>
-      </Box>
-
-      <Box sx={{ ...plannerCardSx, mt: { xs: 1.5, md: 2 } }}>
+      <Box sx={{ ...plannerSurfaceSx, mt: { xs: 1.5, md: 2 }, p: { xs: 2, sm: 2.25 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {t("Weekly Review")}
@@ -1735,7 +1355,7 @@ export const PlannerBoard = ({
           sx={{
             mt: 2,
             display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", lg: "repeat(6, minmax(0, 1fr))" },
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" },
             gap: 1,
           }}
         >
@@ -1744,8 +1364,6 @@ export const PlannerBoard = ({
             { label: t("Meetings"), value: weeklyReview.meetingsThisWeek.length },
             { label: t("Journal"), value: weeklyReview.journalEntries.length },
             { label: t("Habits"), value: weeklyReview.habitCompletions },
-            { label: t("Daily Wins"), value: weeklyReview.winsThisWeek },
-            { label: t("Focus Session"), value: weeklyReview.focusSessionsThisWeek },
           ].map((item) => (
             <Box
               key={item.label}
@@ -1771,14 +1389,19 @@ export const PlannerBoard = ({
           sx={{
             mt: 2,
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
-            gap: 2,
+            gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1fr) minmax(0, 1fr) minmax(320px, 0.9fr)" },
+            gap: 1.25,
           }}
         >
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-              {t("Completed this week")}
-            </Typography>
+          <Box sx={plannerInsetCardSx}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                {t("Completed this week")}
+              </Typography>
+              <Button size="small" onClick={onOpenTasks} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
+                {t("Open Tasks")}
+              </Button>
+            </Stack>
             <Stack spacing={0.8}>
               {weeklyReview.completedTasks.slice(0, 5).map((task) => (
                 <Stack key={task.id} direction="row" justifyContent="space-between" spacing={1}>
@@ -1795,116 +1418,96 @@ export const PlannerBoard = ({
               ) : null}
             </Stack>
           </Box>
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-              {t("Weekly notes")}
-            </Typography>
-            <Stack spacing={0.8}>
-              <Typography variant="body2" color="text.secondary">
-                {t("Meetings with notes")}: {meetings.filter((meeting) => meeting.notes.trim().length > 0).length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t("Goals Near Deadline")}: {nearGoals.length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t("Focus sessions today")}: {focusSessionsToday}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t("Wins logged today")}: {dailyWins.length}
-              </Typography>
-            </Stack>
-          </Box>
-        </Box>
-      </Box>
 
-      {/* ── Focus & Wins side-by-side ── */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
-          gap: { xs: 1.5, md: 2 },
-          mt: { xs: 1.5, md: 2 },
-        }}
-      >
-        {/* Focus Session — compact widget */}
-        <Box
-          sx={{
-            ...plannerCardSx,
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            "&:hover": {
-              bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
-            },
-          }}
-          onClick={onOpenFocus}
-        >
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t("Focus Session")}
-            </Typography>
-            <Chip
-              size="small"
-              variant="outlined"
-              label={`${t("Today")}: ${focusSessionsToday}`}
-            />
-          </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-            {t("Open full focus view →")}
-          </Typography>
-        </Box>
-
-        {/* Daily Wins */}
-        <Box sx={{ ...plannerCardSx }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t("Daily Wins")}
-            </Typography>
-            {renderSectionToggle("dailyWins")}
-          </Stack>
-          <Collapse in={!isSectionCollapsed("dailyWins")} timeout="auto" unmountOnExit>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
-              <TextField
-                fullWidth
-                size="small"
-                value={dailyWinsInput}
-                onChange={(event) => setDailyWinsInput(event.target.value)}
-                placeholder={t("Example: shipped onboarding empty-state fix")}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleAddDailyWin();
-                  }
-                }}
-              />
-              <Button
-                variant="contained"
-                size="small"
-                onClick={handleAddDailyWin}
-                disabled={dailyWinsInput.trim().length === 0}
-                sx={{ width: { xs: "100%", sm: "auto" } }}
-              >
-                {t("Add win")}
+          <Box sx={plannerInsetCardSx}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                {t("Goals Near Deadline")}
+              </Typography>
+              <Button size="small" onClick={onOpenGoals} endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />} sx={{ textTransform: "none" }}>
+                {t("Manage")}
               </Button>
             </Stack>
-            <Stack spacing={0.75} sx={{ mt: 1.5 }}>
-              {dailyWins.length === 0 ? (
+            <Stack spacing={0.8}>
+              {nearGoals.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
-                  {t("No wins logged yet today.")}
+                  {t("No active goals with deadlines in next 14 days.")}
                 </Typography>
               ) : (
-                dailyWins.map((item, index) => (
-                  <Stack key={`${item}-${index}`} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                    <Typography variant="body2" sx={{ minWidth: 0 }}>
-                      • {item}
-                    </Typography>
-                    <Button size="small" color="error" onClick={() => handleRemoveDailyWin(index)}>
-                      {t("Delete")}
-                    </Button>
+                nearGoals.slice(0, 4).map((goal) => (
+                  <Stack key={goal.id} direction="row" justifyContent="space-between" spacing={1}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" noWrap>
+                        {goal.title}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {goal.progress}%
+                      </Typography>
+                    </Box>
+                    <Chip label={goal.target_date ?? t("No date")} variant="outlined" size="small" />
                   </Stack>
                 ))
               )}
             </Stack>
-          </Collapse>
+          </Box>
+
+          <Box sx={plannerInsetCardSx}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                {t("Daily Wins")}
+              </Typography>
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                <Chip size="small" variant="outlined" label={`${t("Focus Session")}: ${weeklyReview.focusSessionsThisWeek}`} />
+                <Button size="small" onClick={onOpenFocus} sx={{ textTransform: "none" }}>
+                  {t("Open")}
+                </Button>
+              </Stack>
+            </Stack>
+            <Collapse in={!isSectionCollapsed("dailyWins")} timeout="auto" unmountOnExit>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1.25 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={dailyWinsInput}
+                  onChange={(event) => setDailyWinsInput(event.target.value)}
+                  placeholder={t("Example: shipped onboarding empty-state fix")}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleAddDailyWin();
+                    }
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleAddDailyWin}
+                  disabled={dailyWinsInput.trim().length === 0}
+                  sx={{ width: { xs: "100%", sm: "auto" } }}
+                >
+                  {t("Add win")}
+                </Button>
+              </Stack>
+              <Stack spacing={0.75}>
+                {dailyWins.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {t("No wins logged yet today.")}
+                  </Typography>
+                ) : (
+                  dailyWins.map((item, index) => (
+                    <Stack key={`${item}-${index}`} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                      <Typography variant="body2" sx={{ minWidth: 0 }}>
+                        • {item}
+                      </Typography>
+                      <Button size="small" color="error" onClick={() => handleRemoveDailyWin(index)}>
+                        {t("Delete")}
+                      </Button>
+                    </Stack>
+                  ))
+                )}
+              </Stack>
+            </Collapse>
+          </Box>
         </Box>
       </Box>
     </Box>
