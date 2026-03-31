@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -34,6 +34,10 @@ import {
   useUpdateMeeting,
 } from "../hooks/useMeetings";
 import { isGoalNearDeadline } from "../utils/goalUtils";
+import {
+  FOCUS_SESSIONS_UPDATED_EVENT,
+  readFocusSessionsMap,
+} from "../utils/focusSessionStorage";
 import { expandMeetingOccurrences } from "../utils/meetingUtils";
 import { isTaskDueToday, isTaskOverdue } from "../utils/taskUtils";
 import { useI18n } from "../i18n/I18nContext";
@@ -43,7 +47,6 @@ import { Meeting, MeetingRecurrence, MeetingStatus } from "../types";
 
 const DAILY_WINS_STORAGE_KEY = "devJournal_daily_wins";
 const PLANNER_COLLAPSE_STORAGE_KEY = "devJournal_planner_collapsed_sections";
-const FOCUS_SESSIONS_STORAGE_KEY = "devJournal_focus_sessions";
 
 const toLocalDatetimeInputValue = (value: Date) => {
   const year = value.getFullYear();
@@ -164,16 +167,9 @@ export const PlannerBoard = ({
     return toLocalDatetimeInputValue(addMinutes(now, 90));
   });
   const [meetingFeedback, setMeetingFeedback] = useState("");
-  const [focusSessionsMap] = useState<Record<string, number>>(() => {
-    try {
-      const raw = localStorage.getItem(FOCUS_SESSIONS_STORAGE_KEY);
-      if (!raw) return {};
-      const parsed = JSON.parse(raw) as Record<string, number>;
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
+  const [focusSessionsMap, setFocusSessionsMap] = useState<Record<string, number>>(() =>
+    readFocusSessionsMap()
+  );
   const [dailyWinsInput, setDailyWinsInput] = useState("");
   const [dailyWinsMap, setDailyWinsMap] = useState<Record<string, string[]>>(() => {
     try {
@@ -204,6 +200,19 @@ export const PlannerBoard = ({
     () => tasks.filter((task) => isTaskOverdue(task)).slice(0, 6),
     [tasks]
   );
+
+  useEffect(() => {
+    const syncFocusSessions = () => {
+      setFocusSessionsMap(readFocusSessionsMap());
+    };
+
+    window.addEventListener(FOCUS_SESSIONS_UPDATED_EVENT, syncFocusSessions);
+    window.addEventListener("storage", syncFocusSessions);
+    return () => {
+      window.removeEventListener(FOCUS_SESSIONS_UPDATED_EVENT, syncFocusSessions);
+      window.removeEventListener("storage", syncFocusSessions);
+    };
+  }, []);
 
   const dueTodayTasks = useMemo(
     () => tasks.filter((task) => isTaskDueToday(task)).slice(0, 6),

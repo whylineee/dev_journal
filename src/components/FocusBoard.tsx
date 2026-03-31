@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Chip,
@@ -23,8 +23,7 @@ import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import BarChartRoundedIcon from "@mui/icons-material/BarChartRounded";
-
-const FOCUS_SESSIONS_STORAGE_KEY = "devJournal_focus_sessions";
+import { readFocusSessionsMap, writeFocusSessionsMap } from "../utils/focusSessionStorage";
 
 const FOCUS_DURATION_PRESETS = [
   { label: "25m", minutes: 25 },
@@ -56,21 +55,9 @@ export const FocusBoard = () => {
   const [breakPending, setBreakPending] = useState(false);
   const [focusTaskId, setFocusTaskId] = useState<number | "">("");
   const [completedAnimation, setCompletedAnimation] = useState(false);
-  const [sessionsMap, setSessionsMap] = useState<Record<string, number>>(() => {
-    try {
-      const raw = localStorage.getItem(FOCUS_SESSIONS_STORAGE_KEY);
-      if (!raw) return {};
-      const parsed = JSON.parse(raw) as Record<string, number>;
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
-
-  const persistSessions = useCallback((nextMap: Record<string, number>) => {
-    setSessionsMap(nextMap);
-    localStorage.setItem(FOCUS_SESSIONS_STORAGE_KEY, JSON.stringify(nextMap));
-  }, []);
+  const [sessionsMap, setSessionsMap] = useState<Record<string, number>>(() => readFocusSessionsMap());
+  const focusSecondsLeftRef = useRef(focusSecondsLeft);
+  const completedAnimationTimeoutRef = useRef<number | null>(null);
 
   const focusCandidates = useMemo(
     () =>
@@ -126,18 +113,28 @@ export const FocusBoard = () => {
     invoke("set_tray_timer", { text }).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    focusSecondsLeftRef.current = focusSecondsLeft;
+  }, [focusSecondsLeft]);
+
   const completeFocusSession = useCallback(
     (notifyMessage: string) => {
-      const nextMap = { ...sessionsMap, [today]: (sessionsMap[today] ?? 0) + 1 };
-      persistSessions(nextMap);
+      setSessionsMap((prev) => {
+        const nextMap = { ...prev, [today]: (prev[today] ?? 0) + 1 };
+        writeFocusSessionsMap(nextMap);
+        return nextMap;
+      });
+
+      const nextBreakSeconds = breakDurationMinutes * 60;
       setFocusRunning(false);
       setBreakPending(true);
       setIsBreakMode(true);
-      setFocusSecondsLeft(breakDurationMinutes * 60);
+      focusSecondsLeftRef.current = nextBreakSeconds;
+      setFocusSecondsLeft(nextBreakSeconds);
       updateTrayTimer(null);
       notify(notifyMessage, "success");
     },
-    [breakDurationMinutes, notify, persistSessions, sessionsMap, today, updateTrayTimer]
+    [breakDurationMinutes, notify, today, updateTrayTimer]
   );
 
   const handleToggleFocus = () => {
@@ -149,7 +146,9 @@ export const FocusBoard = () => {
 
     if (isBreakMode) {
       if (focusSecondsLeft <= 0 || breakPending) {
-        setFocusSecondsLeft(breakDurationMinutes * 60);
+        const nextBreakSeconds = breakDurationMinutes * 60;
+        focusSecondsLeftRef.current = nextBreakSeconds;
+        setFocusSecondsLeft(nextBreakSeconds);
       }
       setBreakPending(false);
       setFocusRunning(true);
@@ -157,7 +156,9 @@ export const FocusBoard = () => {
     }
 
     if (focusSecondsLeft <= 0) {
-      setFocusSecondsLeft(focusDurationMinutes * 60);
+      const nextFocusSeconds = focusDurationMinutes * 60;
+      focusSecondsLeftRef.current = nextFocusSeconds;
+      setFocusSecondsLeft(nextFocusSeconds);
     }
 
     if (selectedFocusTask && selectedFocusTask.status === "todo") {
@@ -170,7 +171,9 @@ export const FocusBoard = () => {
     setFocusRunning(false);
     setIsBreakMode(false);
     setBreakPending(false);
-    setFocusSecondsLeft(focusDurationMinutes * 60);
+    const nextFocusSeconds = focusDurationMinutes * 60;
+    focusSecondsLeftRef.current = nextFocusSeconds;
+    setFocusSecondsLeft(nextFocusSeconds);
     updateTrayTimer(null);
   };
 
@@ -179,7 +182,9 @@ export const FocusBoard = () => {
       setFocusRunning(false);
       setIsBreakMode(false);
       setBreakPending(false);
-      setFocusSecondsLeft(focusDurationMinutes * 60);
+      const nextFocusSeconds = focusDurationMinutes * 60;
+      focusSecondsLeftRef.current = nextFocusSeconds;
+      setFocusSecondsLeft(nextFocusSeconds);
       updateTrayTimer(null);
       notify(t("Break skipped."), "info");
       return;
@@ -190,43 +195,49 @@ export const FocusBoard = () => {
   };
 
   useEffect(() => {
-    let timer: number | undefined;
-    if (focusRunning) {
-      updateTrayTimer(
-        isBreakMode ? `${t("Break")} ${formatTime(focusSecondsLeft)}` : formatTime(focusSecondsLeft)
-      );
-      timer = window.setInterval(() => {
-        setFocusSecondsLeft((prev) => {
-          if (prev <= 1) {
-            if (timer) window.clearInterval(timer);
-            if (isBreakMode) {
-              setFocusRunning(false);
-              setIsBreakMode(false);
-              setBreakPending(false);
-              setFocusSecondsLeft(focusDurationMinutes * 60);
-              updateTrayTimer(null);
-              notify(t("Break completed!"), "success");
-              sendNotification({ title: "Dev Journal", body: t("Break completed!") });
-              return 0;
-            }
-
-            completeFocusSession(t("Focus session completed!"));
-            setCompletedAnimation(true);
-            setTimeout(() => setCompletedAnimation(false), 2400);
-            sendNotification({ title: "Dev Journal", body: t("Focus session completed!") });
-            return 0;
-          }
-          const next = prev - 1;
-          updateTrayTimer(isBreakMode ? `${t("Break")} ${formatTime(next)}` : formatTime(next));
-          return next;
-        });
-      }, 1000);
+    if (!focusRunning) {
+      return;
     }
+
+    const timer = window.setInterval(() => {
+      const nextSeconds = focusSecondsLeftRef.current - 1;
+      if (nextSeconds > 0) {
+        focusSecondsLeftRef.current = nextSeconds;
+        setFocusSecondsLeft(nextSeconds);
+        return;
+      }
+
+      window.clearInterval(timer);
+
+      if (isBreakMode) {
+        const nextFocusSeconds = focusDurationMinutes * 60;
+        focusSecondsLeftRef.current = nextFocusSeconds;
+        setFocusRunning(false);
+        setIsBreakMode(false);
+        setBreakPending(false);
+        setFocusSecondsLeft(nextFocusSeconds);
+        updateTrayTimer(null);
+        notify(t("Break completed!"), "success");
+        sendNotification({ title: "Dev Journal", body: t("Break completed!") });
+        return;
+      }
+
+      completeFocusSession(t("Focus session completed!"));
+      setCompletedAnimation(true);
+      if (completedAnimationTimeoutRef.current) {
+        window.clearTimeout(completedAnimationTimeoutRef.current);
+      }
+      completedAnimationTimeoutRef.current = window.setTimeout(() => {
+        setCompletedAnimation(false);
+        completedAnimationTimeoutRef.current = null;
+      }, 2400);
+      sendNotification({ title: "Dev Journal", body: t("Focus session completed!") });
+    }, 1000);
+
     return () => {
-      if (timer) window.clearInterval(timer);
+      window.clearInterval(timer);
     };
   }, [
-    breakPending,
     completeFocusSession,
     focusDurationMinutes,
     focusRunning,
@@ -234,11 +245,25 @@ export const FocusBoard = () => {
     notify,
     t,
     updateTrayTimer,
-    focusSecondsLeft,
   ]);
 
   useEffect(() => {
-    return () => { updateTrayTimer(null); };
+    if (!focusRunning) {
+      return;
+    }
+
+    updateTrayTimer(
+      isBreakMode ? `${t("Break")} ${formatTime(focusSecondsLeft)}` : formatTime(focusSecondsLeft)
+    );
+  }, [focusRunning, focusSecondsLeft, isBreakMode, t, updateTrayTimer]);
+
+  useEffect(() => {
+    return () => {
+      if (completedAnimationTimeoutRef.current) {
+        window.clearTimeout(completedAnimationTimeoutRef.current);
+      }
+      updateTrayTimer(null);
+    };
   }, [updateTrayTimer]);
 
   const glassSx = {
@@ -428,13 +453,17 @@ export const FocusBoard = () => {
                   if (isBreakMode) {
                     setBreakDurationMinutes(preset.minutes);
                     if (!focusRunning) {
-                      setFocusSecondsLeft(preset.minutes * 60);
+                      const nextBreakSeconds = preset.minutes * 60;
+                      focusSecondsLeftRef.current = nextBreakSeconds;
+                      setFocusSecondsLeft(nextBreakSeconds);
                     }
                     return;
                   }
                   setFocusDurationMinutes(preset.minutes);
                   if (!focusRunning) {
-                    setFocusSecondsLeft(preset.minutes * 60);
+                    const nextFocusSeconds = preset.minutes * 60;
+                    focusSecondsLeftRef.current = nextFocusSeconds;
+                    setFocusSecondsLeft(nextFocusSeconds);
                   }
                 }}
                 disabled={focusRunning}
