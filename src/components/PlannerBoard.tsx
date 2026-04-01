@@ -57,6 +57,18 @@ const toLocalDatetimeInputValue = (value: Date) => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
+const createDefaultMeetingTimeRange = () => {
+  const now = new Date();
+  now.setSeconds(0, 0);
+  const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
+  now.setMinutes(roundedMinutes, 0, 0);
+
+  return {
+    startAt: toLocalDatetimeInputValue(addMinutes(now, 30)),
+    endAt: toLocalDatetimeInputValue(addMinutes(now, 90)),
+  };
+};
+
 const buildGoogleCalendarLink = (params: {
   title: string;
   details: string;
@@ -153,18 +165,10 @@ export const PlannerBoard = ({
   const [meetingStatus, setMeetingStatus] = useState<MeetingStatus>("planned");
   const [editingMeetingId, setEditingMeetingId] = useState<number | null>(null);
   const [meetingStartAt, setMeetingStartAt] = useState(() => {
-    const now = new Date();
-    now.setSeconds(0, 0);
-    const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
-    now.setMinutes(roundedMinutes, 0, 0);
-    return toLocalDatetimeInputValue(addMinutes(now, 30));
+    return createDefaultMeetingTimeRange().startAt;
   });
   const [meetingEndAt, setMeetingEndAt] = useState(() => {
-    const now = new Date();
-    now.setSeconds(0, 0);
-    const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
-    now.setMinutes(roundedMinutes, 0, 0);
-    return toLocalDatetimeInputValue(addMinutes(now, 90));
+    return createDefaultMeetingTimeRange().endAt;
   });
   const [meetingFeedback, setMeetingFeedback] = useState("");
   const [focusSessionsMap, setFocusSessionsMap] = useState<Record<string, number>>(() =>
@@ -424,6 +428,7 @@ export const PlannerBoard = ({
   };
 
   const resetMeetingForm = () => {
+    const defaultMeetingTimeRange = createDefaultMeetingTimeRange();
     setEditingMeetingId(null);
     setMeetingTitle("");
     setMeetingAgenda("");
@@ -438,6 +443,8 @@ export const PlannerBoard = ({
     setMeetingRecurrenceUntil("");
     setMeetingReminderMinutes(10);
     setMeetingStatus("planned");
+    setMeetingStartAt(defaultMeetingTimeRange.startAt);
+    setMeetingEndAt(defaultMeetingTimeRange.endAt);
     setMeetingFeedback("");
   };
 
