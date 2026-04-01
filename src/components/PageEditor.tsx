@@ -360,6 +360,10 @@ const fromEditorDisplayContent = (value: string, embeddedTokens: string[]) => {
     return `${cleanMarkdown}${cleanMarkdown.length > 0 ? "\n\n" : ""}${embeddedTokens.join("\n")}`;
 };
 
+const removeEmbeddedTokenFromContent = (value: string, token: string) => {
+    return normalizeEditorMarkdown(value.replace(token, ""));
+};
+
 type EditorBlockType = "paragraph" | "heading2" | "bullet" | "checklist";
 
 interface EditorBlock {
@@ -1628,8 +1632,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     const handleDeleteTaskTrackerBlock = useCallback((trackerId: string) => {
         setContent((prev) => {
             const target = sanitizeTrackerId(trackerId);
-            const lines = prev.split("\n");
-            return lines.filter((line) => !line.includes(`{{TASK_TRACKER:${target}`)).join("\n").trim();
+            return removeEmbeddedTokenFromContent(prev, buildTaskTrackerToken(target));
         });
         setTaskTrackerDataById((prev) => {
             const copy = { ...prev };
@@ -1639,17 +1642,11 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     }, []);
 
     const handleDeleteTaskTableBlock = useCallback(() => {
-        setContent((prev) => {
-            const lines = prev.split("\n");
-            return lines.filter((line) => !line.includes(TASK_TABLE_BLOCK)).join("\n").trim();
-        });
+        setContent((prev) => removeEmbeddedTokenFromContent(prev, TASK_TABLE_BLOCK));
     }, []);
 
     const handleDeleteFormBlock = useCallback((token: string) => {
-        setContent((prev) => {
-            const lines = prev.split("\n");
-            return lines.filter((line) => !line.includes(token)).join("\n").trim();
-        });
+        setContent((prev) => removeEmbeddedTokenFromContent(prev, token));
     }, []);
 
     const editorDisplayContent = useMemo(() => toEditorDisplayContent(content), [content]);
