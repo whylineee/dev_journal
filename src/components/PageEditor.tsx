@@ -1338,7 +1338,14 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     const [taskTrackerView, setTaskTrackerView] = useState<"all" | "my" | "checklist">("all");
     const [isTrackerViewLoaded, setIsTrackerViewLoaded] = useState(false);
     const checklistInputRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
+    const autosaveTimeoutRef = useRef<number | null>(null);
     const [pendingChecklistFocusIndex, setPendingChecklistFocusIndex] = useState<number | null>(null);
+    const clearPendingAutosave = useCallback(() => {
+        if (autosaveTimeoutRef.current !== null) {
+            window.clearTimeout(autosaveTimeoutRef.current);
+            autosaveTimeoutRef.current = null;
+        }
+    }, []);
 
     useEffect(() => {
         const pageTitle = page?.title ?? "Untitled Page";
@@ -1370,11 +1377,14 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     }, [page, pageId, draftKey]);
 
     useEffect(() => {
+        clearPendingAutosave();
+
         if (!autosaveEnabled) {
             return;
         }
 
-        const timeout = setTimeout(() => {
+        autosaveTimeoutRef.current = window.setTimeout(() => {
+            autosaveTimeoutRef.current = null;
             localStorage.setItem(
                 draftKey,
                 JSON.stringify({
@@ -1385,8 +1395,8 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
             );
         }, 700);
 
-        return () => clearTimeout(timeout);
-    }, [autosaveEnabled, content, draftKey, title]);
+        return clearPendingAutosave;
+    }, [autosaveEnabled, clearPendingAutosave, content, draftKey, title]);
 
     useEffect(() => {
         try {
@@ -1509,6 +1519,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         if (pageId) {
             updateMutation.mutate({ id: pageId, title, content: contentToPersist }, {
                 onSuccess: () => {
+                    clearPendingAutosave();
                     localStorage.removeItem(draftKey);
                     setDraftRestored(false);
                     onSaveSuccess(pageId);
@@ -1517,13 +1528,14 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         } else {
             createMutation.mutate({ title, content: contentToPersist }, {
                 onSuccess: (newPage) => {
+                    clearPendingAutosave();
                     localStorage.removeItem(draftKey);
                     setDraftRestored(false);
                     onSaveSuccess(newPage.id);
                 }
             });
         }
-    }, [content, createMutation, draftKey, onSaveSuccess, pageId, taskTrackerDataById, title, updateMutation]);
+    }, [clearPendingAutosave, content, createMutation, draftKey, onSaveSuccess, pageId, taskTrackerDataById, title, updateMutation]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -1543,6 +1555,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         if (pageId) {
             deleteMutation.mutate(pageId, {
                 onSuccess: () => {
+                    clearPendingAutosave();
                     localStorage.removeItem(draftKey);
                     onDeleteSuccess();
                 }
@@ -1593,6 +1606,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     };
 
     const clearDraft = () => {
+        clearPendingAutosave();
         localStorage.removeItem(draftKey);
         localStorage.removeItem(trackerStorageKey);
         setDraftRestored(false);
