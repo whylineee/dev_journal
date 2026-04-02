@@ -31,7 +31,7 @@ This document describes how the project is structured and where to add new code.
   - `presets.ts` contains theme preset definitions and helpers.
 
 - `src/utils/`
-  - Cross-component pure helpers (`taskUtils`, `goalUtils`).
+  - Cross-component pure helpers (`taskUtils`, `goalUtils`, `pageEditorUtils`).
   - Prefer moving parsing/formatting/sorting logic here instead of duplicating in components.
 
 - `src/types/`
@@ -59,4 +59,5 @@ This document describes how the project is structured and where to add new code.
 - Add new features by domain: `type -> hook -> component -> command -> migration`.
 - Keep UI-only formatting logic in `src/utils`.
 - Keep persistence rules in Rust, not in React.
+- Run `npm test` when changing pure business logic, storage parsing, or editor serialization flows.
 - Run `npm run build` and `cargo check` before commit.

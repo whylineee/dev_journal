@@ -11,15 +11,26 @@ pub fn init(app_data_dir: PathBuf) -> Result<Connection> {
     let db_path = app_data_dir.join("dev_journal.db");
     let conn = Connection::open(db_path)?;
 
-    // Enable PRAGMAs for performance
+    configure_connection(&conn)?;
+
+    run_migrations(&conn)?;
+    enable_foreign_keys(&conn)?;
+
+    Ok(conn)
+}
+
+fn configure_connection(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         "PRAGMA journal_mode = WAL;
          PRAGMA synchronous = NORMAL;",
     )?;
 
-    run_migrations(&conn)?;
+    Ok(())
+}
 
-    Ok(conn)
+fn enable_foreign_keys(conn: &Connection) -> Result<()> {
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+    Ok(())
 }
 
 fn run_migrations(conn: &Connection) -> Result<()> {
@@ -381,6 +392,228 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v13: enforce referential integrity on project/goal/task links and clean invalid references.
+    apply_migration(conn, 13, |conn| {
+        conn.execute_batch("PRAGMA foreign_keys = OFF;")?;
+
+        conn.execute(
+            "DELETE FROM project_branches
+             WHERE NOT EXISTS (SELECT 1 FROM projects WHERE projects.id = project_branches.project_id)",
+            [],
+        )?;
+        conn.execute(
+            "DELETE FROM task_subtasks
+             WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE tasks.id = task_subtasks.task_id)",
+            [],
+        )?;
+        conn.execute(
+            "DELETE FROM goal_milestones
+             WHERE NOT EXISTS (SELECT 1 FROM goals WHERE goals.id = goal_milestones.goal_id)",
+            [],
+        )?;
+        conn.execute(
+            "DELETE FROM habit_logs
+             WHERE NOT EXISTS (SELECT 1 FROM habits WHERE habits.id = habit_logs.habit_id)",
+            [],
+        )?;
+        conn.execute(
+            "UPDATE meetings
+             SET project_id = NULL
+             WHERE project_id IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM projects WHERE projects.id = meetings.project_id)",
+            [],
+        )?;
+
+        conn.execute(
+            "ALTER TABLE entries RENAME TO entries_old_v13",
+            [],
+        )?;
+        conn.execute(
+            "CREATE TABLE entries (
+                id INTEGER PRIMARY KEY,
+                date TEXT NOT NULL UNIQUE,
+                yesterday TEXT NOT NULL,
+                today TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                project_id INTEGER,
+                FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL
+            )",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO entries (id, date, yesterday, today, created_at, project_id)
+             SELECT
+                id,
+                date,
+                yesterday,
+                today,
+                created_at,
+                CASE
+                    WHEN project_id IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM projects WHERE projects.id = entries_old_v13.project_id)
+                    THEN project_id
+                    ELSE NULL
+                END
+             FROM entries_old_v13",
+            [],
+        )?;
+        conn.execute("DROP TABLE entries_old_v13", [])?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_entries_project_id ON entries(project_id)",
+            [],
+        )?;
+
+        conn.execute(
+            "ALTER TABLE goals RENAME TO goals_old_v13",
+            [],
+        )?;
+        conn.execute(
+            "CREATE TABLE goals (
+                id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'active',
+                progress INTEGER NOT NULL DEFAULT 0,
+                target_date TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                project_id INTEGER,
+                FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL
+            )",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO goals (id, title, description, status, progress, target_date, created_at, updated_at, project_id)
+             SELECT
+                id,
+                title,
+                description,
+                status,
+                progress,
+                target_date,
+                created_at,
+                updated_at,
+                CASE
+                    WHEN project_id IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM projects WHERE projects.id = goals_old_v13.project_id)
+                    THEN project_id
+                    ELSE NULL
+                END
+             FROM goals_old_v13",
+            [],
+        )?;
+        conn.execute("DROP TABLE goals_old_v13", [])?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_goals_status_target_date ON goals(status, target_date)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_goals_project_id ON goals(project_id)",
+            [],
+        )?;
+
+        conn.execute(
+            "ALTER TABLE tasks RENAME TO tasks_old_v13",
+            [],
+        )?;
+        conn.execute(
+            "CREATE TABLE tasks (
+                id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                priority TEXT NOT NULL DEFAULT 'medium',
+                due_date TEXT,
+                completed_at TEXT,
+                time_estimate_minutes INTEGER NOT NULL DEFAULT 0,
+                timer_started_at TEXT,
+                timer_accumulated_seconds INTEGER NOT NULL DEFAULT 0,
+                project_id INTEGER,
+                goal_id INTEGER,
+                recurrence TEXT NOT NULL DEFAULT 'none',
+                recurrence_until TEXT,
+                parent_task_id INTEGER,
+                FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL,
+                FOREIGN KEY(goal_id) REFERENCES goals(id) ON DELETE SET NULL,
+                FOREIGN KEY(parent_task_id) REFERENCES tasks(id) ON DELETE SET NULL
+            )",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO tasks (
+                id, title, description, status, created_at, updated_at, priority, due_date, completed_at,
+                time_estimate_minutes, timer_started_at, timer_accumulated_seconds, project_id, goal_id,
+                recurrence, recurrence_until, parent_task_id
+             )
+             SELECT
+                id,
+                title,
+                description,
+                status,
+                created_at,
+                updated_at,
+                priority,
+                due_date,
+                completed_at,
+                time_estimate_minutes,
+                timer_started_at,
+                timer_accumulated_seconds,
+                CASE
+                    WHEN project_id IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM projects WHERE projects.id = tasks_old_v13.project_id)
+                    THEN project_id
+                    ELSE NULL
+                END,
+                CASE
+                    WHEN goal_id IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM goals WHERE goals.id = tasks_old_v13.goal_id)
+                    THEN goal_id
+                    ELSE NULL
+                END,
+                recurrence,
+                recurrence_until,
+                CASE
+                    WHEN parent_task_id IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM tasks_old_v13 AS parent WHERE parent.id = tasks_old_v13.parent_task_id)
+                    THEN parent_task_id
+                    ELSE NULL
+                END
+             FROM tasks_old_v13",
+            [],
+        )?;
+        conn.execute("DROP TABLE tasks_old_v13", [])?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_status_due_date ON tasks(status, due_date)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_timer_started_at ON tasks(timer_started_at)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_goal_id ON tasks(goal_id)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_recurrence_due_date ON tasks(recurrence, due_date)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_parent_task_id ON tasks(parent_task_id)",
+            [],
+        )?;
+
+        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+
+        Ok(())
+    })?;
+
     Ok(())
 }
 
@@ -431,4 +664,254 @@ fn has_column(conn: &Connection, table: &str, column: &str) -> Result<bool> {
     }
 
     Ok(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_migrations_enables_integrity_schema() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        configure_connection(&conn).expect("configure");
+        run_migrations(&conn).expect("migrate");
+        enable_foreign_keys(&conn).expect("fk pragma");
+
+        let foreign_keys_enabled: i64 = conn
+            .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
+            .expect("pragma");
+        assert_eq!(foreign_keys_enabled, 1);
+
+        let task_goal_fk_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_foreign_key_list('tasks') WHERE \"from\" = 'goal_id'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("task goal fk");
+        assert_eq!(task_goal_fk_count, 1);
+    }
+
+    #[test]
+    fn migration_v13_cleans_invalid_project_and_goal_links() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        configure_connection(&conn).expect("configure");
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            )",
+            [],
+        )
+        .expect("schema table");
+        for version in 1..=12 {
+            conn.execute(
+                "INSERT INTO schema_migrations (version, applied_at) VALUES (?1, ?2)",
+                params![version, "2026-04-02T00:00:00Z"],
+            )
+            .expect("seed old migrations");
+        }
+
+        conn.execute(
+            "CREATE TABLE projects (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL DEFAULT '',
+                color TEXT NOT NULL DEFAULT '#60a5fa',
+                status TEXT NOT NULL DEFAULT 'active',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )
+        .expect("projects");
+        conn.execute(
+            "CREATE TABLE goals (
+                id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'active',
+                progress INTEGER NOT NULL DEFAULT 0,
+                target_date TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                project_id INTEGER
+            )",
+            [],
+        )
+        .expect("goals");
+        conn.execute(
+            "CREATE TABLE tasks (
+                id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                priority TEXT NOT NULL DEFAULT 'medium',
+                due_date TEXT,
+                completed_at TEXT,
+                time_estimate_minutes INTEGER NOT NULL DEFAULT 0,
+                timer_started_at TEXT,
+                timer_accumulated_seconds INTEGER NOT NULL DEFAULT 0,
+                project_id INTEGER,
+                goal_id INTEGER,
+                recurrence TEXT NOT NULL DEFAULT 'none',
+                recurrence_until TEXT,
+                parent_task_id INTEGER
+            )",
+            [],
+        )
+        .expect("tasks");
+        conn.execute(
+            "CREATE TABLE entries (
+                id INTEGER PRIMARY KEY,
+                date TEXT NOT NULL UNIQUE,
+                yesterday TEXT NOT NULL,
+                today TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                project_id INTEGER
+            )",
+            [],
+        )
+        .expect("entries");
+        conn.execute(
+            "CREATE TABLE meetings (
+                id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                agenda TEXT NOT NULL DEFAULT '',
+                start_at TEXT NOT NULL,
+                end_at TEXT NOT NULL,
+                meet_url TEXT,
+                calendar_event_url TEXT,
+                project_id INTEGER,
+                status TEXT NOT NULL DEFAULT 'planned',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                participants_json TEXT NOT NULL DEFAULT '[]',
+                notes TEXT NOT NULL DEFAULT '',
+                decisions TEXT NOT NULL DEFAULT '',
+                action_items_json TEXT NOT NULL DEFAULT '[]',
+                recurrence TEXT NOT NULL DEFAULT 'none',
+                recurrence_until TEXT,
+                reminder_minutes INTEGER NOT NULL DEFAULT 10
+            )",
+            [],
+        )
+        .expect("meetings");
+        conn.execute(
+            "CREATE TABLE habits (
+                id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                target_per_week INTEGER NOT NULL DEFAULT 5,
+                color TEXT NOT NULL DEFAULT '#60a5fa',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )
+        .expect("habits");
+        conn.execute(
+            "CREATE TABLE project_branches (
+                id INTEGER PRIMARY KEY,
+                project_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )
+        .expect("project_branches");
+        conn.execute(
+            "CREATE TABLE task_subtasks (
+                id INTEGER PRIMARY KEY,
+                task_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                position INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )
+        .expect("task_subtasks");
+        conn.execute(
+            "CREATE TABLE goal_milestones (
+                id INTEGER PRIMARY KEY,
+                goal_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                position INTEGER NOT NULL DEFAULT 0,
+                due_date TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )
+        .expect("goal_milestones");
+        conn.execute(
+            "CREATE TABLE habit_logs (
+                id INTEGER PRIMARY KEY,
+                habit_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )",
+            [],
+        )
+        .expect("habit_logs");
+
+        conn.execute(
+            "INSERT INTO projects (id, name, description, color, status, created_at, updated_at)
+             VALUES (1, 'Core', '', '#60a5fa', 'active', '2026-04-01T00:00:00Z', '2026-04-01T00:00:00Z')",
+            [],
+        )
+        .expect("project row");
+        conn.execute(
+            "INSERT INTO goals (id, title, description, status, progress, target_date, created_at, updated_at, project_id)
+             VALUES (10, 'Goal', '', 'active', 0, NULL, '2026-04-01T00:00:00Z', '2026-04-01T00:00:00Z', 999)",
+            [],
+        )
+        .expect("goal row");
+        conn.execute(
+            "INSERT INTO tasks (id, title, description, status, created_at, updated_at, priority, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, project_id, goal_id, recurrence, recurrence_until, parent_task_id)
+             VALUES (100, 'Task', '', 'todo', '2026-04-01T00:00:00Z', '2026-04-01T00:00:00Z', 'medium', NULL, NULL, 0, NULL, 0, 999, 999, 'none', NULL, 999)",
+            [],
+        )
+        .expect("task row");
+        conn.execute(
+            "INSERT INTO entries (id, date, yesterday, today, created_at, project_id)
+             VALUES (1, '2026-04-02', '', '', '2026-04-02T00:00:00Z', 999)",
+            [],
+        )
+        .expect("entry row");
+
+        run_migrations(&conn).expect("apply v13");
+        enable_foreign_keys(&conn).expect("fk pragma");
+
+        let goal_project_id: Option<i64> = conn
+            .query_row("SELECT project_id FROM goals WHERE id = 10", [], |row| row.get(0))
+            .expect("goal project id");
+        let task_links: (Option<i64>, Option<i64>, Option<i64>) = conn
+            .query_row(
+                "SELECT project_id, goal_id, parent_task_id FROM tasks WHERE id = 100",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("task links");
+        let entry_project_id: Option<i64> = conn
+            .query_row(
+                "SELECT project_id FROM entries WHERE id = 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("entry project id");
+
+        assert_eq!(goal_project_id, None);
+        assert_eq!(task_links, (None, None, None));
+        assert_eq!(entry_project_id, None);
+    }
 }

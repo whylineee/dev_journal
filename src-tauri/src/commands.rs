@@ -434,6 +434,21 @@ fn normalize_goal_id(conn: &Connection, goal_id: Option<i64>) -> Result<Option<i
     if exists { Ok(Some(goal_id)) } else { Ok(None) }
 }
 
+fn normalize_parent_task_id(
+    conn: &Connection,
+    parent_task_id: Option<i64>,
+) -> Result<Option<i64>, String> {
+    let Some(parent_task_id) = parent_task_id else {
+        return Ok(None);
+    };
+
+    if task_exists(conn, parent_task_id)? {
+        Ok(Some(parent_task_id))
+    } else {
+        Ok(None)
+    }
+}
+
 fn normalize_required_project_id(conn: &Connection, project_id: i64) -> Result<i64, String> {
     match normalize_project_id(conn, Some(project_id))? {
         Some(id) => Ok(id),
@@ -508,6 +523,33 @@ fn task_exists(conn: &Connection, task_id: i64) -> Result<bool, String> {
     )
     .map(|value| value == 1)
     .map_err(|e| e.to_string())
+}
+
+fn habit_exists(conn: &Connection, habit_id: i64) -> Result<bool, String> {
+    conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM habits WHERE id = ?1)",
+        params![habit_id],
+        |row| row.get::<_, i64>(0),
+    )
+    .map(|value| value == 1)
+    .map_err(|e| e.to_string())
+}
+
+fn sanitize_meeting_action_item_task_ids(
+    conn: &Connection,
+    action_items: Vec<MeetingActionItem>,
+) -> Result<Vec<MeetingActionItem>, String> {
+    action_items
+        .into_iter()
+        .map(|item| {
+            let task_id = match item.task_id {
+                Some(task_id) if task_exists(conn, task_id)? => Some(task_id),
+                _ => None,
+            };
+
+            Ok(MeetingActionItem { task_id, ..item })
+        })
+        .collect()
 }
 
 fn touch_task_updated_at(conn: &Connection, task_id: i64, now: &str) -> Result<(), String> {
@@ -2660,26 +2702,6 @@ pub fn import_backup(
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    for entry in payload.entries {
-        tx.execute(
-            "INSERT INTO entries (date, yesterday, today, project_id, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
-             ON CONFLICT(date) DO UPDATE SET
-                yesterday = excluded.yesterday,
-                today = excluded.today,
-                project_id = excluded.project_id,
-                created_at = excluded.created_at",
-            params![
-                entry.date,
-                entry.yesterday,
-                entry.today,
-                entry.project_id,
-                entry.created_at.unwrap_or_else(|| now.clone())
-            ],
-        )
-        .map_err(|e| e.to_string())?;
-    }
-
     for page in payload.pages {
         let created_at = page.created_at.unwrap_or_else(|| now.clone());
         let updated_at = page.updated_at.unwrap_or_else(|| created_at.clone());
@@ -2772,17 +2794,116 @@ pub fn import_backup(
         }
     }
 
+    for entry in payload.entries {
+        let project_id = normalize_project_id(&tx, entry.project_id)?;
+
+        tx.execute(
+            "INSERT INTO entries (date, yesterday, today, project_id, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(date) DO UPDATE SET
+                yesterday = excluded.yesterday,
+                today = excluded.today,
+                project_id = excluded.project_id,
+                created_at = excluded.created_at",
+            params![
+                entry.date,
+                entry.yesterday,
+                entry.today,
+                project_id,
+                entry.created_at.unwrap_or_else(|| now.clone())
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    for goal in payload.goals {
+        let created_at = goal.created_at.unwrap_or_else(|| now.clone());
+        let updated_at = goal.updated_at.unwrap_or_else(|| created_at.clone());
+        let status = normalize_goal_status(goal.status);
+        let mut progress = normalize_progress(goal.progress);
+        if status == "completed" {
+            progress = 100;
+        }
+        let description = goal.description.unwrap_or_default();
+        let project_id = normalize_project_id(&tx, goal.project_id)?;
+
+        if let Some(id) = goal.id {
+            tx.execute(
+                "INSERT INTO goals (id, title, description, status, progress, project_id, target_date, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                 ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    description = excluded.description,
+                    status = excluded.status,
+                    progress = excluded.progress,
+                    project_id = excluded.project_id,
+                    target_date = excluded.target_date,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at",
+                params![id, goal.title, description, status, progress, project_id, goal.target_date, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO goals (title, description, status, progress, project_id, target_date, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![goal.title, description, status, progress, project_id, goal.target_date, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    for milestone in payload.goal_milestones {
+        let Some(goal_id) = normalize_goal_id(&tx, Some(milestone.goal_id))? else {
+            continue;
+        };
+
+        let created_at = milestone.created_at.unwrap_or_else(|| now.clone());
+        let updated_at = milestone.updated_at.unwrap_or_else(|| created_at.clone());
+        let title = normalize_goal_milestone_title(milestone.title);
+        let completed = if milestone.completed.unwrap_or(false) { 1_i64 } else { 0_i64 };
+        let position = milestone.position.unwrap_or(0).max(0);
+        let due_date = normalize_optional_date(milestone.due_date);
+
+        if let Some(id) = milestone.id {
+            tx.execute(
+                "INSERT INTO goal_milestones (id, goal_id, title, completed, position, due_date, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                 ON CONFLICT(id) DO UPDATE SET
+                    goal_id = excluded.goal_id,
+                    title = excluded.title,
+                    completed = excluded.completed,
+                    position = excluded.position,
+                    due_date = excluded.due_date,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at",
+                params![id, goal_id, title, completed, position, due_date, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT INTO goal_milestones (goal_id, title, completed, position, due_date, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![goal_id, title, completed, position, due_date, created_at, updated_at],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    let mut deferred_parent_links = Vec::new();
+
     for task in payload.tasks {
         let created_at = task.created_at.unwrap_or_else(|| now.clone());
         let updated_at = task.updated_at.unwrap_or_else(|| created_at.clone());
         let status = normalize_status(task.status);
         let priority = normalize_priority(task.priority);
-        let project_id = task.project_id;
-        let goal_id = task.goal_id;
+        let project_id = normalize_project_id(&tx, task.project_id)?;
+        let goal_id = normalize_goal_id(&tx, task.goal_id)?;
         let due_date = task.due_date;
         let recurrence = normalize_task_recurrence(task.recurrence);
         let recurrence_until = normalize_optional_date(task.recurrence_until);
-        let parent_task_id = task.parent_task_id;
+        let raw_parent_task_id = task.parent_task_id;
+        let parent_task_id = None::<i64>;
         let completed_at = task.completed_at;
         let time_estimate_minutes = normalize_time_estimate_minutes(task.time_estimate_minutes);
         let mut timer_started_at = task.timer_started_at;
@@ -2838,6 +2959,10 @@ pub fn import_backup(
                 ],
             )
             .map_err(|e| e.to_string())?;
+
+            if let Some(parent_task_id) = raw_parent_task_id {
+                deferred_parent_links.push((id, parent_task_id));
+            }
         } else {
             tx.execute(
                 "INSERT INTO tasks (title, description, status, priority, project_id, goal_id, due_date, recurrence, recurrence_until, parent_task_id, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
@@ -2860,6 +2985,16 @@ pub fn import_backup(
                     created_at,
                     updated_at
                 ],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    for (task_id, parent_task_id) in deferred_parent_links {
+        if let Some(normalized_parent_task_id) = normalize_parent_task_id(&tx, Some(parent_task_id))? {
+            tx.execute(
+                "UPDATE tasks SET parent_task_id = ?1 WHERE id = ?2",
+                params![normalized_parent_task_id, task_id],
             )
             .map_err(|e| e.to_string())?;
         }
@@ -2927,80 +3062,6 @@ pub fn import_backup(
         }
     }
 
-    for goal in payload.goals {
-        let created_at = goal.created_at.unwrap_or_else(|| now.clone());
-        let updated_at = goal.updated_at.unwrap_or_else(|| created_at.clone());
-        let status = normalize_goal_status(goal.status);
-        let mut progress = normalize_progress(goal.progress);
-        if status == "completed" {
-            progress = 100;
-        }
-        let description = goal.description.unwrap_or_default();
-        let project_id = goal.project_id;
-
-        if let Some(id) = goal.id {
-            tx.execute(
-                "INSERT INTO goals (id, title, description, status, progress, project_id, target_date, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-                 ON CONFLICT(id) DO UPDATE SET
-                    title = excluded.title,
-                    description = excluded.description,
-                    status = excluded.status,
-                    progress = excluded.progress,
-                    project_id = excluded.project_id,
-                    target_date = excluded.target_date,
-                    created_at = excluded.created_at,
-                    updated_at = excluded.updated_at",
-                params![id, goal.title, description, status, progress, project_id, goal.target_date, created_at, updated_at],
-            )
-            .map_err(|e| e.to_string())?;
-        } else {
-            tx.execute(
-                "INSERT INTO goals (title, description, status, progress, project_id, target_date, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![goal.title, description, status, progress, project_id, goal.target_date, created_at, updated_at],
-            )
-            .map_err(|e| e.to_string())?;
-        }
-    }
-
-    for milestone in payload.goal_milestones {
-        let Some(goal_id) = normalize_goal_id(&tx, Some(milestone.goal_id))? else {
-            continue;
-        };
-
-        let created_at = milestone.created_at.unwrap_or_else(|| now.clone());
-        let updated_at = milestone.updated_at.unwrap_or_else(|| created_at.clone());
-        let title = normalize_goal_milestone_title(milestone.title);
-        let completed = if milestone.completed.unwrap_or(false) { 1_i64 } else { 0_i64 };
-        let position = milestone.position.unwrap_or(0).max(0);
-        let due_date = normalize_optional_date(milestone.due_date);
-
-        if let Some(id) = milestone.id {
-            tx.execute(
-                "INSERT INTO goal_milestones (id, goal_id, title, completed, position, due_date, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-                 ON CONFLICT(id) DO UPDATE SET
-                    goal_id = excluded.goal_id,
-                    title = excluded.title,
-                    completed = excluded.completed,
-                    position = excluded.position,
-                    due_date = excluded.due_date,
-                    created_at = excluded.created_at,
-                    updated_at = excluded.updated_at",
-                params![id, goal_id, title, completed, position, due_date, created_at, updated_at],
-            )
-            .map_err(|e| e.to_string())?;
-        } else {
-            tx.execute(
-                "INSERT INTO goal_milestones (goal_id, title, completed, position, due_date, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![goal_id, title, completed, position, due_date, created_at, updated_at],
-            )
-            .map_err(|e| e.to_string())?;
-        }
-    }
-
     let mut goal_ids_to_sync = HashSet::new();
     for goal in tx
         .prepare("SELECT DISTINCT goal_id FROM goal_milestones")
@@ -3027,7 +3088,10 @@ pub fn import_backup(
         let participants_json = encode_json_string_list(&participants)?;
         let notes = meeting.notes.unwrap_or_default().trim().to_string();
         let decisions = meeting.decisions.unwrap_or_default().trim().to_string();
-        let action_items = normalize_meeting_action_items(meeting.action_items);
+        let action_items = sanitize_meeting_action_item_task_ids(
+            &tx,
+            normalize_meeting_action_items(meeting.action_items),
+        )?;
         let action_items_json = encode_json_action_items(&action_items)?;
         let recurrence = normalize_meeting_recurrence(meeting.recurrence);
         let recurrence_until = normalize_optional_text(meeting.recurrence_until);
@@ -3153,6 +3217,10 @@ pub fn import_backup(
     }
 
     for log in payload.habit_logs {
+        if !habit_exists(&tx, log.habit_id)? {
+            continue;
+        }
+
         let created_at = log.created_at.unwrap_or_else(|| now.clone());
         let date = normalize_habit_date(log.date);
 
@@ -3181,4 +3249,174 @@ pub fn import_backup(
 
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn test_link_connection() -> Connection {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+
+        conn.execute("CREATE TABLE projects (id INTEGER PRIMARY KEY)", [])
+            .expect("projects table");
+        conn.execute("CREATE TABLE goals (id INTEGER PRIMARY KEY)", [])
+            .expect("goals table");
+        conn.execute("CREATE TABLE tasks (id INTEGER PRIMARY KEY)", [])
+            .expect("tasks table");
+        conn.execute("CREATE TABLE habits (id INTEGER PRIMARY KEY)", [])
+            .expect("habits table");
+
+        conn
+    }
+
+    #[test]
+    fn compute_next_due_date_advances_supported_recurrence_patterns() {
+        assert_eq!(
+            compute_next_due_date("2026-04-06", "daily"),
+            Some("2026-04-07".to_string())
+        );
+        assert_eq!(
+            compute_next_due_date("2026-04-10", "weekdays"),
+            Some("2026-04-13".to_string())
+        );
+        assert_eq!(
+            compute_next_due_date("2026-04-06", "weekly"),
+            Some("2026-04-13".to_string())
+        );
+        assert_eq!(compute_next_due_date("2026-04-06", "none"), None);
+    }
+
+    #[test]
+    fn normalize_meeting_range_rejects_invalid_ranges() {
+        let normalized = normalize_meeting_range(
+            " 2026-04-06T10:00:00+02:00 ".to_string(),
+            "2026-04-06T11:30:00+02:00 ".to_string(),
+        )
+        .expect("expected valid range");
+
+        assert_eq!(normalized.0, "2026-04-06T08:00:00+00:00");
+        assert_eq!(normalized.1, "2026-04-06T09:30:00+00:00");
+        assert_eq!(
+            normalize_meeting_range(
+                "2026-04-06T10:00:00Z".to_string(),
+                "2026-04-06T10:00:00Z".to_string()
+            ),
+            Err("Meeting end time must be after start time".to_string())
+        );
+    }
+
+    #[test]
+    fn normalize_meeting_action_items_trims_titles_and_generates_missing_ids() {
+        let items = normalize_meeting_action_items(Some(vec![
+            MeetingActionItem {
+                id: " custom-id ".to_string(),
+                title: " Review PR ".to_string(),
+                completed: false,
+                task_id: None,
+            },
+            MeetingActionItem {
+                id: " ".to_string(),
+                title: " Follow up ".to_string(),
+                completed: true,
+                task_id: Some(9),
+            },
+            MeetingActionItem {
+                id: "skip".to_string(),
+                title: "   ".to_string(),
+                completed: false,
+                task_id: None,
+            },
+        ]));
+
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].id, "custom-id");
+        assert_eq!(items[0].title, "Review PR");
+        assert_eq!(items[1].title, "Follow up");
+        assert!(items[1].id.starts_with("item-"));
+        assert_eq!(items[1].task_id, Some(9));
+    }
+
+    #[test]
+    fn compute_current_streak_counts_today_or_yesterday_runs() {
+        let today = Utc::now().date_naive();
+        let yesterday = today - Duration::days(1);
+        let two_days_ago = today - Duration::days(2);
+        let last_week = today - Duration::days(7);
+
+        let current = vec![
+            today.format("%Y-%m-%d").to_string(),
+            yesterday.format("%Y-%m-%d").to_string(),
+            two_days_ago.format("%Y-%m-%d").to_string(),
+        ];
+        let stale = vec![last_week.format("%Y-%m-%d").to_string()];
+
+        assert_eq!(compute_current_streak(&current), 3);
+        assert_eq!(compute_current_streak(&stale), 0);
+    }
+
+    #[test]
+    fn compute_this_week_count_ignores_dates_outside_current_week() {
+        let today = Utc::now().date_naive();
+        let days_from_monday = i64::from(today.weekday().num_days_from_monday());
+        let week_start = today - Duration::days(days_from_monday);
+        let previous_week_day = week_start - Duration::days(1);
+        let week_mid = week_start + Duration::days(2);
+        let week_end = week_start + Duration::days(6);
+
+        let completed_dates = vec![
+            week_start.format("%Y-%m-%d").to_string(),
+            week_mid.format("%Y-%m-%d").to_string(),
+            week_end.format("%Y-%m-%d").to_string(),
+            previous_week_day.format("%Y-%m-%d").to_string(),
+        ];
+
+        assert_eq!(compute_this_week_count(&completed_dates), 3);
+    }
+
+    #[test]
+    fn sanitize_meeting_action_item_task_ids_clears_missing_links() {
+        let conn = test_link_connection();
+        conn.execute("INSERT INTO tasks (id) VALUES (1)", [])
+            .expect("task row");
+
+        let sanitized = sanitize_meeting_action_item_task_ids(
+            &conn,
+            vec![
+                MeetingActionItem {
+                    id: "a".to_string(),
+                    title: "Keep".to_string(),
+                    completed: false,
+                    task_id: Some(1),
+                },
+                MeetingActionItem {
+                    id: "b".to_string(),
+                    title: "Clear".to_string(),
+                    completed: false,
+                    task_id: Some(999),
+                },
+            ],
+        )
+        .expect("sanitize items");
+
+        assert_eq!(sanitized[0].task_id, Some(1));
+        assert_eq!(sanitized[1].task_id, None);
+    }
+
+    #[test]
+    fn normalize_parent_task_id_returns_none_for_missing_tasks() {
+        let conn = test_link_connection();
+        conn.execute("INSERT INTO tasks (id) VALUES (7)", [])
+            .expect("task row");
+
+        assert_eq!(
+            normalize_parent_task_id(&conn, Some(7)).expect("existing parent"),
+            Some(7)
+        );
+        assert_eq!(
+            normalize_parent_task_id(&conn, Some(99)).expect("missing parent"),
+            None
+        );
+    }
 }

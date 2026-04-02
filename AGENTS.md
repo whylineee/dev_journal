@@ -237,7 +237,7 @@ Frontend also uses:
 
 ## Data Model Snapshot
 
-Current schema migration level: `v12`
+Current schema migration level: `v13`
 
 ### Tables
 - `entries`
@@ -262,6 +262,11 @@ Current schema migration level: `v12`
 - `task_subtasks.task_id -> tasks.id`
 - `goal_milestones.goal_id -> goals.id`
 - `meetings.project_id -> projects.id`
+
+Referential integrity notes:
+- SQLite foreign key enforcement is enabled at connection startup
+- `entries.project_id`, `goals.project_id`, `tasks.project_id`, `tasks.goal_id`, and `tasks.parent_task_id` are normalized during backup import and sanitized by schema migration `v13`
+- backup import skips or nulls invalid cross-entity references instead of restoring broken links
 
 ### Meeting-specific storage
 The `meetings` table also stores:
@@ -420,6 +425,11 @@ npm install
 npm run build
 ```
 
+### Run tests
+```bash
+npm test
+```
+
 ### Run desktop dev app
 ```bash
 npm run tauri:dev
@@ -450,6 +460,7 @@ When adding or changing functionality:
 
 Before finishing work:
 - run `npm run build`
+- run `npm test` when changing business logic, storage helpers, or recurrence/date behavior
 - run `cargo check` when backend Rust code changed
 
 ## UI/UX Direction
