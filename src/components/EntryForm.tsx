@@ -35,6 +35,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import { useAppNotifications } from "../notifications/AppNotifications";
+import { EnergyTag, readEntryEnergyMap, writeEntryEnergyTag } from "../utils/analyticsStorage";
 
 interface EntryFormProps {
     date: string;
@@ -42,10 +43,7 @@ interface EntryFormProps {
     autosaveEnabled: boolean;
 }
 
-type EnergyTag = "focused" | "deep_work" | "tired" | "distracted";
-
 const countWords = (value: string) => value.split(/\s+/).filter((word) => word.length > 0).length;
-const ENERGY_STORAGE_KEY = "devJournal_entry_energy_tags";
 const formatDraftTime = (value: string) => {
     try {
         return format(parseISO(value), "HH:mm");
@@ -111,14 +109,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
 
     useEffect(() => {
         try {
-            const raw = localStorage.getItem(ENERGY_STORAGE_KEY);
-            if (!raw) {
-                setEnergyTag(null);
-                return;
-            }
-
-            const parsed = JSON.parse(raw) as Record<string, EnergyTag>;
-            const next = parsed[date];
+            const next = readEntryEnergyMap()[date];
             if (next === "focused" || next === "deep_work" || next === "tired" || next === "distracted") {
                 setEnergyTag(next);
             } else {
@@ -219,15 +210,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
         setEnergyTag(resolved);
 
         try {
-            const raw = localStorage.getItem(ENERGY_STORAGE_KEY);
-            const parsed = raw ? (JSON.parse(raw) as Record<string, EnergyTag>) : {};
-            if (resolved) {
-                parsed[date] = resolved;
-            } else {
-                delete parsed[date];
-            }
-            localStorage.setItem(ENERGY_STORAGE_KEY, JSON.stringify(parsed));
-            window.dispatchEvent(new CustomEvent("devJournal:energyTagUpdated"));
+            writeEntryEnergyTag(date, resolved);
         } catch {
             // ignore
         }

@@ -11,10 +11,13 @@ import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import DownloadIcon from '@mui/icons-material/Download';
-
-type EnergyTag = "focused" | "deep_work" | "tired" | "distracted";
-const ENERGY_STORAGE_KEY = "devJournal_entry_energy_tags";
-const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
+import {
+    APP_USAGE_UPDATED_EVENT,
+    EnergyTag,
+    ENTRY_ENERGY_UPDATED_EVENT,
+    readAppUsageMap,
+    readEntryEnergyMap,
+} from "../utils/analyticsStorage";
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -39,50 +42,28 @@ export const Stats = () => {
 
     useEffect(() => {
         const loadEnergyMap = () => {
-            try {
-                const raw = localStorage.getItem(ENERGY_STORAGE_KEY);
-                if (!raw) {
-                    setEnergyMap({});
-                    return;
-                }
-
-                const parsed = JSON.parse(raw) as Record<string, EnergyTag>;
-                setEnergyMap(parsed);
-            } catch {
-                setEnergyMap({});
-            }
+            setEnergyMap(readEntryEnergyMap());
         };
 
         loadEnergyMap();
-        window.addEventListener("devJournal:energyTagUpdated", loadEnergyMap);
+        window.addEventListener(ENTRY_ENERGY_UPDATED_EVENT, loadEnergyMap);
         window.addEventListener("storage", loadEnergyMap);
         return () => {
-            window.removeEventListener("devJournal:energyTagUpdated", loadEnergyMap);
+            window.removeEventListener(ENTRY_ENERGY_UPDATED_EVENT, loadEnergyMap);
             window.removeEventListener("storage", loadEnergyMap);
         };
     }, []);
 
     useEffect(() => {
         const loadUsageMap = () => {
-            try {
-                const raw = localStorage.getItem(APP_USAGE_STORAGE_KEY);
-                if (!raw) {
-                    setUsageMap({});
-                    return;
-                }
-
-                const parsed = JSON.parse(raw) as Record<string, number>;
-                setUsageMap(parsed && typeof parsed === "object" ? parsed : {});
-            } catch {
-                setUsageMap({});
-            }
+            setUsageMap(readAppUsageMap());
         };
 
         loadUsageMap();
-        window.addEventListener("devJournal:usageUpdated", loadUsageMap);
+        window.addEventListener(APP_USAGE_UPDATED_EVENT, loadUsageMap);
         window.addEventListener("storage", loadUsageMap);
         return () => {
-            window.removeEventListener("devJournal:usageUpdated", loadUsageMap);
+            window.removeEventListener(APP_USAGE_UPDATED_EVENT, loadUsageMap);
             window.removeEventListener("storage", loadUsageMap);
         };
     }, []);

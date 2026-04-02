@@ -28,8 +28,8 @@ import { CommandPalette } from "./components/CommandPalette";
 import { InsightsBoard } from "./components/InsightsBoard";
 import { FocusBoard } from "./components/FocusBoard";
 import { SettingsScreen } from "./components/SettingsScreen";
+import { readAppUsageMap, writeAppUsageMap } from "./utils/analyticsStorage";
 
-const APP_USAGE_STORAGE_KEY = "devJournal_app_usage_seconds";
 const MEETING_REMINDER_STORAGE_KEY = "devJournal_meeting_reminders_sent";
 
 function App() {
@@ -250,23 +250,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const readUsageMap = (): Record<string, number> => {
-      try {
-        const raw = localStorage.getItem(APP_USAGE_STORAGE_KEY);
-        if (!raw) {
-          return {};
-        }
-
-        const parsed = JSON.parse(raw) as Record<string, number>;
-        return parsed && typeof parsed === "object" ? parsed : {};
-      } catch {
-        return {};
-      }
-    };
-
     const persistUsage = (map: Record<string, number>) => {
-      localStorage.setItem(APP_USAGE_STORAGE_KEY, JSON.stringify(map));
-      window.dispatchEvent(new CustomEvent("devJournal:usageUpdated"));
+      writeAppUsageMap(map);
     };
 
     const addUsageMs = (elapsedMs: number) => {
@@ -275,7 +260,7 @@ function App() {
       }
 
       const elapsedSeconds = Math.max(1, Math.round(elapsedMs / 1000));
-      const usageMap = readUsageMap();
+      const usageMap = readAppUsageMap();
       const today = format(new Date(), "yyyy-MM-dd");
       usageMap[today] = (usageMap[today] ?? 0) + elapsedSeconds;
       persistUsage(usageMap);
