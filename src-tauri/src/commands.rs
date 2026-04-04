@@ -2673,6 +2673,14 @@ pub fn import_backup(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let mut conn = state.db.lock().map_err(|e| e.to_string())?;
+    import_backup_into_conn(&mut conn, payload, replace_existing)
+}
+
+fn import_backup_into_conn(
+    conn: &mut Connection,
+    payload: BackupPayload,
+    replace_existing: bool,
+) -> Result<(), String> {
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
     if replace_existing {
@@ -3255,6 +3263,7 @@ pub fn import_backup(
 mod tests {
     use super::*;
     use rusqlite::Connection;
+    use std::fs;
 
     fn test_link_connection() -> Connection {
         let conn = Connection::open_in_memory().expect("in-memory db");
@@ -3268,6 +3277,16 @@ mod tests {
         conn.execute("CREATE TABLE habits (id INTEGER PRIMARY KEY)", [])
             .expect("habits table");
 
+        conn
+    }
+
+    fn command_test_connection() -> Connection {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "dev-journal-commands-test-{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ));
+        let conn = crate::db::init(temp_dir.clone()).expect("db init");
+        fs::remove_dir_all(temp_dir).ok();
         conn
     }
 
@@ -3418,5 +3437,237 @@ mod tests {
             normalize_parent_task_id(&conn, Some(99)).expect("missing parent"),
             None
         );
+    }
+
+    #[test]
+    fn materialize_recurring_successor_creates_single_next_task() {
+        let conn = command_test_connection();
+        conn.execute(
+            "INSERT INTO tasks (
+                id, title, description, status, priority, due_date, recurrence, recurrence_until,
+                parent_task_id, completed_at, time_estimate_minutes, timer_started_at,
+                timer_accumulated_seconds, created_at, updated_at
+             ) VALUES (
+                1, 'Write release notes', '', 'done', 'high', '2026-04-07', 'weekly', '2026-04-30',
+                NULL, '2026-04-07T09:00:00Z', 30, NULL, 0, '2026-04-01T09:00:00Z', '2026-04-07T09:00:00Z'
+             )",
+            [],
+        )
+        .expect("seed recurring task");
+
+        materialize_recurring_successor(&conn, 1).expect("materialize successor");
+        materialize_recurring_successor(&conn, 1).expect("do not duplicate successor");
+
+        let child_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE parent_task_id = 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("child count");
+        assert_eq!(child_count, 1);
+
+        let child_due_date: String = conn
+            .query_row(
+                "SELECT due_date FROM tasks WHERE parent_task_id = 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("child due date");
+        assert_eq!(child_due_date, "2026-04-14");
+    }
+
+    #[test]
+    fn sync_goal_progress_from_milestones_updates_progress_and_status() {
+        let conn = command_test_connection();
+        conn.execute(
+            "INSERT INTO goals (id, title, description, status, progress, created_at, updated_at)
+             VALUES (1, 'Ship planner', '', 'active', 0, '2026-04-01T09:00:00Z', '2026-04-01T09:00:00Z')",
+            [],
+        )
+        .expect("seed goal");
+        conn.execute(
+            "INSERT INTO goal_milestones (goal_id, title, completed, position, created_at, updated_at)
+             VALUES
+             (1, 'Design', 1, 0, '2026-04-01T09:00:00Z', '2026-04-01T09:00:00Z'),
+             (1, 'Implement', 1, 1, '2026-04-01T09:00:00Z', '2026-04-01T09:00:00Z')",
+            [],
+        )
+        .expect("seed milestones");
+
+        sync_goal_progress_from_milestones(&conn, 1).expect("sync goal");
+
+        let (progress, status): (i64, String) = conn
+            .query_row(
+                "SELECT progress, status FROM goals WHERE id = 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("goal state");
+        assert_eq!(progress, 100);
+        assert_eq!(status, "completed");
+    }
+
+    #[test]
+    fn import_backup_replaces_existing_data_and_sanitizes_links() {
+        let mut conn = command_test_connection();
+        conn.execute(
+            "INSERT INTO projects (id, name, description, color, status, created_at, updated_at)
+             VALUES (999, 'Old', '', '#000000', 'active', '2026-04-01T09:00:00Z', '2026-04-01T09:00:00Z')",
+            [],
+        )
+        .expect("seed old project");
+
+        import_backup_into_conn(
+            &mut conn,
+            BackupPayload {
+                projects: vec![BackupProjectInput {
+                    id: Some(1),
+                    name: "Platform".to_string(),
+                    description: Some("Core workspace".to_string()),
+                    color: Some("#60a5fa".to_string()),
+                    status: Some("active".to_string()),
+                    created_at: Some("2026-04-01T09:00:00Z".to_string()),
+                    updated_at: Some("2026-04-01T09:00:00Z".to_string()),
+                }],
+                project_branches: vec![BackupProjectBranchInput {
+                    id: Some(1),
+                    project_id: 1,
+                    name: "main".to_string(),
+                    description: Some("Primary branch".to_string()),
+                    status: Some("open".to_string()),
+                    created_at: Some("2026-04-01T09:00:00Z".to_string()),
+                    updated_at: Some("2026-04-01T09:00:00Z".to_string()),
+                }],
+                goals: vec![BackupGoalInput {
+                    id: Some(1),
+                    title: "Ship analytics".to_string(),
+                    description: Some("Milestone-driven".to_string()),
+                    status: Some("active".to_string()),
+                    progress: Some(0),
+                    project_id: Some(1),
+                    target_date: Some("2026-04-30".to_string()),
+                    created_at: Some("2026-04-01T09:00:00Z".to_string()),
+                    updated_at: Some("2026-04-01T09:00:00Z".to_string()),
+                }],
+                goal_milestones: vec![
+                    BackupGoalMilestoneInput {
+                        id: Some(1),
+                        goal_id: 1,
+                        title: "Design".to_string(),
+                        completed: Some(true),
+                        position: Some(0),
+                        due_date: Some("2026-04-10".to_string()),
+                        created_at: Some("2026-04-01T09:00:00Z".to_string()),
+                        updated_at: Some("2026-04-01T09:00:00Z".to_string()),
+                    },
+                    BackupGoalMilestoneInput {
+                        id: Some(2),
+                        goal_id: 1,
+                        title: "Build".to_string(),
+                        completed: Some(false),
+                        position: Some(1),
+                        due_date: Some("2026-04-20".to_string()),
+                        created_at: Some("2026-04-01T09:00:00Z".to_string()),
+                        updated_at: Some("2026-04-01T09:00:00Z".to_string()),
+                    },
+                ],
+                tasks: vec![BackupTaskInput {
+                    id: Some(1),
+                    title: "Review dashboard".to_string(),
+                    description: "".to_string(),
+                    status: "todo".to_string(),
+                    priority: Some("high".to_string()),
+                    project_id: Some(9999),
+                    goal_id: Some(1),
+                    due_date: Some("2026-04-08".to_string()),
+                    recurrence: Some("none".to_string()),
+                    recurrence_until: None,
+                    parent_task_id: None,
+                    completed_at: None,
+                    time_estimate_minutes: Some(45),
+                    timer_started_at: None,
+                    timer_accumulated_seconds: Some(0),
+                    created_at: Some("2026-04-01T09:00:00Z".to_string()),
+                    updated_at: Some("2026-04-01T09:00:00Z".to_string()),
+                }],
+                meetings: vec![BackupMeetingInput {
+                    id: Some(1),
+                    title: "Weekly sync".to_string(),
+                    agenda: Some("Check progress".to_string()),
+                    start_at: "2026-04-09T10:00:00Z".to_string(),
+                    end_at: "2026-04-09T11:00:00Z".to_string(),
+                    meet_url: None,
+                    calendar_event_url: None,
+                    project_id: Some(1),
+                    participants: Some(vec!["dev@example.com".to_string()]),
+                    notes: Some(String::new()),
+                    decisions: Some(String::new()),
+                    action_items: Some(vec![MeetingActionItem {
+                        id: "m1".to_string(),
+                        title: "Follow up".to_string(),
+                        completed: false,
+                        task_id: Some(404),
+                    }]),
+                    recurrence: Some("none".to_string()),
+                    recurrence_until: None,
+                    reminder_minutes: Some(15),
+                    status: Some("planned".to_string()),
+                    created_at: Some("2026-04-01T09:00:00Z".to_string()),
+                    updated_at: Some("2026-04-01T09:00:00Z".to_string()),
+                }],
+                entries: vec![BackupEntryInput {
+                    date: "2026-04-04".to_string(),
+                    yesterday: "Code review".to_string(),
+                    today: "Ship tests".to_string(),
+                    project_id: Some(1),
+                    created_at: Some("2026-04-04T09:00:00Z".to_string()),
+                }],
+                ..BackupPayload::default()
+            },
+            true,
+        )
+        .expect("import backup");
+
+        let project_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM projects", [], |row| row.get(0))
+            .expect("project count");
+        assert_eq!(project_count, 1);
+
+        let task_project_and_goal: (Option<i64>, Option<i64>) = conn
+            .query_row(
+                "SELECT project_id, goal_id FROM tasks WHERE id = 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("task links");
+        assert_eq!(task_project_and_goal.0, None);
+        assert_eq!(task_project_and_goal.1, Some(1));
+
+        let meeting_action_items_json: String = conn
+            .query_row(
+                "SELECT action_items_json FROM meetings WHERE id = 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("meeting action items");
+        let imported_action_items =
+            decode_json_action_items(meeting_action_items_json).expect("decode action items");
+        assert_eq!(imported_action_items.len(), 1);
+        assert_eq!(imported_action_items[0].task_id, None);
+
+        let goal_progress: i64 = conn
+            .query_row("SELECT progress FROM goals WHERE id = 1", [], |row| row.get(0))
+            .expect("goal progress");
+        assert_eq!(goal_progress, 50);
+
+        let imported_entry_project_id: Option<i64> = conn
+            .query_row(
+                "SELECT project_id FROM entries WHERE date = '2026-04-04'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("entry project");
+        assert_eq!(imported_entry_project_id, Some(1));
     }
 }
