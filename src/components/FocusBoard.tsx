@@ -14,7 +14,6 @@ import { useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
 import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 import { sendNotification } from "@tauri-apps/plugin-notification";
-import { invoke } from "@tauri-apps/api/core";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
 import RestartAltRoundedIcon from "@mui/icons-material/RestartAltRounded";
@@ -24,6 +23,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import BarChartRoundedIcon from "@mui/icons-material/BarChartRounded";
 import { readFocusSessionsMap, writeFocusSessionsMap } from "../utils/focusSessionStorage";
+import { useTrayTimer } from "../hooks/useTrayTimer";
 
 const FOCUS_DURATION_PRESETS = [
   { label: "25m", minutes: 25 },
@@ -44,6 +44,7 @@ export const FocusBoard = () => {
   const { notify } = useAppNotifications();
   const { data: tasks = [] } = useTasks();
   const updateTaskStatus = useUpdateTaskStatus();
+  const updateTrayTimer = useTrayTimer();
 
   const today = format(new Date(), "yyyy-MM-dd");
 
@@ -108,10 +109,6 @@ export const FocusBoard = () => {
     const s = Math.floor(seconds % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
-
-  const updateTrayTimer = useCallback((text: string | null) => {
-    invoke("set_tray_timer", { text }).catch(() => {});
-  }, []);
 
   useEffect(() => {
     focusSecondsLeftRef.current = focusSecondsLeft;

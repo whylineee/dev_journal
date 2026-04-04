@@ -44,9 +44,12 @@ import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Meeting, MeetingRecurrence, MeetingStatus } from "../types";
-
-const DAILY_WINS_STORAGE_KEY = "devJournal_daily_wins";
-const PLANNER_COLLAPSE_STORAGE_KEY = "devJournal_planner_collapsed_sections";
+import {
+  PLANNER_COLLAPSE_STORAGE_KEY,
+  PLANNER_DAILY_WINS_STORAGE_KEY,
+  PREFERENCES_APPLIED_EVENT,
+  readPlannerPreferences,
+} from "../utils/preferencesStorage";
 
 const toLocalDatetimeInputValue = (value: Date) => {
   const year = value.getFullYear();
@@ -175,29 +178,16 @@ export const PlannerBoard = ({
     readFocusSessionsMap()
   );
   const [dailyWinsInput, setDailyWinsInput] = useState("");
-  const [dailyWinsMap, setDailyWinsMap] = useState<Record<string, string[]>>(() => {
-    try {
-      const raw = localStorage.getItem(DAILY_WINS_STORAGE_KEY);
-      if (!raw) {
-        return {};
-      }
-      const parsed = JSON.parse(raw) as Record<string, string[]>;
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
-  const [collapsedSections, setCollapsedSections] = useState<Partial<Record<PlannerSectionKey, boolean>>>(() => {
-    try {
-      const raw = localStorage.getItem(PLANNER_COLLAPSE_STORAGE_KEY);
-      if (!raw) {
-        return { meetings: true, tomorrowPlan: true, dailyWins: true };
-      }
-      const parsed = JSON.parse(raw) as Partial<Record<PlannerSectionKey, boolean>>;
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
+  const [dailyWinsMap, setDailyWinsMap] = useState<Record<string, string[]>>(
+    () => readPlannerPreferences().dailyWins
+  );
+  const [collapsedSections, setCollapsedSections] = useState<
+    Partial<Record<PlannerSectionKey, boolean>>
+  >(() => {
+    const stored = readPlannerPreferences().collapsedSections;
+    return Object.keys(stored).length > 0
+      ? stored
+      : { meetings: true, tomorrowPlan: true, dailyWins: true };
   });
 
   const overdueTasks = useMemo(
@@ -216,6 +206,22 @@ export const PlannerBoard = ({
       window.removeEventListener(FOCUS_SESSIONS_UPDATED_EVENT, syncFocusSessions);
       window.removeEventListener("storage", syncFocusSessions);
     };
+  }, []);
+
+  useEffect(() => {
+    const syncPlannerPreferences = () => {
+      const preferences = readPlannerPreferences();
+      setDailyWinsMap(preferences.dailyWins);
+      setCollapsedSections((previous) => {
+        if (Object.keys(preferences.collapsedSections).length > 0) {
+          return preferences.collapsedSections;
+        }
+        return previous;
+      });
+    };
+
+    window.addEventListener(PREFERENCES_APPLIED_EVENT, syncPlannerPreferences);
+    return () => window.removeEventListener(PREFERENCES_APPLIED_EVENT, syncPlannerPreferences);
   }, []);
 
   const dueTodayTasks = useMemo(
@@ -627,7 +633,7 @@ export const PlannerBoard = ({
 
   const persistDailyWins = (nextMap: Record<string, string[]>) => {
     setDailyWinsMap(nextMap);
-    localStorage.setItem(DAILY_WINS_STORAGE_KEY, JSON.stringify(nextMap));
+    localStorage.setItem(PLANNER_DAILY_WINS_STORAGE_KEY, JSON.stringify(nextMap));
   };
 
   const handleAddDailyWin = () => {

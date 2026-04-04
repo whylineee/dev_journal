@@ -69,6 +69,11 @@ import {
 } from "../utils/taskUtils";
 import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
+import {
+  PREFERENCES_APPLIED_EVENT,
+  TASKS_FILTER_EVENT,
+  TASKS_OVERDUE_ONLY_STORAGE_KEY,
+} from "../utils/preferencesStorage";
 
 const columns: Array<{ status: TaskStatus; color: "default" | "warning" | "info" | "success" }> = [
   { status: "todo", color: "default" },
@@ -278,7 +283,9 @@ export const TasksBoard = () => {
   const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus>("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | TaskPriority>("all");
   const [projectFilter, setProjectFilter] = useState<"all" | number>("all");
-  const [showOverdueOnly, setShowOverdueOnly] = useState(() => localStorage.getItem("devJournal_tasks_overdue_only") === "true");
+  const [showOverdueOnly, setShowOverdueOnly] = useState(
+    () => localStorage.getItem(TASKS_OVERDUE_ONLY_STORAGE_KEY) === "true"
+  );
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [isTaskDetailsOpen, setTaskDetailsOpen] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
@@ -336,7 +343,7 @@ export const TasksBoard = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("devJournal_tasks_overdue_only", String(showOverdueOnly));
+    localStorage.setItem(TASKS_OVERDUE_ONLY_STORAGE_KEY, String(showOverdueOnly));
   }, [showOverdueOnly]);
 
   useEffect(() => {
@@ -351,8 +358,16 @@ export const TasksBoard = () => {
       setShowOverdueOnly(Boolean(customEvent.detail?.overdueOnly));
     };
 
-    window.addEventListener("devJournal:tasksFilter", handler);
-    return () => window.removeEventListener("devJournal:tasksFilter", handler);
+    const syncFromPreferences = () => {
+      setShowOverdueOnly(localStorage.getItem(TASKS_OVERDUE_ONLY_STORAGE_KEY) === "true");
+    };
+
+    window.addEventListener(TASKS_FILTER_EVENT, handler);
+    window.addEventListener(PREFERENCES_APPLIED_EVENT, syncFromPreferences);
+    return () => {
+      window.removeEventListener(TASKS_FILTER_EVENT, handler);
+      window.removeEventListener(PREFERENCES_APPLIED_EVENT, syncFromPreferences);
+    };
   }, []);
 
   useEffect(() => {

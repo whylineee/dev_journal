@@ -2,9 +2,7 @@ import React, {
   ReactNode,
   createContext,
   useContext,
-  useEffect,
   useMemo,
-  useState,
 } from "react";
 import {
   Theme,
@@ -16,8 +14,12 @@ import {
   DEFAULT_THEME_PRESET,
   ThemePresetId,
   getThemePreset,
-  isThemePresetId,
 } from "./presets";
+import { usePersistentState } from "../hooks/usePersistentState";
+import {
+  readThemePreferences,
+  THEME_STORAGE_KEYS,
+} from "../utils/preferencesStorage";
 
 export type AppearanceMode = "dark" | "light";
 export type FontPreset = "inter" | "roboto" | "mono";
@@ -44,14 +46,6 @@ const defaultUiDensity: UiDensity = "comfortable";
 const defaultBorderRadius = 16;
 const minBorderRadius = 6;
 const maxBorderRadius = 18;
-
-const STORAGE_KEYS = {
-  themePreset: "devJournal_themePreset",
-  appearanceMode: "devJournal_appearanceMode",
-  fontPreset: "devJournal_fontPreset",
-  uiDensity: "devJournal_uiDensity",
-  borderRadius: "devJournal_borderRadius",
-} as const;
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
@@ -546,54 +540,36 @@ const buildMuiTheme = ({
 };
 
 export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ children }) => {
-  const [themePreset, setThemePreset] = useState<ThemePresetId>(() => {
-    const value = localStorage.getItem(STORAGE_KEYS.themePreset);
-    return isThemePresetId(value) ? value : DEFAULT_THEME_PRESET;
+  const [themePreset, setThemePreset] = usePersistentState<ThemePresetId>({
+    storageKey: THEME_STORAGE_KEYS.themePreset,
+    parse: () => readThemePreferences(resolveSystemAppearanceMode, clampBorderRadius).themePreset,
+    serialize: (value) => value,
   });
-  const [appearanceMode, setAppearanceMode] = useState<AppearanceMode>(() => {
-    const mode = localStorage.getItem(STORAGE_KEYS.appearanceMode);
-    return mode === "dark" || mode === "light" ? mode : resolveSystemAppearanceMode();
+  const [appearanceMode, setAppearanceMode] = usePersistentState<AppearanceMode>({
+    storageKey: THEME_STORAGE_KEYS.appearanceMode,
+    parse: () =>
+      readThemePreferences(resolveSystemAppearanceMode, clampBorderRadius).appearanceMode,
+    serialize: (value) => value,
   });
-  const [fontPreset, setFontPreset] = useState<FontPreset>(() => {
-    const preset = localStorage.getItem(STORAGE_KEYS.fontPreset);
-    if (preset === "roboto" || preset === "mono" || preset === "inter") {
-      return preset;
-    }
-    return defaultFontPreset;
+  const [fontPreset, setFontPreset] = usePersistentState<FontPreset>({
+    storageKey: THEME_STORAGE_KEYS.fontPreset,
+    parse: () => readThemePreferences(resolveSystemAppearanceMode, clampBorderRadius).fontPreset,
+    serialize: (value) => value,
   });
-  const [uiDensity, setUiDensity] = useState<UiDensity>(() => {
-    const density = localStorage.getItem(STORAGE_KEYS.uiDensity);
-    return density === "compact" ? "compact" : defaultUiDensity;
+  const [uiDensity, setUiDensity] = usePersistentState<UiDensity>({
+    storageKey: THEME_STORAGE_KEYS.uiDensity,
+    parse: () => readThemePreferences(resolveSystemAppearanceMode, clampBorderRadius).uiDensity,
+    serialize: (value) => value,
   });
-  const [borderRadius, setBorderRadius] = useState<number>(() => {
-    const value = Number(localStorage.getItem(STORAGE_KEYS.borderRadius));
-    return clampBorderRadius(value);
+  const [borderRadius, setBorderRadius] = usePersistentState<number>({
+    storageKey: THEME_STORAGE_KEYS.borderRadius,
+    parse: () => readThemePreferences(resolveSystemAppearanceMode, clampBorderRadius).borderRadius,
+    serialize: (value) => String(clampBorderRadius(value)),
   });
 
   const handleSetBorderRadius = (value: number) => {
     setBorderRadius(clampBorderRadius(value));
   };
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.themePreset, themePreset);
-  }, [themePreset]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.appearanceMode, appearanceMode);
-  }, [appearanceMode]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.fontPreset, fontPreset);
-  }, [fontPreset]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.uiDensity, uiDensity);
-  }, [uiDensity]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.borderRadius, String(borderRadius));
-  }, [borderRadius]);
-
   const resetTheme = () => {
     setThemePreset(DEFAULT_THEME_PRESET);
     setAppearanceMode(resolveSystemAppearanceMode());
