@@ -237,7 +237,7 @@ Frontend also uses:
 
 ## Data Model Snapshot
 
-Current schema migration level: `v13`
+Current schema migration level: `v14`
 
 ### Tables
 - `entries`
@@ -266,6 +266,7 @@ Current schema migration level: `v13`
 Referential integrity notes:
 - SQLite foreign key enforcement is enabled at connection startup
 - `entries.project_id`, `goals.project_id`, `tasks.project_id`, `tasks.goal_id`, and `tasks.parent_task_id` are normalized during backup import and sanitized by schema migration `v13`
+- child-table foreign keys for `goal_milestones -> goals` and `task_subtasks -> tasks` are rebuilt by schema migration `v14`
 - backup import skips or nulls invalid cross-entity references instead of restoring broken links
 
 ### Meeting-specific storage
@@ -410,6 +411,7 @@ Export currently includes:
 - meetings
 - habits
 - habit logs
+- local UI/preferences snapshot (theme, app shell toggles, planner/task view preferences, reminder state)
 
 If schema changes, backup import/export must be reviewed as part of the same change.
 

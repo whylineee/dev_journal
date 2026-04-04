@@ -614,6 +614,92 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         Ok(())
     })?;
 
+    // v14: rebuild child tables whose foreign keys still targeted pre-v13 renamed parents.
+    apply_migration(conn, 14, |conn| {
+        conn.execute_batch("PRAGMA foreign_keys = OFF;")?;
+
+        conn.execute(
+            "ALTER TABLE task_subtasks RENAME TO task_subtasks_old_v14",
+            [],
+        )?;
+        conn.execute(
+            "CREATE TABLE task_subtasks (
+                id INTEGER PRIMARY KEY,
+                task_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                position INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO task_subtasks (id, task_id, title, completed, position, created_at, updated_at)
+             SELECT
+                id,
+                task_id,
+                title,
+                completed,
+                position,
+                created_at,
+                updated_at
+             FROM task_subtasks_old_v14
+             WHERE EXISTS (SELECT 1 FROM tasks WHERE tasks.id = task_subtasks_old_v14.task_id)",
+            [],
+        )?;
+        conn.execute("DROP TABLE task_subtasks_old_v14", [])?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_task_subtasks_task_position ON task_subtasks(task_id, position, id)",
+            [],
+        )?;
+
+        conn.execute(
+            "ALTER TABLE goal_milestones RENAME TO goal_milestones_old_v14",
+            [],
+        )?;
+        conn.execute(
+            "CREATE TABLE goal_milestones (
+                id INTEGER PRIMARY KEY,
+                goal_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                position INTEGER NOT NULL DEFAULT 0,
+                due_date TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(goal_id) REFERENCES goals(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO goal_milestones (id, goal_id, title, completed, position, due_date, created_at, updated_at)
+             SELECT
+                id,
+                goal_id,
+                title,
+                completed,
+                position,
+                due_date,
+                created_at,
+                updated_at
+             FROM goal_milestones_old_v14
+             WHERE EXISTS (SELECT 1 FROM goals WHERE goals.id = goal_milestones_old_v14.goal_id)",
+            [],
+        )?;
+        conn.execute("DROP TABLE goal_milestones_old_v14", [])?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_goal_milestones_goal_position
+             ON goal_milestones(goal_id, position, id)",
+            [],
+        )?;
+
+        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+
+        Ok(())
+    })?;
+
     Ok(())
 }
 
@@ -690,6 +776,24 @@ mod tests {
             )
             .expect("task goal fk");
         assert_eq!(task_goal_fk_count, 1);
+
+        let goal_milestone_fk_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_foreign_key_list('goal_milestones') WHERE \"from\" = 'goal_id' AND \"table\" = 'goals'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("goal milestone fk");
+        assert_eq!(goal_milestone_fk_count, 1);
+
+        let task_subtask_fk_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_foreign_key_list('task_subtasks') WHERE \"from\" = 'task_id' AND \"table\" = 'tasks'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("task subtask fk");
+        assert_eq!(task_subtask_fk_count, 1);
     }
 
     #[test]

@@ -32,6 +32,7 @@ This document describes how the project is structured and where to add new code.
 
 - `src/utils/`
   - Cross-component pure helpers (`taskUtils`, `goalUtils`, `pageEditorUtils`).
+  - Local UI persistence helpers live here as well (`preferencesStorage`, analytics/focus storage helpers).
   - Prefer moving parsing/formatting/sorting logic here instead of duplicating in components.
 
 - `src/types/`
@@ -58,6 +59,7 @@ This document describes how the project is structured and where to add new code.
 
 - Add new features by domain: `type -> hook -> component -> command -> migration`.
 - Keep UI-only formatting logic in `src/utils`.
+- Keep `localStorage` access centralized behind shared helpers/hooks instead of scattering raw keys across components.
 - Keep persistence rules in Rust, not in React.
 - Run `npm test` when changing pure business logic, storage parsing, or editor serialization flows.
 - Run `npm run build` and `cargo check` before commit.
