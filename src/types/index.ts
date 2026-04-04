@@ -143,6 +143,31 @@ export interface HabitWithLogs extends Habit {
 }
 
 export interface BackupPayload {
+    preferences?: {
+        appShell?: {
+            reminderEnabled?: boolean;
+            reminderHour?: number;
+            journalPreviewEnabled?: boolean;
+            pagePreviewEnabled?: boolean;
+            autosaveEnabled?: boolean;
+            lastReminderDate?: string | null;
+            meetingReminderMap?: Record<string, string>;
+        };
+        theme?: {
+            themePreset?: "monochrome" | "ocean" | "forest" | "sunset" | "midnight" | "cherry";
+            appearanceMode?: "dark" | "light";
+            fontPreset?: "inter" | "roboto" | "mono";
+            uiDensity?: "comfortable" | "compact";
+            borderRadius?: number;
+        };
+        planner?: {
+            dailyWins?: Record<string, string[]>;
+            collapsedSections?: Record<string, boolean>;
+        };
+        tasks?: {
+            showOverdueOnly?: boolean;
+        };
+    };
     entries?: Array<{
         date: string;
         yesterday: string;

@@ -36,6 +36,10 @@ import { useProjects } from "../hooks/useProjects";
 import { useProjectBranches } from "../hooks/useProjectBranches";
 import { useMeetings } from "../hooks/useMeetings";
 import { BackupPayload } from "../types";
+import {
+  applyPreferenceSnapshot,
+  exportPreferenceSnapshot,
+} from "../utils/preferencesStorage";
 
 interface SettingsScreenProps {
   reminderEnabled: boolean;
@@ -106,10 +110,10 @@ const SettingsOptionTile = ({
             : isDark
               ? "rgba(255,255,255,0.03)"
               : "rgba(0,0,0,0.02)",
-          transition: "transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease",
+          transition: "border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease",
           "&:hover": {
-            transform: "translateY(-1px)",
             borderColor: accent ?? "primary.main",
+            boxShadow: theme.shadows[1],
           },
         }}
       >
@@ -267,6 +271,10 @@ export const SettingsScreen = ({
           date,
         }))
       ),
+      preferences: exportPreferenceSnapshot(
+        () => appearanceMode,
+        (value) => Math.min(18, Math.max(6, Math.round(value)))
+      ),
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -296,6 +304,9 @@ export const SettingsScreen = ({
         { payload: parsed, replaceExisting: replaceExistingOnImport },
         {
           onSuccess: () => {
+            if (parsed.preferences) {
+              applyPreferenceSnapshot(parsed.preferences);
+            }
             setImportStatus(t("Backup imported successfully."));
           },
           onError: () => {
