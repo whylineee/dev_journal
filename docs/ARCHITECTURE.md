@@ -48,9 +48,20 @@ This document describes how the project is structured and where to add new code.
   - Data models serialized to/from frontend.
 
 - `src-tauri/src/commands.rs`
-  - Tauri command handlers.
-  - Validation/normalization logic lives near command handlers.
+  - Tauri command re-exports and shared backend glue.
   - Keep command names stable for frontend compatibility.
+
+- `src-tauri/src/commands/validation.rs`
+  - Shared validation and normalization rules used across backend domains.
+
+- `src-tauri/src/commands/tasks.rs`
+  - Task commands, timer flows, and recurring task materialization.
+
+- `src-tauri/src/commands/meetings.rs`
+  - Meeting commands and meeting action-item to task materialization.
+
+- `src-tauri/src/commands/backup.rs`
+  - Backup import orchestration and restore-time reference sanitization.
 
 - `src-tauri/src/lib.rs`
   - Command registration and Tauri app bootstrap.

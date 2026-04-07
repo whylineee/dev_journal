@@ -218,10 +218,15 @@ Rule:
 
 ### Commands
 - `src-tauri/src/commands.rs`
-  - CRUD handlers
-  - normalization helpers
-  - backup import
-  - domain-specific workflows like meeting action item materialization
+  - re-exports Tauri command handlers and shared backend helpers
+- `src-tauri/src/commands/validation.rs`
+  - normalization and validation helpers shared across domains
+- `src-tauri/src/commands/tasks.rs`
+  - task CRUD, recurrence materialization, and subtask handlers
+- `src-tauri/src/commands/meetings.rs`
+  - meeting CRUD and meeting action-item materialization
+- `src-tauri/src/commands/backup.rs`
+  - backup import flow and cross-entity restore sanitization
 
 ### Tray
 - `src-tauri/src/tray.rs`
@@ -401,7 +406,7 @@ Layout conventions:
 
 ## Backup / Import / Export
 
-Managed in `src/components/SettingsScreen.tsx` and `src-tauri/src/commands.rs`.
+Managed in `src/components/SettingsScreen.tsx` and `src-tauri/src/commands/backup.rs`.
 
 Export currently includes:
 - entries
