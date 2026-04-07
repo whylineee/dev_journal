@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
-import { Meeting, MeetingActionItem, MeetingRecurrence, MeetingStatus, Task } from "../types";
+import * as api from "../api";
+import type { MeetingActionItem, MeetingRecurrence, MeetingStatus } from "../types";
 
 const MEETINGS_QUERY_KEY = ["meetings"] as const;
 
@@ -16,9 +16,7 @@ const useInvalidateMeetings = () => {
 export const useMeetings = () => {
   return useQuery({
     queryKey: MEETINGS_QUERY_KEY,
-    queryFn: async () => {
-      return await invoke<Meeting[]>("get_meetings");
-    },
+    queryFn: api.getMeetings,
   });
 };
 
@@ -26,7 +24,7 @@ export const useCreateMeeting = () => {
   const invalidateMeetings = useInvalidateMeetings();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       title,
       agenda,
       start_at,
@@ -58,8 +56,8 @@ export const useCreateMeeting = () => {
       recurrence_until: string | null;
       reminder_minutes: number;
       status: MeetingStatus;
-    }) => {
-      return await invoke<Meeting>("create_meeting", {
+    }) =>
+      api.createMeeting({
         title,
         agenda,
         startAt: start_at,
@@ -75,8 +73,7 @@ export const useCreateMeeting = () => {
         recurrenceUntil: recurrence_until,
         reminderMinutes: reminder_minutes,
         status,
-      });
-    },
+      }),
     onSuccess: invalidateMeetings,
   });
 };
@@ -85,7 +82,7 @@ export const useUpdateMeeting = () => {
   const invalidateMeetings = useInvalidateMeetings();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       id,
       title,
       agenda,
@@ -119,8 +116,8 @@ export const useUpdateMeeting = () => {
       recurrence_until: string | null;
       reminder_minutes: number;
       status: MeetingStatus;
-    }) => {
-      await invoke("update_meeting", {
+    }) =>
+      api.updateMeeting({
         id,
         title,
         agenda,
@@ -137,8 +134,7 @@ export const useUpdateMeeting = () => {
         recurrenceUntil: recurrence_until,
         reminderMinutes: reminder_minutes,
         status,
-      });
-    },
+      }),
     onSuccess: invalidateMeetings,
   });
 };
@@ -147,9 +143,7 @@ export const useDeleteMeeting = () => {
   const invalidateMeetings = useInvalidateMeetings();
 
   return useMutation({
-    mutationFn: async (id: number) => {
-      await invoke("delete_meeting", { id });
-    },
+    mutationFn: api.deleteMeeting,
     onSuccess: invalidateMeetings,
   });
 };
@@ -158,18 +152,13 @@ export const useMaterializeMeetingActionItems = () => {
   const invalidateMeetings = useInvalidateMeetings();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       meeting_id,
       due_date,
     }: {
       meeting_id: number;
       due_date: string | null;
-    }) => {
-      return await invoke<Task[]>("materialize_meeting_action_items", {
-        meetingId: meeting_id,
-        dueDate: due_date,
-      });
-    },
+    }) => api.materializeMeetingActionItems(meeting_id, due_date),
     onSuccess: invalidateMeetings,
   });
 };

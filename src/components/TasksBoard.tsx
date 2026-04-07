@@ -74,6 +74,11 @@ import {
   TASKS_FILTER_EVENT,
   TASKS_OVERDUE_ONLY_STORAGE_KEY,
 } from "../utils/preferencesStorage";
+import {
+  type TaskOutcomeMap,
+  persistTaskOutcomes,
+  readTaskOutcomes,
+} from "../utils/taskOutcomesStorage";
 
 const columns: Array<{ status: TaskStatus; color: "default" | "warning" | "info" | "success" }> = [
   { status: "todo", color: "default" },
@@ -108,9 +113,6 @@ const recurrenceLabelKey: Record<TaskRecurrence, string> = {
   weekly: "Weekly",
 };
 
-const TASK_OUTCOMES_STORAGE_KEY = "devJournal_task_outcomes";
-
-type TaskOutcomeMap = Record<string, { before: string; after: string }>;
 type GanttEntry = {
   task: Task;
   start: Date;
@@ -216,23 +218,6 @@ const DraggableTaskCard = ({ taskId, disabled, children }: DraggableTaskCardProp
       {children}
     </Box>
   );
-};
-
-const readTaskOutcomes = (): TaskOutcomeMap => {
-  try {
-    const raw = localStorage.getItem(TASK_OUTCOMES_STORAGE_KEY);
-    if (!raw) {
-      return {};
-    }
-    const parsed = JSON.parse(raw) as TaskOutcomeMap;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
-const persistTaskOutcomes = (value: TaskOutcomeMap) => {
-  localStorage.setItem(TASK_OUTCOMES_STORAGE_KEY, JSON.stringify(value));
 };
 
 export const TasksBoard = () => {

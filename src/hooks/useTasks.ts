@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
-import { Task, TaskPriority, TaskRecurrence, TaskStatus, TaskSubtask } from "../types";
+import * as api from "../api";
+import type { TaskPriority, TaskRecurrence, TaskStatus } from "../types";
 
 const TASKS_QUERY_KEY = ["tasks"] as const;
 const TASK_SUBTASKS_QUERY_KEY = ["task-subtasks"] as const;
@@ -13,26 +13,18 @@ const useInvalidateTasks = () => {
   };
 };
 
-/**
- * Loads all tasks with timer metadata from the local Tauri backend.
- */
 export const useTasks = () => {
   return useQuery({
     queryKey: TASKS_QUERY_KEY,
-    queryFn: async () => {
-      return await invoke<Task[]>("get_tasks");
-    },
+    queryFn: api.getTasks,
   });
 };
 
-/**
- * Creates a task and stores estimate/timer defaults in DB.
- */
 export const useCreateTask = () => {
   const invalidateTasks = useInvalidateTasks();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       title,
       description,
       status,
@@ -54,8 +46,8 @@ export const useCreateTask = () => {
       recurrence: TaskRecurrence;
       recurrence_until: string | null;
       time_estimate_minutes: number;
-    }) => {
-      return await invoke<Task>("create_task", {
+    }) =>
+      api.createTask({
         title,
         description,
         status,
@@ -66,20 +58,16 @@ export const useCreateTask = () => {
         recurrence,
         recurrenceUntil: recurrence_until,
         timeEstimateMinutes: time_estimate_minutes,
-      });
-    },
+      }),
     onSuccess: invalidateTasks,
   });
 };
 
-/**
- * Updates full task payload (including estimate and status).
- */
 export const useUpdateTask = () => {
   const invalidateTasks = useInvalidateTasks();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       id,
       title,
       description,
@@ -103,8 +91,8 @@ export const useUpdateTask = () => {
       recurrence: TaskRecurrence;
       recurrence_until: string | null;
       time_estimate_minutes: number;
-    }) => {
-      await invoke("update_task", {
+    }) =>
+      api.updateTask({
         id,
         title,
         description,
@@ -116,120 +104,80 @@ export const useUpdateTask = () => {
         recurrence,
         recurrenceUntil: recurrence_until,
         timeEstimateMinutes: time_estimate_minutes,
-      });
-    },
+      }),
     onSuccess: invalidateTasks,
   });
 };
 
-/**
- * Performs fast status-only updates (used by board chips and checkboxes).
- */
 export const useUpdateTaskStatus = () => {
   const invalidateTasks = useInvalidateTasks();
 
   return useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: TaskStatus }) => {
-      await invoke("update_task_status", { id, status });
-    },
+    mutationFn: ({ id, status }: { id: number; status: TaskStatus }) =>
+      api.updateTaskStatus(id, status),
     onSuccess: invalidateTasks,
   });
 };
 
-/**
- * Starts task timer and transitions `done` tasks back to `in_progress`.
- */
 export const useStartTaskTimer = () => {
   const invalidateTasks = useInvalidateTasks();
 
   return useMutation({
-    mutationFn: async (id: number) => {
-      await invoke("start_task_timer", { id });
-    },
+    mutationFn: api.startTaskTimer,
     onSuccess: invalidateTasks,
   });
 };
 
-/**
- * Pauses active timer and persists elapsed seconds.
- */
 export const usePauseTaskTimer = () => {
   const invalidateTasks = useInvalidateTasks();
 
   return useMutation({
-    mutationFn: async (id: number) => {
-      await invoke("pause_task_timer", { id });
-    },
+    mutationFn: api.pauseTaskTimer,
     onSuccess: invalidateTasks,
   });
 };
 
-/**
- * Resets elapsed timer state to zero.
- */
 export const useResetTaskTimer = () => {
   const invalidateTasks = useInvalidateTasks();
 
   return useMutation({
-    mutationFn: async (id: number) => {
-      await invoke("reset_task_timer", { id });
-    },
+    mutationFn: api.resetTaskTimer,
     onSuccess: invalidateTasks,
   });
 };
 
-/**
- * Deletes task by id.
- */
 export const useDeleteTask = () => {
   const invalidateTasks = useInvalidateTasks();
 
   return useMutation({
-    mutationFn: async (id: number) => {
-      await invoke("delete_task", { id });
-    },
+    mutationFn: api.deleteTask,
     onSuccess: invalidateTasks,
   });
 };
 
-/**
- * Loads subtasks for one task (or all tasks when `taskId` is null).
- */
 export const useTaskSubtasks = (taskId: number | null, enabled = true) => {
   return useQuery({
     queryKey: [...TASK_SUBTASKS_QUERY_KEY, taskId ?? "all"],
-    queryFn: async () => {
-      return await invoke<TaskSubtask[]>("get_task_subtasks", { taskId });
-    },
+    queryFn: () => api.getTaskSubtasks(taskId),
     enabled,
   });
 };
 
-/**
- * Creates a new subtask for the specified task.
- */
 export const useCreateTaskSubtask = () => {
   const invalidateTasks = useInvalidateTasks();
 
   return useMutation({
-    mutationFn: async ({ task_id, title }: { task_id: number; title: string }) => {
-      return await invoke<TaskSubtask>("create_task_subtask", {
-        taskId: task_id,
-        title,
-      });
-    },
+    mutationFn: ({ task_id, title }: { task_id: number; title: string }) =>
+      api.createTaskSubtask(task_id, title),
     onSuccess: invalidateTasks,
   });
 };
 
-/**
- * Updates title/completion state for a subtask.
- */
 export const useUpdateTaskSubtask = () => {
   const invalidateTasks = useInvalidateTasks();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       id,
       title,
       completed,
@@ -237,27 +185,16 @@ export const useUpdateTaskSubtask = () => {
       id: number;
       title?: string;
       completed?: boolean;
-    }) => {
-      await invoke("update_task_subtask", {
-        id,
-        title: title ?? null,
-        completed: completed ?? null,
-      });
-    },
+    }) => api.updateTaskSubtask(id, title ?? null, completed ?? null),
     onSuccess: invalidateTasks,
   });
 };
 
-/**
- * Deletes a subtask by id.
- */
 export const useDeleteTaskSubtask = () => {
   const invalidateTasks = useInvalidateTasks();
 
   return useMutation({
-    mutationFn: async (id: number) => {
-      await invoke("delete_task_subtask", { id });
-    },
+    mutationFn: api.deleteTaskSubtask,
     onSuccess: invalidateTasks,
   });
 };

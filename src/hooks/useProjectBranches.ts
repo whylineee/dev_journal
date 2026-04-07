@@ -1,15 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
-import { ProjectBranch, ProjectBranchStatus } from "../types";
+import * as api from "../api";
+import type { ProjectBranchStatus } from "../types";
 
 const key = (projectId: number | null) => ["project-branches", projectId] as const;
 
 export const useProjectBranches = (projectId: number | null, enabled = true) => {
   return useQuery({
     queryKey: key(projectId),
-    queryFn: async () => {
-      return await invoke<ProjectBranch[]>("get_project_branches", { projectId });
-    },
+    queryFn: () => api.getProjectBranches(projectId),
     enabled,
   });
 };
@@ -27,7 +25,7 @@ export const useCreateProjectBranch = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       project_id,
       name,
       description,
@@ -37,14 +35,7 @@ export const useCreateProjectBranch = () => {
       name: string;
       description: string;
       status: ProjectBranchStatus;
-    }) => {
-      return await invoke<ProjectBranch>("create_project_branch", {
-        projectId: project_id,
-        name,
-        description,
-        status,
-      });
-    },
+    }) => api.createProjectBranch(project_id, name, description, status),
     onSuccess: (branch) => invalidateBranches(queryClient, branch.project_id),
   });
 };
@@ -66,12 +57,7 @@ export const useUpdateProjectBranch = () => {
       description: string;
       status: ProjectBranchStatus;
     }) => {
-      await invoke("update_project_branch", {
-        id,
-        name,
-        description,
-        status,
-      });
+      await api.updateProjectBranch(id, name, description, status);
       return { project_id };
     },
     onSuccess: ({ project_id }) => invalidateBranches(queryClient, project_id),
@@ -89,7 +75,7 @@ export const useDeleteProjectBranch = () => {
       id: number;
       project_id: number;
     }) => {
-      await invoke("delete_project_branch", { id });
+      await api.deleteProjectBranch(id);
       return { project_id };
     },
     onSuccess: ({ project_id }) => invalidateBranches(queryClient, project_id),

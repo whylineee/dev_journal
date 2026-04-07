@@ -75,6 +75,19 @@ import {
     TrackerPriority,
     TrackerStatus,
 } from "../utils/pageEditorUtils";
+import {
+    type PageIdKey,
+    persistPageDraft,
+    persistPageTrackerView,
+    readPageDraft,
+    readPageTrackerView,
+    removePageDraft,
+    removePageTrackerData,
+} from "../utils/draftStorage";
+import {
+    persistPageTaskTrackerDataById,
+    readPageTaskTrackerDataById,
+} from "../utils/pageTrackerStorage";
 
 interface PageEditorProps {
     pageId: number | null;
@@ -992,9 +1005,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     const [content, setContent] = useState("");
     const [draftRestored, setDraftRestored] = useState(false);
     const [pageSection, setPageSection] = useState<"page" | "tasks" | "checklist">("page");
-    const draftKey = useMemo(() => `devJournal_page_draft_${pageId ?? 'new'}`, [pageId]);
-    const trackerStorageKey = useMemo(() => `devJournal_page_task_trackers_${pageId ?? "new"}`, [pageId]);
-    const trackerViewStorageKey = useMemo(() => `devJournal_page_task_tracker_view_${pageId ?? "new"}`, [pageId]);
+    const pageIdKey: PageIdKey = pageId ?? "new";
     const [taskTrackerDataById, setTaskTrackerDataById] = useState<Record<string, TaskTrackerData>>({});
     const [taskTrackerView, setTaskTrackerView] = useState<"all" | "my" | "checklist">("all");
     const [isTrackerViewLoaded, setIsTrackerViewLoaded] = useState(false);
@@ -1016,26 +1027,21 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         let nextContent = pageContent;
         let restored = false;
 
-        const rawDraft = localStorage.getItem(draftKey);
-        if (rawDraft) {
-            try {
-                const draft = JSON.parse(rawDraft) as { title?: string; content?: string };
-                if (typeof draft.title === "string") {
-                    nextTitle = draft.title;
-                }
-                if (typeof draft.content === "string") {
-                    nextContent = draft.content;
-                }
-                restored = true;
-            } catch {
-                localStorage.removeItem(draftKey);
+        const draft = readPageDraft(pageIdKey);
+        if (draft) {
+            if (typeof draft.title === "string") {
+                nextTitle = draft.title;
             }
+            if (typeof draft.content === "string") {
+                nextContent = draft.content;
+            }
+            restored = true;
         }
 
         setTitle(nextTitle);
         setContent(nextContent);
         setDraftRestored(restored);
-    }, [page, pageId, draftKey]);
+    }, [page, pageIdKey]);
 
     useEffect(() => {
         clearPendingAutosave();
@@ -1046,66 +1052,40 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
 
         autosaveTimeoutRef.current = window.setTimeout(() => {
             autosaveTimeoutRef.current = null;
-            localStorage.setItem(
-                draftKey,
-                JSON.stringify({
-                    title,
-                    content,
-                    updatedAt: new Date().toISOString(),
-                })
-            );
+            persistPageDraft(pageIdKey, { title, content, updatedAt: new Date().toISOString() });
         }, 700);
 
         return clearPendingAutosave;
-    }, [autosaveEnabled, clearPendingAutosave, content, draftKey, title]);
+    }, [autosaveEnabled, clearPendingAutosave, content, pageIdKey, title]);
 
     useEffect(() => {
-        try {
-            const raw = localStorage.getItem(trackerStorageKey);
-            if (!raw) {
-                setTaskTrackerDataById({});
-                return;
-            }
-            const parsed = JSON.parse(raw) as Record<string, Partial<TaskTrackerData>>;
-            const normalized: Record<string, TaskTrackerData> = {};
-            Object.entries(parsed ?? {}).forEach(([key, value]) => {
+        const stored = readPageTaskTrackerDataById(pageIdKey);
+        const normalized: Record<string, TaskTrackerData> = {};
+        Object.entries(stored ?? {}).forEach(([key, value]) => {
+            if (value && typeof value === "object") {
                 normalized[sanitizeTrackerId(key)] = normalizeTaskTrackerData({ ...value, id: sanitizeTrackerId(key) });
-            });
-            setTaskTrackerDataById(normalized);
-        } catch {
-            setTaskTrackerDataById({});
-        }
-    }, [trackerStorageKey]);
+            }
+        });
+        setTaskTrackerDataById(normalized);
+    }, [pageIdKey]);
 
     useEffect(() => {
-        localStorage.setItem(trackerStorageKey, JSON.stringify(taskTrackerDataById));
-    }, [taskTrackerDataById, trackerStorageKey]);
+        persistPageTaskTrackerDataById(pageIdKey, taskTrackerDataById);
+    }, [taskTrackerDataById, pageIdKey]);
 
     useEffect(() => {
         setIsTrackerViewLoaded(false);
-        let nextView: "all" | "my" | "checklist" = "all";
-        try {
-            const raw = localStorage.getItem(trackerViewStorageKey);
-            if (raw === "all" || raw === "my" || raw === "checklist") {
-                nextView = raw;
-            }
-        } catch {
-            nextView = "all";
-        }
+        const nextView = readPageTrackerView(pageIdKey);
         setTaskTrackerView(nextView);
         setIsTrackerViewLoaded(true);
-    }, [trackerViewStorageKey]);
+    }, [pageIdKey]);
 
     useEffect(() => {
         if (!isTrackerViewLoaded) {
             return;
         }
-        try {
-            localStorage.setItem(trackerViewStorageKey, taskTrackerView);
-        } catch {
-            // ignore storage write issues
-        }
-    }, [isTrackerViewLoaded, taskTrackerView, trackerViewStorageKey]);
+        persistPageTrackerView(pageIdKey, taskTrackerView);
+    }, [isTrackerViewLoaded, taskTrackerView, pageIdKey]);
 
     useEffect(() => {
         let changed = false;
@@ -1186,7 +1166,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
             updateMutation.mutate({ id: pageId, title, content: contentToPersist }, {
                 onSuccess: () => {
                     clearPendingAutosave();
-                    localStorage.removeItem(draftKey);
+                    removePageDraft(pageIdKey);
                     setDraftRestored(false);
                     onSaveSuccess(pageId);
                 }
@@ -1195,13 +1175,13 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
             createMutation.mutate({ title, content: contentToPersist }, {
                 onSuccess: (newPage) => {
                     clearPendingAutosave();
-                    localStorage.removeItem(draftKey);
+                    removePageDraft(pageIdKey);
                     setDraftRestored(false);
                     onSaveSuccess(newPage.id);
                 }
             });
         }
-    }, [clearPendingAutosave, content, createMutation, draftKey, onSaveSuccess, pageId, taskTrackerDataById, title, updateMutation]);
+    }, [clearPendingAutosave, content, createMutation, onSaveSuccess, pageId, pageIdKey, taskTrackerDataById, title, updateMutation]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -1222,7 +1202,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
             deleteMutation.mutate(pageId, {
                 onSuccess: () => {
                     clearPendingAutosave();
-                    localStorage.removeItem(draftKey);
+                    removePageDraft(pageIdKey);
                     onDeleteSuccess();
                 }
             });
@@ -1273,8 +1253,8 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
 
     const clearDraft = () => {
         clearPendingAutosave();
-        localStorage.removeItem(draftKey);
-        localStorage.removeItem(trackerStorageKey);
+        removePageDraft(pageIdKey);
+        removePageTrackerData(pageIdKey);
         setDraftRestored(false);
         setTaskTrackerDataById({});
         setTitle(page?.title ?? "Untitled Page");

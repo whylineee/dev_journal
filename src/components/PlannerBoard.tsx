@@ -45,12 +45,13 @@ import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Meeting, MeetingRecurrence, MeetingStatus } from "../types";
+import { PREFERENCES_APPLIED_EVENT } from "../utils/preferencesStorage";
 import {
-  PLANNER_COLLAPSE_STORAGE_KEY,
-  PLANNER_DAILY_WINS_STORAGE_KEY,
-  PREFERENCES_APPLIED_EVENT,
-  readPlannerPreferences,
-} from "../utils/preferencesStorage";
+  persistCollapsedSections,
+  persistDailyWinsMap,
+  readCollapsedSections,
+  readDailyWinsMap,
+} from "../utils/plannerStorage";
 
 const toLocalDatetimeInputValue = (value: Date) => {
   const year = value.getFullYear();
@@ -179,13 +180,11 @@ export const PlannerBoard = ({
     readFocusSessionsMap()
   );
   const [dailyWinsInput, setDailyWinsInput] = useState("");
-  const [dailyWinsMap, setDailyWinsMap] = useState<Record<string, string[]>>(
-    () => readPlannerPreferences().dailyWins
-  );
+  const [dailyWinsMap, setDailyWinsMap] = useState<Record<string, string[]>>(readDailyWinsMap);
   const [collapsedSections, setCollapsedSections] = useState<
     Partial<Record<PlannerSectionKey, boolean>>
   >(() => {
-    const stored = readPlannerPreferences().collapsedSections;
+    const stored = readCollapsedSections();
     return Object.keys(stored).length > 0
       ? stored
       : { meetings: true, tomorrowPlan: true, dailyWins: true };
@@ -211,11 +210,11 @@ export const PlannerBoard = ({
 
   useEffect(() => {
     const syncPlannerPreferences = () => {
-      const preferences = readPlannerPreferences();
-      setDailyWinsMap(preferences.dailyWins);
+      setDailyWinsMap(readDailyWinsMap());
       setCollapsedSections((previous) => {
-        if (Object.keys(preferences.collapsedSections).length > 0) {
-          return preferences.collapsedSections;
+        const stored = readCollapsedSections();
+        if (Object.keys(stored).length > 0) {
+          return stored;
         }
         return previous;
       });
@@ -636,9 +635,9 @@ export const PlannerBoard = ({
     });
   };
 
-  const persistDailyWins = (nextMap: Record<string, string[]>) => {
+  const saveDailyWins = (nextMap: Record<string, string[]>) => {
     setDailyWinsMap(nextMap);
-    localStorage.setItem(PLANNER_DAILY_WINS_STORAGE_KEY, JSON.stringify(nextMap));
+    persistDailyWinsMap(nextMap);
   };
 
   const handleAddDailyWin = () => {
@@ -647,14 +646,14 @@ export const PlannerBoard = ({
       return;
     }
     const nextMap = { ...dailyWinsMap, [today]: [value, ...dailyWins].slice(0, 7) };
-    persistDailyWins(nextMap);
+    saveDailyWins(nextMap);
     setDailyWinsInput("");
   };
 
   const handleRemoveDailyWin = (index: number) => {
     const nextWins = dailyWins.filter((_, itemIndex) => itemIndex !== index);
     const nextMap = { ...dailyWinsMap, [today]: nextWins };
-    persistDailyWins(nextMap);
+    saveDailyWins(nextMap);
   };
 
   const isSectionCollapsed = (section: PlannerSectionKey) => Boolean(collapsedSections[section]);
@@ -662,7 +661,7 @@ export const PlannerBoard = ({
   const toggleSection = (section: PlannerSectionKey) => {
     setCollapsedSections((previous) => {
       const next = { ...previous, [section]: !previous[section] };
-      localStorage.setItem(PLANNER_COLLAPSE_STORAGE_KEY, JSON.stringify(next));
+      persistCollapsedSections(next);
       return next;
     });
   };

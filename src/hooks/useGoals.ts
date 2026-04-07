@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
-import { Goal, GoalMilestone, GoalStatus } from "../types";
+import * as api from "../api";
+import type { GoalStatus } from "../types";
 
 const GOALS_QUERY_KEY = ["goals"] as const;
 const GOAL_MILESTONES_QUERY_KEY = ["goal-milestones"] as const;
@@ -14,18 +14,14 @@ const invalidateGoals = (queryClient: ReturnType<typeof useQueryClient>) => {
 export const useGoals = () => {
   return useQuery({
     queryKey: GOALS_QUERY_KEY,
-    queryFn: async () => {
-      return await invoke<Goal[]>("get_goals");
-    },
+    queryFn: api.getGoals,
   });
 };
 
 export const useGoalMilestones = (goalId: number | null) => {
   return useQuery({
     queryKey: [...GOAL_MILESTONES_QUERY_KEY, goalId ?? "all"],
-    queryFn: async () => {
-      return await invoke<GoalMilestone[]>("get_goal_milestones", { goalId });
-    },
+    queryFn: () => api.getGoalMilestones(goalId),
   });
 };
 
@@ -33,7 +29,7 @@ export const useCreateGoal = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       title,
       description,
       status,
@@ -47,19 +43,16 @@ export const useCreateGoal = () => {
       progress: number;
       project_id: number | null;
       target_date: string | null;
-    }) => {
-      return await invoke<Goal>("create_goal", {
+    }) =>
+      api.createGoal({
         title,
         description,
         status,
         progress,
         projectId: project_id,
         targetDate: target_date,
-      });
-    },
-    onSuccess: () => {
-      invalidateGoals(queryClient);
-    },
+      }),
+    onSuccess: () => invalidateGoals(queryClient),
   });
 };
 
@@ -67,7 +60,7 @@ export const useUpdateGoal = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       id,
       title,
       description,
@@ -83,8 +76,8 @@ export const useUpdateGoal = () => {
       progress: number;
       project_id: number | null;
       target_date: string | null;
-    }) => {
-      await invoke("update_goal", {
+    }) =>
+      api.updateGoal({
         id,
         title,
         description,
@@ -92,11 +85,8 @@ export const useUpdateGoal = () => {
         progress,
         projectId: project_id,
         targetDate: target_date,
-      });
-    },
-    onSuccess: () => {
-      invalidateGoals(queryClient);
-    },
+      }),
+    onSuccess: () => invalidateGoals(queryClient),
   });
 };
 
@@ -104,12 +94,8 @@ export const useDeleteGoal = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: number) => {
-      await invoke("delete_goal", { id });
-    },
-    onSuccess: () => {
-      invalidateGoals(queryClient);
-    },
+    mutationFn: api.deleteGoal,
+    onSuccess: () => invalidateGoals(queryClient),
   });
 };
 
@@ -117,7 +103,7 @@ export const useCreateGoalMilestone = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       goal_id,
       title,
       due_date,
@@ -125,16 +111,8 @@ export const useCreateGoalMilestone = () => {
       goal_id: number;
       title: string;
       due_date: string | null;
-    }) => {
-      return await invoke<GoalMilestone>("create_goal_milestone", {
-        goalId: goal_id,
-        title,
-        dueDate: due_date,
-      });
-    },
-    onSuccess: () => {
-      invalidateGoals(queryClient);
-    },
+    }) => api.createGoalMilestone(goal_id, title, due_date),
+    onSuccess: () => invalidateGoals(queryClient),
   });
 };
 
@@ -142,7 +120,7 @@ export const useUpdateGoalMilestone = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       id,
       title,
       completed,
@@ -152,17 +130,14 @@ export const useUpdateGoalMilestone = () => {
       title?: string | null;
       completed?: boolean | null;
       due_date?: string | null;
-    }) => {
-      await invoke("update_goal_milestone", {
+    }) =>
+      api.updateGoalMilestone(
         id,
-        title: title ?? null,
-        completed: completed ?? null,
-        dueDate: due_date === undefined ? null : due_date ?? "",
-      });
-    },
-    onSuccess: () => {
-      invalidateGoals(queryClient);
-    },
+        title ?? null,
+        completed ?? null,
+        due_date === undefined ? null : due_date ?? ""
+      ),
+    onSuccess: () => invalidateGoals(queryClient),
   });
 };
 
@@ -170,11 +145,7 @@ export const useDeleteGoalMilestone = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: number) => {
-      await invoke("delete_goal_milestone", { id });
-    },
-    onSuccess: () => {
-      invalidateGoals(queryClient);
-    },
+    mutationFn: api.deleteGoalMilestone,
+    onSuccess: () => invalidateGoals(queryClient),
   });
 };

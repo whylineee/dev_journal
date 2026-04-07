@@ -16,7 +16,7 @@ import {
     ListItemIcon,
     ListItemText,
 } from "@mui/material";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Markdown from "react-markdown";
 import { useDeleteEntry, useEntry, useSaveEntry } from "../hooks/useEntries";
 import { useProjects } from "../hooks/useProjects";
@@ -36,6 +36,7 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import { useAppNotifications } from "../notifications/AppNotifications";
 import { EnergyTag, readEntryEnergyMap, writeEntryEnergyTag } from "../utils/analyticsStorage";
+import { persistEntryDraft, readEntryDraft, removeEntryDraft } from "../utils/draftStorage";
 
 interface EntryFormProps {
     date: string;
@@ -78,8 +79,6 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
     const [lastFocused, setLastFocused] = useState<"yesterday" | "today">("yesterday");
     const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
 
-    const draftKey = useMemo(() => `devJournal_entry_draft_${date}`, [date]);
-
     useEffect(() => {
         const entryYesterday = entry?.yesterday ?? "";
         const entryToday = entry?.today ?? "";
@@ -88,16 +87,11 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
         let nextToday = entryToday;
         let restoredAt: string | null = null;
 
-        const rawDraft = localStorage.getItem(draftKey);
-        if (rawDraft) {
-            try {
-                const draft = JSON.parse(rawDraft) as { yesterday?: string; today?: string; updatedAt?: string };
-                nextYesterday = typeof draft.yesterday === "string" ? draft.yesterday : entryYesterday;
-                nextToday = typeof draft.today === "string" ? draft.today : entryToday;
-                restoredAt = draft.updatedAt ?? null;
-            } catch {
-                localStorage.removeItem(draftKey);
-            }
+        const draft = readEntryDraft(date);
+        if (draft) {
+            nextYesterday = draft.yesterday ?? entryYesterday;
+            nextToday = draft.today ?? entryToday;
+            restoredAt = draft.updatedAt ?? null;
         }
 
         setYesterday(nextYesterday);
@@ -105,7 +99,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
         setProjectId(entry?.project_id ?? "");
         setDraftRestoredAt(restoredAt);
         setHydrated(true);
-    }, [entry, date, draftKey]);
+    }, [entry, date]);
 
     useEffect(() => {
         try {
@@ -126,31 +120,24 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
         }
 
         const timeout = setTimeout(() => {
-            localStorage.setItem(
-                draftKey,
-                JSON.stringify({
-                    yesterday,
-                    today,
-                    updatedAt: new Date().toISOString(),
-                }),
-            );
+            persistEntryDraft(date, { yesterday, today, updatedAt: new Date().toISOString() });
         }, 700);
 
         return () => clearTimeout(timeout);
-    }, [autosaveEnabled, draftKey, hydrated, today, yesterday]);
+    }, [autosaveEnabled, date, hydrated, today, yesterday]);
 
     const handleSave = useCallback(() => {
         saveMutation.mutate(
             { date, yesterday, today, project_id: projectId === "" ? null : projectId },
             {
                 onSuccess: () => {
-                    localStorage.removeItem(draftKey);
+                    removeEntryDraft(date);
                     setDraftRestoredAt(null);
                     notify(t("Journal entry saved."), "success");
                 },
             },
         );
-    }, [date, draftKey, notify, projectId, saveMutation, t, today, yesterday]);
+    }, [date, notify, projectId, saveMutation, t, today, yesterday]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -198,7 +185,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
     };
 
     const clearDraft = () => {
-        localStorage.removeItem(draftKey);
+        removeEntryDraft(date);
         setDraftRestoredAt(null);
         setYesterday(entry?.yesterday ?? "");
         setToday(entry?.today ?? "");
@@ -219,7 +206,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
     const handleDeleteEntry = () => {
         deleteMutation.mutate(date, {
             onSuccess: () => {
-                localStorage.removeItem(draftKey);
+                removeEntryDraft(date);
                 setDraftRestoredAt(null);
                 setYesterday("");
                 setToday("");

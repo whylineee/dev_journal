@@ -19,45 +19,20 @@ import { useI18n } from "../i18n/I18nContext";
 import { useEntries } from "../hooks/useEntries";
 import { useTasks } from "../hooks/useTasks";
 import { format, isAfter, parseISO, subDays } from "date-fns";
-
-interface AdrRecord {
-  id: string;
-  title: string;
-  problem: string;
-  decision: string;
-  rationale: string;
-  consequences: string;
-  created_at: string;
-  review_date: string;
-}
-
-interface IncidentRecord {
-  id: string;
-  title: string;
-  severity: "low" | "medium" | "high" | "critical";
-  symptoms: string;
-  root_cause: string;
-  fix: string;
-  prevention: string;
-  created_at: string;
-}
-
-interface DebugSession {
-  id: string;
-  title: string;
-  symptoms: string;
-  hypotheses: string;
-  checks: string;
-  conclusion: string;
-  created_at: string;
-}
-
-interface QuickCaptureRecord {
-  id: string;
-  raw_text: string;
-  structured_text: string;
-  created_at: string;
-}
+import {
+  type AdrRecord,
+  type DebugSession,
+  type IncidentRecord,
+  type QuickCaptureRecord,
+  persistAdrRecords,
+  persistDebugSessions,
+  persistIncidents,
+  persistQuickCaptureRecords,
+  readAdrRecords,
+  readDebugSessions,
+  readIncidents,
+  readQuickCaptureRecords,
+} from "../utils/insightsStorage";
 
 interface SpeechRecognitionLike extends EventTarget {
   continuous: boolean;
@@ -75,90 +50,6 @@ interface SpeechRecognitionEventLike {
 }
 
 type SectionKey = "retro" | "capture" | "adr" | "debug" | "incidents";
-
-const ADR_STORAGE_KEY = "devJournal_insights_adr_records";
-const INCIDENTS_STORAGE_KEY = "devJournal_insights_incident_records";
-const DEBUG_STORAGE_KEY = "devJournal_insights_debug_sessions";
-const QUICK_CAPTURE_STORAGE_KEY = "devJournal_insights_quick_capture";
-
-const readAdrRecords = (): AdrRecord[] => {
-  try {
-    const raw = localStorage.getItem(ADR_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as AdrRecord[];
-    return Array.isArray(parsed)
-      ? parsed.filter(
-          (item) =>
-            typeof item.id === "string" && typeof item.title === "string" && typeof item.problem === "string" &&
-            typeof item.decision === "string" && typeof item.rationale === "string" && typeof item.consequences === "string" &&
-            typeof item.created_at === "string" && typeof item.review_date === "string",
-        )
-      : [];
-  } catch { return []; }
-};
-
-const persistAdrRecords = (records: AdrRecord[]) => {
-  localStorage.setItem(ADR_STORAGE_KEY, JSON.stringify(records));
-};
-
-const readIncidents = (): IncidentRecord[] => {
-  try {
-    const raw = localStorage.getItem(INCIDENTS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as IncidentRecord[];
-    return Array.isArray(parsed)
-      ? parsed.filter(
-          (item) =>
-            typeof item.id === "string" && typeof item.title === "string" && typeof item.severity === "string" &&
-            typeof item.symptoms === "string" && typeof item.root_cause === "string" && typeof item.fix === "string" &&
-            typeof item.prevention === "string" && typeof item.created_at === "string",
-        )
-      : [];
-  } catch { return []; }
-};
-
-const persistIncidents = (records: IncidentRecord[]) => {
-  localStorage.setItem(INCIDENTS_STORAGE_KEY, JSON.stringify(records));
-};
-
-const readDebugSessions = (): DebugSession[] => {
-  try {
-    const raw = localStorage.getItem(DEBUG_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as DebugSession[];
-    return Array.isArray(parsed)
-      ? parsed.filter(
-          (item) =>
-            typeof item.id === "string" && typeof item.title === "string" && typeof item.symptoms === "string" &&
-            typeof item.hypotheses === "string" && typeof item.checks === "string" && typeof item.conclusion === "string" &&
-            typeof item.created_at === "string",
-        )
-      : [];
-  } catch { return []; }
-};
-
-const persistDebugSessions = (sessions: DebugSession[]) => {
-  localStorage.setItem(DEBUG_STORAGE_KEY, JSON.stringify(sessions));
-};
-
-const readQuickCaptureRecords = (): QuickCaptureRecord[] => {
-  try {
-    const raw = localStorage.getItem(QUICK_CAPTURE_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as QuickCaptureRecord[];
-    return Array.isArray(parsed)
-      ? parsed.filter(
-          (item) =>
-            typeof item.id === "string" && typeof item.raw_text === "string" &&
-            typeof item.structured_text === "string" && typeof item.created_at === "string",
-        )
-      : [];
-  } catch { return []; }
-};
-
-const persistQuickCaptureRecords = (records: QuickCaptureRecord[]) => {
-  localStorage.setItem(QUICK_CAPTURE_STORAGE_KEY, JSON.stringify(records));
-};
 
 export const InsightsBoard = () => {
   const { t } = useI18n();
