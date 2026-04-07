@@ -107,17 +107,17 @@ test("splitPageContent resolves embedded task/form/tracker blocks", () => {
   }
 });
 
-test("editor display conversion strips embedded markers and restores tokens on save", () => {
+test("editor display conversion preserves embedded block positions", () => {
   const tokens = [
     TASK_TABLE_BLOCK,
     buildTaskTrackerToken("tracker-a"),
   ];
-  const content = `## Plan\n\nParagraph\n\n${tokens.join("\n")}`;
+  const content = `## Plan\n\n${tokens[0]}\n\nParagraph\n\n${tokens[1]}`;
 
   const display = toEditorDisplayContent(content);
-  const restored = fromEditorDisplayContent(`${display}\n\n[[Task Tracker]]`, tokens);
+  const restored = fromEditorDisplayContent(display, tokens);
 
-  assert.equal(display, "## Plan\n\nParagraph");
+  assert.equal(display, "## Plan\n\n[[Tasks Database]]\n\nParagraph\n\n[[Task Tracker]]");
   assert.equal(restored, content);
 });
 

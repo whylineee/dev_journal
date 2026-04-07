@@ -13,7 +13,6 @@ import { useThemeContext } from "./theme/ThemeContext";
 import { useI18n } from "./i18n/I18nContext";
 import { EntryForm } from "./components/EntryForm";
 import { PageEditor } from "./components/PageEditor";
-import { GitCommits } from "./components/GitCommits";
 import { Stats } from "./components/Stats";
 import { TasksBoard } from "./components/TasksBoard";
 import { GoalsBoard } from "./components/GoalsBoard";
@@ -328,9 +327,6 @@ function App() {
                 </Box>
                 <Box sx={{ mt: 6 }}>
                   <Stats />
-                </Box>
-                <Box sx={{ mt: 4 }}>
-                  <GitCommits />
                 </Box>
               </>
             ) : activeTab === 'planner' ? (

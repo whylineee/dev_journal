@@ -46,7 +46,9 @@ import { useTasks, useCreateTask, useUpdateTaskStatus } from "../hooks/useTasks"
 import { useGoals } from "../hooks/useGoals";
 import { useEntries } from "../hooks/useEntries";
 import { useI18n } from "../i18n/I18nContext";
+import { useAppNotifications } from "../notifications/AppNotifications";
 import { expandMeetingOccurrences } from "../utils/meetingUtils";
+import { isSafeExternalUrl } from "../utils/urlUtils";
 
 const statusLabel: Record<ProjectStatus, string> = {
   active: "Active",
@@ -100,6 +102,7 @@ const compareWorkspaceTasks = (a: Task, b: Task) => {
 
 export const ProjectsBoard = () => {
   const { t } = useI18n();
+  const { notify } = useAppNotifications();
   const { data: projects = [], isLoading } = useProjects();
   const { data: tasks = [] } = useTasks();
   const { data: goals = [] } = useGoals();
@@ -118,6 +121,17 @@ export const ProjectsBoard = () => {
 
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+
+  const openExternalLink = (url: string, fallbackMessage: string) => {
+    if (!isSafeExternalUrl(url)) {
+      notify(fallbackMessage, "error");
+      return;
+    }
+
+    openUrl(url).catch(() => {
+      notify(fallbackMessage, "error");
+    });
+  };
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(defaultColor);
@@ -699,7 +713,12 @@ export const ProjectsBoard = () => {
                                 <Button
                                   size="small"
                                   startIcon={<VideoCallIcon />}
-                                  onClick={() => openUrl(occurrence.meeting.meet_url!)}
+                                  onClick={() =>
+                                    openExternalLink(
+                                      occurrence.meeting.meet_url!,
+                                      t("Unable to open meeting URL.")
+                                    )
+                                  }
                                 >
                                   {t("Open Meet")}
                                 </Button>
@@ -708,9 +727,10 @@ export const ProjectsBoard = () => {
                                 size="small"
                                 startIcon={<CalendarMonthIcon />}
                                 onClick={() =>
-                                  openUrl(
+                                  openExternalLink(
                                     occurrence.meeting.calendar_event_url ??
-                                      `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(occurrence.title)}`
+                                      `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(occurrence.title)}`,
+                                    t("Unable to open calendar URL.")
                                   )
                                 }
                               >

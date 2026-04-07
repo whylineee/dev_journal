@@ -2,7 +2,10 @@ export const TASK_TABLE_BLOCK = "{{TASK_TABLE}}";
 const FORM_DB_PREFIX = "{{FORM_DB:";
 const TASK_TRACKER_PREFIX = "{{TASK_TRACKER:";
 const BLOCK_TOKEN_REGEX = /\{\{TASK_TABLE\}\}|\{\{FORM_DB:[^}]+\}\}|\{\{TASK_TRACKER:[^}]+\}\}/g;
-const TASK_TRACKER_EDITOR_MARKER_REGEX = /\[\[Task Tracker\]\]/g;
+const TASK_TABLE_EDITOR_MARKER = "[[Tasks Database]]";
+const FORM_DB_EDITOR_MARKER = "[[Form Database]]";
+const EMBEDDED_EDITOR_MARKER_REGEX =
+  /\[\[Tasks Database\]\]|\[\[Form Database\]\]|\[\[Task Tracker\]\]/g;
 const CHECKLIST_SOFT_BREAK_REGEX = /<br\s*\/?>/gi;
 
 export type PageFormFieldType = "text" | "checkbox" | "date" | "status";
@@ -321,22 +324,40 @@ export const normalizeEditorMarkdown = (value: string) =>
 
 export const toEditorDisplayContent = (value: string) => {
   BLOCK_TOKEN_REGEX.lastIndex = 0;
-  return normalizeEditorMarkdown(value.replace(BLOCK_TOKEN_REGEX, ""));
+  return normalizeEditorMarkdown(
+    value.replace(BLOCK_TOKEN_REGEX, (token) => {
+      if (token === TASK_TABLE_BLOCK) {
+        return TASK_TABLE_EDITOR_MARKER;
+      }
+      if (token.startsWith(FORM_DB_PREFIX)) {
+        return FORM_DB_EDITOR_MARKER;
+      }
+      return "[[Task Tracker]]";
+    })
+  );
 };
 
 export const fromEditorDisplayContent = (
   value: string,
   embeddedTokens: string[]
 ) => {
-  const cleanMarkdown = normalizeEditorMarkdown(
-    value
-      .replace(/\[\[Tasks Database\]\]/g, "")
-      .replace(TASK_TRACKER_EDITOR_MARKER_REGEX, "")
+  const taskTableTokens = embeddedTokens.filter((token) => token === TASK_TABLE_BLOCK);
+  const formTokens = embeddedTokens.filter((token) => token.startsWith(FORM_DB_PREFIX));
+  const trackerTokens = embeddedTokens.filter((token) =>
+    token.startsWith(TASK_TRACKER_PREFIX)
   );
-  if (embeddedTokens.length === 0) {
-    return cleanMarkdown;
-  }
-  return `${cleanMarkdown}${cleanMarkdown.length > 0 ? "\n\n" : ""}${embeddedTokens.join("\n")}`;
+  const cleanMarkdown = normalizeEditorMarkdown(
+    value.replace(EMBEDDED_EDITOR_MARKER_REGEX, (marker) => {
+      if (marker === TASK_TABLE_EDITOR_MARKER) {
+        return taskTableTokens.shift() ?? TASK_TABLE_EDITOR_MARKER;
+      }
+      if (marker === FORM_DB_EDITOR_MARKER) {
+        return formTokens.shift() ?? FORM_DB_EDITOR_MARKER;
+      }
+      return trackerTokens.shift() ?? "[[Task Tracker]]";
+    })
+  );
+  return cleanMarkdown;
 };
 
 export const removeEmbeddedTokenFromContent = (value: string, token: string) =>

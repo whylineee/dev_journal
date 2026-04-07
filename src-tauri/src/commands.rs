@@ -282,6 +282,17 @@ fn normalize_optional_text(value: Option<String>) -> Option<String> {
     })
 }
 
+fn normalize_optional_http_url(value: Option<String>) -> Option<String> {
+    normalize_optional_text(value).and_then(|trimmed| {
+        let lower = trimmed.to_ascii_lowercase();
+        if lower.starts_with("https://") || lower.starts_with("http://") {
+            Some(trimmed)
+        } else {
+            None
+        }
+    })
+}
+
 fn normalize_meeting_status(status: Option<String>) -> String {
     match status.as_deref() {
         Some("planned") | Some("live") | Some("done") | Some("missed") | Some("cancelled") => {
@@ -1064,6 +1075,7 @@ pub fn create_task(
     let time_estimate_minutes = normalize_time_estimate_minutes(time_estimate_minutes);
     let project_id = normalize_project_id(&conn, project_id)?;
     let goal_id = normalize_goal_id(&conn, goal_id)?;
+    let due_date = normalize_optional_date(due_date);
     let recurrence = normalize_task_recurrence(recurrence);
     let recurrence_until = normalize_optional_date(recurrence_until);
     let timer_started_at: Option<String> = None;
@@ -1136,6 +1148,7 @@ pub fn update_task(
     let normalized_priority = normalize_priority(priority);
     let normalized_project_id = normalize_project_id(&conn, project_id)?;
     let normalized_goal_id = normalize_goal_id(&conn, goal_id)?;
+    let normalized_due_date = normalize_optional_date(due_date);
     let normalized_recurrence = normalize_task_recurrence(recurrence);
     let normalized_recurrence_until = normalize_optional_date(recurrence_until);
     let normalized_time_estimate_minutes = normalize_time_estimate_minutes(time_estimate_minutes);
@@ -1185,7 +1198,7 @@ pub fn update_task(
             normalized_priority,
             normalized_project_id,
             normalized_goal_id,
-            due_date,
+            normalized_due_date,
             normalized_recurrence,
             normalized_recurrence_until,
             completed_at,
@@ -1801,8 +1814,8 @@ pub fn create_meeting(
     let title = normalize_meeting_title(title);
     let agenda = agenda.trim().to_string();
     let (start_at, end_at) = normalize_meeting_range(start_at, end_at)?;
-    let meet_url = normalize_optional_text(meet_url);
-    let calendar_event_url = normalize_optional_text(calendar_event_url);
+    let meet_url = normalize_optional_http_url(meet_url);
+    let calendar_event_url = normalize_optional_http_url(calendar_event_url);
     let project_id = normalize_project_id(&conn, project_id)?;
     let participants = normalize_meeting_participants(participants);
     let participants_json = encode_json_string_list(&participants)?;
@@ -1811,7 +1824,7 @@ pub fn create_meeting(
     let action_items = normalize_meeting_action_items(action_items);
     let action_items_json = encode_json_action_items(&action_items)?;
     let recurrence = normalize_meeting_recurrence(recurrence);
-    let recurrence_until = normalize_optional_text(recurrence_until);
+    let recurrence_until = normalize_optional_date(recurrence_until);
     let reminder_minutes = normalize_meeting_reminder_minutes(reminder_minutes);
     let status = normalize_meeting_status(status);
 
@@ -1889,8 +1902,8 @@ pub fn update_meeting(
     let title = normalize_meeting_title(title);
     let agenda = agenda.trim().to_string();
     let (start_at, end_at) = normalize_meeting_range(start_at, end_at)?;
-    let meet_url = normalize_optional_text(meet_url);
-    let calendar_event_url = normalize_optional_text(calendar_event_url);
+    let meet_url = normalize_optional_http_url(meet_url);
+    let calendar_event_url = normalize_optional_http_url(calendar_event_url);
     let project_id = normalize_project_id(&conn, project_id)?;
     let participants_json =
         encode_json_string_list(&normalize_meeting_participants(participants))?;
@@ -1899,7 +1912,7 @@ pub fn update_meeting(
     let action_items_json =
         encode_json_action_items(&normalize_meeting_action_items(action_items))?;
     let recurrence = normalize_meeting_recurrence(recurrence);
-    let recurrence_until = normalize_optional_text(recurrence_until);
+    let recurrence_until = normalize_optional_date(recurrence_until);
     let reminder_minutes = normalize_meeting_reminder_minutes(reminder_minutes);
     let status = normalize_meeting_status(status);
 
@@ -1965,6 +1978,7 @@ pub fn materialize_meeting_action_items(
 ) -> Result<Vec<Task>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let now = Utc::now().to_rfc3339();
+    let due_date = normalize_optional_date(due_date);
     let meeting_row: Option<(Option<i64>, String)> = conn
         .query_row(
             "SELECT project_id, action_items_json FROM meetings WHERE id = ?1",
@@ -2907,7 +2921,7 @@ fn import_backup_into_conn(
         let priority = normalize_priority(task.priority);
         let project_id = normalize_project_id(&tx, task.project_id)?;
         let goal_id = normalize_goal_id(&tx, task.goal_id)?;
-        let due_date = task.due_date;
+        let due_date = normalize_optional_date(task.due_date);
         let recurrence = normalize_task_recurrence(task.recurrence);
         let recurrence_until = normalize_optional_date(task.recurrence_until);
         let raw_parent_task_id = task.parent_task_id;
@@ -3089,8 +3103,8 @@ fn import_backup_into_conn(
         let title = normalize_meeting_title(meeting.title);
         let agenda = meeting.agenda.unwrap_or_default().trim().to_string();
         let (start_at, end_at) = normalize_meeting_range(meeting.start_at, meeting.end_at)?;
-        let meet_url = normalize_optional_text(meeting.meet_url);
-        let calendar_event_url = normalize_optional_text(meeting.calendar_event_url);
+        let meet_url = normalize_optional_http_url(meeting.meet_url);
+        let calendar_event_url = normalize_optional_http_url(meeting.calendar_event_url);
         let project_id = normalize_project_id(&tx, meeting.project_id)?;
         let participants = normalize_meeting_participants(meeting.participants);
         let participants_json = encode_json_string_list(&participants)?;
@@ -3102,7 +3116,7 @@ fn import_backup_into_conn(
         )?;
         let action_items_json = encode_json_action_items(&action_items)?;
         let recurrence = normalize_meeting_recurrence(meeting.recurrence);
-        let recurrence_until = normalize_optional_text(meeting.recurrence_until);
+        let recurrence_until = normalize_optional_date(meeting.recurrence_until);
         let reminder_minutes = normalize_meeting_reminder_minutes(meeting.reminder_minutes);
         let status = normalize_meeting_status(meeting.status);
 

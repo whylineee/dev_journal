@@ -40,6 +40,7 @@ import {
 } from "../utils/focusSessionStorage";
 import { expandMeetingOccurrences } from "../utils/meetingUtils";
 import { isTaskDueToday, isTaskOverdue } from "../utils/taskUtils";
+import { isSafeExternalUrl } from "../utils/urlUtils";
 import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -579,6 +580,10 @@ export const PlannerBoard = ({
   };
 
   const openExternalUrl = (url: string, fallbackMessage: string) => {
+    if (!isSafeExternalUrl(url)) {
+      notify(fallbackMessage, "error");
+      return;
+    }
     openUrl(url).catch(() => {
       notify(fallbackMessage, "error");
     });

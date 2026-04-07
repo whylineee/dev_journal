@@ -48,6 +48,7 @@ import NotesIcon from '@mui/icons-material/Notes';
 import { Task } from "../types";
 import {
     buildTaskTrackerToken,
+    createDefaultFormData,
     createDefaultTaskTrackerData,
     editorBlocksToMarkdown,
     EditorBlock,
@@ -1146,13 +1147,18 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     }, [content]);
 
     useEffect(() => {
-        if (!content.includes("[[Task Tracker]]") && !content.includes("[[Tasks Database]]")) {
+        if (
+            !content.includes("[[Task Tracker]]") &&
+            !content.includes("[[Tasks Database]]") &&
+            !content.includes("[[Form Database]]")
+        ) {
             return;
         }
 
         const trackersToCreate: TaskTrackerData[] = [];
         const nextContent = content
             .replace(/\[\[Tasks Database\]\]/g, TASK_TABLE_BLOCK)
+            .replace(/\[\[Form Database\]\]/g, () => serializeFormToken(createDefaultFormData()))
             .replace(/\[\[Task Tracker\]\]/g, () => {
                 const trackerData = createDefaultTaskTrackerData();
                 trackersToCreate.push(trackerData);

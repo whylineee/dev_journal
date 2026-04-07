@@ -1,7 +1,7 @@
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { format, isAfter, parseISO, subDays } from "date-fns";
 import { useMemo } from "react";
-import { useGitCommits, useEntries } from "../hooks/useEntries";
+import { useEntries } from "../hooks/useEntries";
 import { useTasks } from "../hooks/useTasks";
 
 const stopWords = new Set([
@@ -52,7 +52,6 @@ const extractTopKeywords = (texts: string[], limit = 5) => {
 export const WeeklySummary = () => {
   const { data: entries = [] } = useEntries();
   const { data: tasks = [] } = useTasks();
-  const { data: commits = [] } = useGitCommits();
 
   const summary = useMemo(() => {
     const periodStart = subDays(new Date(), 6);
@@ -89,10 +88,9 @@ export const WeeklySummary = () => {
       bestDay,
       completedTasks,
       activeTasks,
-      commitsCount: commits.length,
       topKeywords,
     };
-  }, [commits.length, entries, tasks]);
+  }, [entries, tasks]);
 
   return (
     <Paper sx={{ p: 3 }}>
@@ -129,7 +127,7 @@ export const WeeklySummary = () => {
             {summary.completedTasks} done
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            {summary.activeTasks} active tasks, {summary.commitsCount} commits today
+            {summary.activeTasks} active tasks
           </Typography>
         </Paper>
       </Stack>

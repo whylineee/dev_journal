@@ -31,6 +31,7 @@ Important current behavior:
 - The app defaults to the OS color scheme on first launch.
 - Theme customization is persisted in `localStorage`.
 - The window hides to tray on close when tray support is available.
+- Journal surfaces no longer rely on cwd-based git commit widgets, because packaged desktop cwd is not a stable repo context.
 - CI/release workflow should not be triggered unnecessarily.
 - Routine commits should use `[skip ci]` unless the user explicitly wants CI/release.
 - Do not bump the app version unless the user explicitly asks for a new app version or release.
@@ -77,6 +78,7 @@ Important current behavior:
 - Empty page editor state shows hints (`/ for commands`, Tasks tab databases, Checklist tab task-list) and never persists them to markdown
 - `pagePreviewEnabled` now controls inline live blocks below the editor, not a separate right-side pane
 - Editor surface hides internal block tokens; interactive blocks render below the markdown editor in a single continuous page flow
+- Editor surface shows lightweight placeholders like `[[Tasks Database]]`, `[[Form Database]]`, and `[[Task Tracker]]` instead of raw internal tokens so embedded block order is preserved while editing
 - Embedded task/task-tracker databases use Notion-like view tabs with compact action controls in the block header
 - This is still a markdown editor, not a true block-editor engine
 
@@ -327,6 +329,7 @@ Implemented:
 - store `calendar_event_url`
 - open external meeting links
 - generate/open Google Calendar template URLs as fallback
+- meeting and calendar links are limited to `http` / `https`; invalid or custom-scheme URLs are ignored
 
 Not implemented:
 - Google OAuth
