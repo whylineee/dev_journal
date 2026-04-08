@@ -56,38 +56,44 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            // Entries
             commands::get_entries,
             commands::get_entry,
             commands::save_entry,
             commands::delete_entry,
             commands::search_entries,
             commands::get_git_commits,
+            // Pages
             commands::get_pages,
             commands::get_page,
             commands::create_page,
             commands::update_page,
             commands::delete_page,
-            commands::get_tasks,
-            commands::create_task,
-            commands::update_task,
-            commands::update_task_status,
-            commands::start_task_timer,
-            commands::pause_task_timer,
-            commands::reset_task_timer,
-            commands::delete_task,
-            commands::get_task_subtasks,
-            commands::create_task_subtask,
-            commands::update_task_subtask,
-            commands::delete_task_subtask,
+            // Tasks (from submodule)
+            commands::tasks::get_tasks,
+            commands::tasks::create_task,
+            commands::tasks::update_task,
+            commands::tasks::update_task_status,
+            commands::tasks::start_task_timer,
+            commands::tasks::pause_task_timer,
+            commands::tasks::reset_task_timer,
+            commands::tasks::delete_task,
+            commands::tasks::get_task_subtasks,
+            commands::tasks::create_task_subtask,
+            commands::tasks::update_task_subtask,
+            commands::tasks::delete_task_subtask,
+            // Goal milestones
             commands::get_goal_milestones,
             commands::create_goal_milestone,
             commands::update_goal_milestone,
             commands::delete_goal_milestone,
-            commands::get_meetings,
-            commands::create_meeting,
-            commands::update_meeting,
-            commands::delete_meeting,
-            commands::materialize_meeting_action_items,
+            // Meetings (from submodule)
+            commands::meetings::get_meetings,
+            commands::meetings::create_meeting,
+            commands::meetings::update_meeting,
+            commands::meetings::delete_meeting,
+            commands::meetings::materialize_meeting_action_items,
+            // Projects
             commands::get_projects,
             commands::create_project,
             commands::update_project,
@@ -96,16 +102,20 @@ pub fn run() {
             commands::create_project_branch,
             commands::update_project_branch,
             commands::delete_project_branch,
+            // Goals
             commands::get_goals,
             commands::create_goal,
             commands::update_goal,
             commands::delete_goal,
+            // Habits
             commands::get_habits,
             commands::create_habit,
             commands::update_habit,
             commands::delete_habit,
             commands::toggle_habit_completion,
-            commands::import_backup,
+            // Backup
+            commands::backup::import_backup,
+            // Tray
             tray::set_tray_timer
         ])
         .run(tauri::generate_context!())

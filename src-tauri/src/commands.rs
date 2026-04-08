@@ -1,6 +1,6 @@
-mod backup;
-mod meetings;
-mod tasks;
+pub mod backup;
+pub mod meetings;
+pub mod tasks;
 mod validation;
 
 use crate::models::{
@@ -15,17 +15,9 @@ use std::collections::HashSet;
 use std::sync::Mutex;
 use tauri::State;
 
-pub use backup::import_backup;
-pub use meetings::{
-    create_meeting, delete_meeting, get_meetings, materialize_meeting_action_items,
-    update_meeting,
-};
-pub use tasks::{
-    create_task, create_task_subtask, delete_task, delete_task_subtask, get_task_subtasks,
-    get_tasks, pause_task_timer, reset_task_timer, start_task_timer, update_task,
-    update_task_status, update_task_subtask,
-};
+#[cfg(test)]
 pub(crate) use backup::import_backup_into_conn;
+#[cfg(test)]
 pub(crate) use tasks::{compute_next_due_date, materialize_recurring_successor};
 pub(crate) use validation::*;
 

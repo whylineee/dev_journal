@@ -4,8 +4,8 @@ use rusqlite::{params, OptionalExtension};
 use tauri::State;
 
 use super::validation::{
-    elapsed_since, normalize_accumulated_seconds, normalize_goal_id, normalize_optional_date,
-    normalize_parent_task_id, normalize_priority, normalize_status, normalize_subtask_title,
+    elapsed_since, normalize_goal_id, normalize_optional_date,
+    normalize_priority, normalize_status, normalize_subtask_title,
     normalize_task_recurrence, normalize_time_estimate_minutes, normalize_project_id,
     task_exists, touch_task_updated_at,
 };
