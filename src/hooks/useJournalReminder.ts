@@ -61,7 +61,10 @@ export const useJournalReminder = ({
         return;
       }
 
-      const hasTodayEntry = entries?.some((entry) => entry.date === todayStr);
+      if (entries === undefined) {
+        return;
+      }
+      const hasTodayEntry = entries.some((entry) => entry.date === todayStr);
       if (hasTodayEntry) {
         return;
       }
