@@ -247,10 +247,13 @@ pub fn materialize_meeting_action_items(
     due_date: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<Task>, String> {
-    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let mut conn = state.db.lock().map_err(|e| e.to_string())?;
     let now = Utc::now().to_rfc3339();
     let due_date = normalize_optional_date(due_date);
-    let meeting_row: Option<(Option<i64>, String)> = conn
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    let meeting_row: Option<(Option<i64>, String)> = tx
         .query_row(
             "SELECT project_id, action_items_json FROM meetings WHERE id = ?1",
             params![meeting_id],
@@ -260,6 +263,7 @@ pub fn materialize_meeting_action_items(
         .map_err(|e| e.to_string())?;
 
     let Some((project_id, action_items_json)) = meeting_row else {
+        tx.commit().map_err(|e| e.to_string())?;
         return Ok(Vec::new());
     };
 
@@ -271,7 +275,7 @@ pub fn materialize_meeting_action_items(
             continue;
         }
 
-        conn.execute(
+        tx.execute(
             "INSERT INTO tasks (title, description, status, priority, project_id, goal_id, due_date, completed_at, time_estimate_minutes, timer_started_at, timer_accumulated_seconds, created_at, updated_at)
              VALUES (?1, ?2, 'todo', 'medium', ?3, NULL, ?4, NULL, 0, NULL, 0, ?5, ?6)",
             params![
@@ -285,7 +289,7 @@ pub fn materialize_meeting_action_items(
         )
         .map_err(|e| e.to_string())?;
 
-        let task_id = conn.last_insert_rowid();
+        let task_id = tx.last_insert_rowid();
         action_item.task_id = Some(task_id);
 
         created_tasks.push(Task {
@@ -310,11 +314,13 @@ pub fn materialize_meeting_action_items(
     }
 
     let updated_action_items_json = encode_json_action_items(&action_items)?;
-    conn.execute(
+    tx.execute(
         "UPDATE meetings SET action_items_json = ?1, updated_at = ?2 WHERE id = ?3",
         params![updated_action_items_json, now, meeting_id],
     )
     .map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
 
     Ok(created_tasks)
 }
