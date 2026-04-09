@@ -34,6 +34,7 @@ export const useSaveEntry = () => {
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ["entries"] });
             queryClient.invalidateQueries({ queryKey: ["entry", variables.date] });
+            queryClient.invalidateQueries({ queryKey: ["search"] });
         },
     });
 };
@@ -48,6 +49,7 @@ export const useDeleteEntry = () => {
         onSuccess: (_, date) => {
             queryClient.invalidateQueries({ queryKey: ["entries"] });
             queryClient.invalidateQueries({ queryKey: ["entry", date] });
+            queryClient.invalidateQueries({ queryKey: ["search"] });
         },
     });
 };
@@ -68,6 +70,8 @@ export const useImportBackup = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["entries"] });
+            queryClient.invalidateQueries({ queryKey: ["entry"] });
+            queryClient.invalidateQueries({ queryKey: ["search"] });
             queryClient.invalidateQueries({ queryKey: ["pages"] });
             queryClient.invalidateQueries({ queryKey: ["tasks"] });
             queryClient.invalidateQueries({ queryKey: ["task-subtasks"] });
