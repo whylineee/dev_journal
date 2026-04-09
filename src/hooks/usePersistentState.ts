@@ -20,7 +20,9 @@ export const usePersistentState = <T>({
   const [value, setValue] = useState<T>(readValue);
 
   useEffect(() => {
-    localStorage.setItem(storageKey, serialize(value));
+    try {
+      localStorage.setItem(storageKey, serialize(value));
+    } catch { /* quota or private-mode guard */ }
   }, [serialize, storageKey, value]);
 
   useEffect(() => {
