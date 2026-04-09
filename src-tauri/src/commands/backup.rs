@@ -186,6 +186,7 @@ pub(crate) fn import_backup_into_conn(
         }
         let description = goal.description.unwrap_or_default();
         let project_id = normalize_project_id(&tx, goal.project_id)?;
+        let target_date = normalize_optional_date(goal.target_date);
 
         if let Some(id) = goal.id {
             tx.execute(
@@ -200,14 +201,14 @@ pub(crate) fn import_backup_into_conn(
                     target_date = excluded.target_date,
                     created_at = excluded.created_at,
                     updated_at = excluded.updated_at",
-                params![id, goal.title, description, status, progress, project_id, goal.target_date, created_at, updated_at],
+                params![id, goal.title, description, status, progress, project_id, target_date, created_at, updated_at],
             )
             .map_err(|e| e.to_string())?;
         } else {
             tx.execute(
                 "INSERT INTO goals (title, description, status, progress, project_id, target_date, created_at, updated_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![goal.title, description, status, progress, project_id, goal.target_date, created_at, updated_at],
+                params![goal.title, description, status, progress, project_id, target_date, created_at, updated_at],
             )
             .map_err(|e| e.to_string())?;
         }
@@ -347,6 +348,11 @@ pub(crate) fn import_backup_into_conn(
                 ],
             )
             .map_err(|e| e.to_string())?;
+
+            if let Some(parent_task_id) = raw_parent_task_id {
+                let inserted_id = tx.last_insert_rowid();
+                deferred_parent_links.push((inserted_id, parent_task_id));
+            }
         }
     }
 
@@ -578,7 +584,10 @@ pub(crate) fn import_backup_into_conn(
         }
 
         let created_at = log.created_at.unwrap_or_else(|| now.clone());
-        let date = normalize_habit_date(log.date);
+        let date = match normalize_habit_date(log.date) {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
 
         if let Some(id) = log.id {
             tx.execute(
