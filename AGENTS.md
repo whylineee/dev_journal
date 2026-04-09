@@ -1,6 +1,6 @@
 # Dev Journal Agent Guide
 
-Last updated: 2026-03-17
+Last updated: 2026-04-09
 
 This file is the project-level source of truth for AI agents and contributors working in this repository.
 
@@ -85,7 +85,7 @@ Important current behavior:
 ### 4. Tasks
 - Kanban board with `todo`, `in_progress`, `done`
 - Drag-and-drop between status columns using `@dnd-kit/core`
-- Task create/edit/delete
+- Task create/edit/delete with proper error feedback and server-confirmed side effects
 - Task priority, due date, estimate, timer
 - Recurring tasks with `daily`, `weekdays`, `weekly`
 - Recurring tasks materialize the next occurrence when the current one is completed
@@ -93,6 +93,8 @@ Important current behavior:
 - Goal linking
 - Project linking
 - Gantt timeline based on due dates
+- Creating a task that would be hidden by active filters auto-resets those filters so the new task is visible
+- "Done" checkbox uncheck preserves current status instead of always resetting to `todo`
 
 ### 5. Goals
 - Goal CRUD with status and progress
@@ -100,6 +102,7 @@ Important current behavior:
 - Milestones can auto-drive goal progress
 - Goals can be linked to projects
 - Tasks can be linked to goals
+- Goal deletion requires user confirmation via dialog
 
 ### 6. Habits
 - Habit CRUD
@@ -187,6 +190,8 @@ The app uses a strict frontend/backend split:
 Rule:
 - keep `invoke(...)` access inside hooks
 - invalidate React Query caches on mutation success
+- invalidate related cache families (e.g. `["entry"]`, `["search"]`, `["project-branches"]`) not just the primary list key
+- on backup import, invalidate **all** query families including per-item caches like `["entry", date]` and `["search"]`
 - do not scatter Tauri calls across random UI components unless there is a very strong reason
 
 ### Shared client contracts
@@ -275,6 +280,9 @@ Referential integrity notes:
 - `entries.project_id`, `goals.project_id`, `tasks.project_id`, `tasks.goal_id`, and `tasks.parent_task_id` are normalized during backup import and sanitized by schema migration `v13`
 - child-table foreign keys for `goal_milestones -> goals` and `task_subtasks -> tasks` are rebuilt by schema migration `v14`
 - backup import skips or nulls invalid cross-entity references instead of restoring broken links
+- backup import normalizes `goal.target_date` via `normalize_optional_date` (same as task `due_date`)
+- backup import preserves `parent_task_id` for tasks without an explicit `id` via `deferred_parent_links`
+- `normalize_habit_date` returns `Result<String, String>` and rejects invalid dates instead of silently substituting today
 
 ### Meeting-specific storage
 The `meetings` table also stores:
@@ -287,6 +295,7 @@ The `meetings` table also stores:
 - `reminder_minutes`
 
 Meeting action items are stored as JSON and can be materialized into real tasks.
+Meeting action-item materialization (`materialize_meeting_action_items`) is wrapped in a DB transaction for atomicity.
 
 ## Current Domain Rules
 
@@ -310,6 +319,8 @@ Meeting action items are stored as JSON and can be materialized into real tasks.
 ### Meetings
 - Valid statuses: `planned`, `live`, `done`, `missed`, `cancelled`
 - Valid recurrence values: `none`, `daily`, `weekdays`, `weekly`
+- `getMeetingDisplayStatus` respects user-set `missed` / `cancelled` / `done` without overriding from the time window
+- `recurrence_until` is stored as a UTC ISO string; saved directly as `"YYYY-MM-DDT23:59:59.000Z"` to avoid local-timezone shift
 - Current limitation:
   - recurring meeting edits/status changes apply to the meeting series
   - per-occurrence exceptions are not implemented
@@ -392,7 +403,9 @@ Layout conventions:
 
 ### Notifications
 - daily journal reminder uses Tauri notification plugin
+- journal reminder skips when the entries query is still loading to avoid false positives
 - meeting reminders use local polling in `src/App.tsx`
+- meeting reminder polling uses an async guard to prevent overlapping runs and duplicate notifications
 - reminder delivery state is persisted in `localStorage`
 
 ### Other persisted local state
@@ -463,8 +476,13 @@ When adding or changing functionality:
 - add a new migration in `src-tauri/src/db.rs` for every schema change
 - register new Tauri commands in `src-tauri/src/lib.rs`
 - add or update React Query hooks instead of calling `invoke` directly from many components
+- ensure mutation hooks invalidate all related cache families (not just the primary list key)
 - update backup import/export if the changed domain is part of backups
-- update i18n strings in `src/i18n/I18nContext.tsx` for any new user-facing text
+- update i18n strings in `src/i18n/I18nContext.tsx` for any new user-facing text (both English key and Ukrainian translation)
+- provide `onSuccess` / `onError` callbacks for all user-facing mutations with appropriate toast feedback
+- wrap multi-statement backend operations in a DB transaction
+- use stable, content-based React keys (never array index) for dynamic lists
+- follow the robustness conventions documented in the "Robustness Conventions" section
 - update this `AGENTS.md`
 - update `docs/ARCHITECTURE.md` when architectural boundaries or conventions change
 
@@ -497,6 +515,30 @@ Avoid:
 - Bundle size warning exists in `vite build`
 - Calendar integration is still URL/template based
 - Some docs outside this file may lag behind and should be synchronized when touched
+- `useMemo` for time-dependent values (week intervals, meeting lists) relies on `today` string as dependency; long-lived sessions without data changes between days may still show stale data until a query refetch triggers re-render
+- `localStorage.setItem` is wrapped in try/catch in `usePersistentState` for quota/private-mode safety
+
+## Robustness Conventions
+
+These patterns are enforced across the codebase after the 2026-04-09 audit:
+
+### Frontend
+- **Mutations must confirm before side effects**: never show success toasts or clear local state until `onSuccess` fires; always provide `onError` feedback
+- **Stable React keys**: embedded page blocks use `block.value` / `block.token` / `block.trackerData.id` as keys, never array index
+- **Time-dependent memos**: `useMemo` for week intervals, meeting occurrences, habit dates must include a date string (e.g. `today`) in the dependency array
+- **Async guard**: long-running polling callbacks (meeting reminders) use a `running` flag to prevent overlapping async executions
+- **Cleanup**: speech recognition, intervals, and event listeners must be cleaned up on unmount via `useEffect` return
+- **NaN safety**: `getTaskElapsedSeconds`, `formatDuration`, and `compareTasks` guard against non-finite/NaN inputs
+- **Energy tag toggle**: selecting "No tag" toggles off the current tag; the handler never creates a tag from null state
+
+### Backend (Rust)
+- **Transactions**: multi-statement operations (meeting action-item materialization) must be wrapped in a `conn.transaction()`
+- **Validation returns errors**: `normalize_habit_date` returns `Result` instead of silently substituting; callers decide how to handle
+- **Backup completeness**: `goal.target_date` and task `parent_task_id` (including for id-less tasks) are normalized during import
+
+### i18n
+- Every user-facing string must have a Ukrainian entry in `ukTranslations` in `src/i18n/I18nContext.tsx`
+- UI labels must match actual code constraints (e.g. border radius label matches the actual min/max clamp)
 
 ## Recently Added Major Features
 
@@ -519,4 +561,33 @@ As of 2026-03-11, the app already includes these recent additions:
 - luminance-based button contrast text for all theme presets
 - hidden sidebar scrollbar with preserved scroll functionality
 - proper button active/focus-visible states to prevent visual artifacts
- - blue notebook/code app icon set for clearer recognition in macOS Dock and Windows taskbar/start
+- blue notebook/code app icon set for clearer recognition in macOS Dock and Windows taskbar/start
+
+As of 2026-04-09, the following robustness improvements were applied:
+- task delete waits for server confirmation before clearing outcomes and showing toast
+- task "done" uncheck preserves `in_progress` status instead of forcing `todo`
+- weekly review / habit week / meeting lists refresh correctly across day boundaries
+- meeting action-item editing uses title-based matching before index fallback
+- journal reminder skips while entries query is loading
+- backup import invalidates all query families including per-item and search caches
+- project delete invalidates `project-branches` cache family
+- entry save/delete invalidates search cache
+- EntryForm energy tag "No tag" correctly clears instead of creating "Focused"
+- page editor embedded blocks use stable content-based keys
+- `getMeetingDisplayStatus` respects user-set `missed` status
+- meeting action-item materialization wrapped in DB transaction
+- goal delete requires confirmation dialog with error feedback
+- SpeechRecognition properly cleaned up on InsightsBoard unmount
+- InsightsBoard weekly retro uses string date comparison avoiding timezone mismatch
+- `recurrence_until` stored as explicit UTC to prevent local-timezone date shift
+- meeting mutations (cancel, workflow status, delete) surface error feedback
+- meeting participant list uses stable composite keys
+- meeting reminder polling guarded against overlapping async runs
+- `normalize_habit_date` returns error instead of silent date substitution
+- backup import preserves `parent_task_id` for tasks without explicit id
+- backup import normalizes `goal.target_date`
+- `taskUtils` guards against NaN in elapsed seconds, duration formatting, and priority sort
+- i18n label "Corner radius (6-24)" corrected to match actual clamp (6-18)
+- added missing Ukrainian translations for all new user-facing strings
+- `localStorage.setItem` wrapped in try/catch in `usePersistentState`
+- tray timer invoke logs errors in dev mode
