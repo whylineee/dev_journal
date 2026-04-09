@@ -77,18 +77,21 @@ const parseRfc3339 = (value: string | null) => {
  * Computes total elapsed seconds including currently running timer session.
  */
 export const getTaskElapsedSeconds = (task: Task, nowMs: number) => {
+  const accumulated = Number.isFinite(task.timer_accumulated_seconds)
+    ? task.timer_accumulated_seconds
+    : 0;
   const startedAt = parseRfc3339(task.timer_started_at);
   const runningSeconds = startedAt
     ? Math.max(0, Math.floor((nowMs - startedAt.getTime()) / 1000))
     : 0;
-  return Math.max(0, task.timer_accumulated_seconds + runningSeconds);
+  return Math.max(0, accumulated + runningSeconds);
 };
 
 /**
  * Converts seconds to `HH:MM:SS` or `MM:SS` for timer chips.
  */
 export const formatDuration = (totalSeconds: number) => {
-  const safe = Math.max(0, totalSeconds);
+  const safe = Number.isFinite(totalSeconds) ? Math.max(0, totalSeconds) : 0;
   const hours = Math.floor(safe / 3600);
   const minutes = Math.floor((safe % 3600) / 60);
   const seconds = safe % 60;
@@ -121,7 +124,7 @@ export const normalizeEstimateMinutes = (value: number) => {
  * Sorts tasks by priority -> due date -> last updated.
  */
 export const compareTasks = (a: Task, b: Task) => {
-  const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+  const priorityDiff = (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2);
   if (priorityDiff !== 0) {
     return priorityDiff;
   }
