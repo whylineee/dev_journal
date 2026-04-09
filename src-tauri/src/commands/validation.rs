@@ -324,12 +324,12 @@ pub(crate) fn normalize_habit_color(color: Option<String>) -> String {
     }
 }
 
-pub(crate) fn normalize_habit_date(date: String) -> String {
+pub(crate) fn normalize_habit_date(date: String) -> Result<String, String> {
     if NaiveDate::parse_from_str(&date, "%Y-%m-%d").is_ok() {
-        return date;
+        return Ok(date);
     }
 
-    Utc::now().format("%Y-%m-%d").to_string()
+    Err(format!("Invalid habit date: {}", date))
 }
 
 pub(crate) fn normalize_subtask_title(title: String) -> String {

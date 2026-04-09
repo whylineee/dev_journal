@@ -1315,7 +1315,7 @@ pub fn toggle_habit_completion(
 ) -> Result<(), String> {
     let mut conn = state.db.lock().map_err(|e| e.to_string())?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    let normalized_date = normalize_habit_date(date);
+    let normalized_date = normalize_habit_date(date)?;
     let now = Utc::now().to_rfc3339();
 
     if completed {
