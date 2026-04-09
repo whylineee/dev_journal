@@ -22,7 +22,7 @@ export const getMeetingDisplayStatus = (
   occurrenceEnd: Date,
   now = new Date()
 ): MeetingStatus => {
-  if (meeting.status === "done" || meeting.status === "cancelled") {
+  if (meeting.status === "done" || meeting.status === "cancelled" || meeting.status === "missed") {
     return meeting.status;
   }
 
@@ -30,7 +30,7 @@ export const getMeetingDisplayStatus = (
     return "live";
   }
 
-  if (meeting.status === "missed" || now > occurrenceEnd) {
+  if (now > occurrenceEnd) {
     return "missed";
   }
 
