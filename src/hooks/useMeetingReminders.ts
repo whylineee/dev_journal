@@ -36,58 +36,65 @@ export const useMeetingReminders = ({
   t,
 }: UseMeetingRemindersOptions) => {
   useEffect(() => {
+    let running = false;
+
     const checkMeetingReminders = async () => {
-      if (!meetings?.length) {
+      if (running || !meetings?.length) {
         return;
       }
+      running = true;
 
-      const occurrences = expandMeetingOccurrences(meetings, new Date(), 2);
-      const now = new Date();
-      const reminderMap = readReminderMap();
-      const permissionGranted = await ensureNotificationPermission();
-      if (!permissionGranted) {
-        return;
-      }
-
-      let updated = false;
-      occurrences.forEach((occurrence) => {
-        if (occurrence.meeting.reminder_minutes <= 0) {
-          return;
-        }
-        if (
-          occurrence.status === "done" ||
-          occurrence.status === "cancelled" ||
-          occurrence.status === "missed"
-        ) {
+      try {
+        const occurrences = expandMeetingOccurrences(meetings, new Date(), 2);
+        const now = new Date();
+        const reminderMap = readReminderMap();
+        const permissionGranted = await ensureNotificationPermission();
+        if (!permissionGranted) {
           return;
         }
 
-        const reminderAt = new Date(
-          occurrence.start.getTime() - occurrence.meeting.reminder_minutes * 60 * 1000
-        );
-        const occurrenceKey = `${occurrence.meeting_id}:${occurrence.start.toISOString()}`;
-        if (reminderMap[occurrenceKey]) {
-          return;
-        }
-        if (now < reminderAt || now > occurrence.start) {
-          return;
-        }
+        let updated = false;
+        occurrences.forEach((occurrence) => {
+          if (occurrence.meeting.reminder_minutes <= 0) {
+            return;
+          }
+          if (
+            occurrence.status === "done" ||
+            occurrence.status === "cancelled" ||
+            occurrence.status === "missed"
+          ) {
+            return;
+          }
 
-        const body = t("{title} starts in {minutes} minutes.", {
-          title: occurrence.title,
-          minutes: occurrence.meeting.reminder_minutes,
+          const reminderAt = new Date(
+            occurrence.start.getTime() - occurrence.meeting.reminder_minutes * 60 * 1000
+          );
+          const occurrenceKey = `${occurrence.meeting_id}:${occurrence.start.toISOString()}`;
+          if (reminderMap[occurrenceKey]) {
+            return;
+          }
+          if (now < reminderAt || now > occurrence.start) {
+            return;
+          }
+
+          const body = t("{title} starts in {minutes} minutes.", {
+            title: occurrence.title,
+            minutes: occurrence.meeting.reminder_minutes,
+          });
+          sendNotification({
+            title: t("Meeting reminder"),
+            body,
+          });
+          notify(body, "info");
+          reminderMap[occurrenceKey] = now.toISOString();
+          updated = true;
         });
-        sendNotification({
-          title: t("Meeting reminder"),
-          body,
-        });
-        notify(body, "info");
-        reminderMap[occurrenceKey] = now.toISOString();
-        updated = true;
-      });
 
-      if (updated) {
-        writeReminderMap(reminderMap);
+        if (updated) {
+          writeReminderMap(reminderMap);
+        }
+      } finally {
+        running = false;
       }
     };
 
