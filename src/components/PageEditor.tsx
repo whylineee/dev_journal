@@ -1734,10 +1734,10 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                 </Typography>
                             </Paper>
                         ) : interactiveBlocks.length > 0 ? (
-                            interactiveBlocks.map((block, index) =>
+                            interactiveBlocks.map((block) =>
                                 block.type === "tasks" ? (
                                     <PageTaskTable
-                                        key={`tasks-${index}`}
+                                        key={`tasks-${block.value}`}
                                         tasks={tasks}
                                         projectsById={projectsById}
                                         goalsById={goalsById}
@@ -1746,14 +1746,14 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                     />
                                 ) : block.type === "form" ? (
                                     <PageFormDatabase
-                                        key={`form-${index}`}
+                                        key={`form-${block.token}`}
                                         formData={block.formData}
                                         onChange={(nextFormData) => handleFormBlockChange(block.token, nextFormData)}
                                         onDelete={() => handleDeleteFormBlock(block.token)}
                                     />
                                 ) : (
                                     <PageTaskTrackerDatabase
-                                        key={`tracker-${index}`}
+                                        key={`tracker-${block.trackerData.id}`}
                                         trackerData={block.trackerData}
                                         view={taskTrackerView}
                                         onViewChange={setTaskTrackerView}
@@ -1803,8 +1803,8 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                             }}
                         >
                             <Stack spacing={0.45}>
-                                {checklistBlockEntries.map(({ block, index: blockIndex }) => (
-                                    <Stack key={`checklist-${blockIndex}`} direction="row" spacing={1} alignItems="center">
+                                {checklistBlockEntries.map(({ block, index: blockIndex }, seqIdx) => (
+                                    <Stack key={`checklist-${blockIndex}-${seqIdx}`} direction="row" spacing={1} alignItems="center">
                                         <Checkbox
                                             size="small"
                                             checked={Boolean(block.checked)}
