@@ -10,6 +10,7 @@ const invalidateRelatedQueries = (queryClient: ReturnType<typeof useQueryClient>
   queryClient.invalidateQueries({ queryKey: ["tasks"] });
   queryClient.invalidateQueries({ queryKey: ["goals"] });
   queryClient.invalidateQueries({ queryKey: ["meetings"] });
+  queryClient.invalidateQueries({ queryKey: ["project-branches"] });
 };
 
 export const useProjects = () => {
