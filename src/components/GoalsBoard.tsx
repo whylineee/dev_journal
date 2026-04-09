@@ -36,6 +36,7 @@ import {
 import { useProjects } from "../hooks/useProjects";
 import { useTasks } from "../hooks/useTasks";
 import { useI18n } from "../i18n/I18nContext";
+import { useAppNotifications } from "../notifications/AppNotifications";
 
 const statusLabelKey: Record<GoalStatus, string> = {
   active: "Active",
@@ -102,6 +103,7 @@ const normalizeProgress = (value: number) => Math.max(0, Math.min(100, Math.roun
 
 export const GoalsBoard = () => {
   const { t } = useI18n();
+  const { notify } = useAppNotifications();
   const statusLabel: Record<GoalStatus, string> = useMemo(
     () => ({
       active: t(statusLabelKey.active),
@@ -134,6 +136,7 @@ export const GoalsBoard = () => {
   const [projectId, setProjectId] = useState<number | "">("");
   const [targetDate, setTargetDate] = useState("");
   const [dialogError, setDialogError] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [newMilestoneTitles, setNewMilestoneTitles] = useState<Record<number, string>>({});
   const [newMilestoneDueDates, setNewMilestoneDueDates] = useState<Record<number, string>>({});
 
@@ -300,7 +303,23 @@ export const GoalsBoard = () => {
   };
 
   const handleDelete = (id: number) => {
-    deleteGoal.mutate(id);
+    deleteGoal.mutate(id, {
+      onSuccess: () => {
+        setConfirmDeleteId(null);
+        notify(t("Goal deleted."), "info");
+      },
+      onError: (error) => {
+        setConfirmDeleteId(null);
+        const details =
+          error instanceof Error ? error.message : typeof error === "string" ? error : "";
+        notify(
+          details
+            ? t("Failed to delete goal: {message}", { message: details })
+            : t("Failed to delete goal. Please try again."),
+          "error"
+        );
+      },
+    });
   };
 
   const handleAddMilestone = (goalId: number) => {
@@ -747,7 +766,7 @@ export const GoalsBoard = () => {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => handleDelete(goal.id)}
+                    onClick={() => setConfirmDeleteId(goal.id)}
                     disabled={busy}
                   >
                     <DeleteOutlineIcon fontSize="small" />
@@ -855,6 +874,28 @@ export const GoalsBoard = () => {
           </Button>
           <Button onClick={handleSave} variant="contained" disabled={busy || title.trim().length === 0}>
             {t("Save")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={confirmDeleteId !== null} onClose={() => setConfirmDeleteId(null)}>
+        <DialogTitle>{t("Delete goal?")}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            {t("This action cannot be undone. The goal and its milestones will be permanently removed.")}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDeleteId(null)} color="inherit">
+            {t("Cancel")}
+          </Button>
+          <Button
+            onClick={() => { if (confirmDeleteId !== null) handleDelete(confirmDeleteId); }}
+            variant="contained"
+            color="error"
+            disabled={busy}
+          >
+            {t("Delete")}
           </Button>
         </DialogActions>
       </Dialog>
