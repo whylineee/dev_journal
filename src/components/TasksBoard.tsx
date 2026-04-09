@@ -550,6 +550,47 @@ export const TasksBoard = () => {
     }
 
     const normalizedTimeEstimate = normalizeEstimateMinutes(timeEstimateMinutes);
+    const normalizedQuery = query.trim().toLowerCase();
+
+    const ensureCreatedTaskVisible = (createdTask: Task) => {
+      const hiddenByStatus = statusFilter !== "all" && createdTask.status !== statusFilter;
+      const hiddenByPriority = priorityFilter !== "all" && createdTask.priority !== priorityFilter;
+      const hiddenByProject = projectFilter !== "all" && createdTask.project_id !== projectFilter;
+      const hiddenByOverdueOnly = showOverdueOnly && !isTaskOverdue(createdTask);
+      const hiddenByQuery =
+        normalizedQuery.length > 0 &&
+        !createdTask.title.toLowerCase().includes(normalizedQuery) &&
+        !createdTask.description.toLowerCase().includes(normalizedQuery);
+
+      const needsReset =
+        hiddenByStatus ||
+        hiddenByPriority ||
+        hiddenByProject ||
+        hiddenByOverdueOnly ||
+        hiddenByQuery;
+
+      if (!needsReset) {
+        return false;
+      }
+
+      if (hiddenByStatus) {
+        setStatusFilter("all");
+      }
+      if (hiddenByPriority) {
+        setPriorityFilter("all");
+      }
+      if (hiddenByProject) {
+        setProjectFilter("all");
+      }
+      if (hiddenByOverdueOnly) {
+        setShowOverdueOnly(false);
+      }
+      if (hiddenByQuery) {
+        setQuery("");
+      }
+
+      return true;
+    };
 
     if (editingTask) {
       updateTask.mutate(
@@ -593,12 +634,25 @@ export const TasksBoard = () => {
         },
         {
           onSuccess: (createdTask) => {
+            const filtersReset = ensureCreatedTaskVisible(createdTask);
             saveTaskOutcome(createdTask.id);
-            notify(t("Task created."), "success");
+            notify(
+              filtersReset
+                ? t("Task created. Filters were reset so you can see it.")
+                : t("Task created."),
+              "success"
+            );
             setDialogOpen(false);
           },
-          onError: () => {
-            notify(t("Failed to create task. Please try again."), "error");
+          onError: (error) => {
+            const details =
+              error instanceof Error ? error.message : typeof error === "string" ? error : "";
+            notify(
+              details
+                ? t("Failed to create task: {message}", { message: details })
+                : t("Failed to create task. Please try again."),
+              "error"
+            );
           },
         }
       );
@@ -606,14 +660,27 @@ export const TasksBoard = () => {
   };
 
   const handleDelete = (taskId: number) => {
-    deleteTask.mutate(taskId);
-    notify(t("Task deleted."), "info");
-    if (taskOutcomes[String(taskId)]) {
-      const updated = { ...taskOutcomes };
-      delete updated[String(taskId)];
-      setTaskOutcomes(updated);
-      persistTaskOutcomes(updated);
-    }
+    deleteTask.mutate(taskId, {
+      onSuccess: () => {
+        notify(t("Task deleted."), "info");
+        if (taskOutcomes[String(taskId)]) {
+          const updated = { ...taskOutcomes };
+          delete updated[String(taskId)];
+          setTaskOutcomes(updated);
+          persistTaskOutcomes(updated);
+        }
+      },
+      onError: (error) => {
+        const details =
+          error instanceof Error ? error.message : typeof error === "string" ? error : "";
+        notify(
+          details
+            ? t("Failed to delete task: {message}", { message: details })
+            : t("Failed to delete task. Please try again."),
+          "error"
+        );
+      },
+    });
   };
 
   const moveToStatus = (task: Task, nextStatus: TaskStatus) => {
@@ -624,7 +691,11 @@ export const TasksBoard = () => {
   };
 
   const toggleDone = (task: Task, checked: boolean) => {
-    updateStatus.mutate({ id: task.id, status: checked ? "done" : "todo" });
+    if (checked) {
+      updateStatus.mutate({ id: task.id, status: "done" });
+    } else {
+      updateStatus.mutate({ id: task.id, status: task.status === "done" ? "todo" : task.status });
+    }
   };
 
   const handleDragStart = (event: DragStartEvent) => {
