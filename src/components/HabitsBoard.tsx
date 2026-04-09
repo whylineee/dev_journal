@@ -62,7 +62,9 @@ const compareHabits = (a: HabitWithLogs, b: HabitWithLogs) => {
 
 export const HabitsBoard = () => {
   const { t } = useI18n();
-  const weekDates = useMemo(computeWeekDates, []);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const weekDates = useMemo(computeWeekDates, [todayStr]);
   const { data: habits = [], isLoading } = useHabits();
   const createHabit = useCreateHabit();
   const updateHabit = useUpdateHabit();
