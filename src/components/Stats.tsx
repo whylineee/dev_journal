@@ -222,16 +222,17 @@ export const Stats = () => {
                         { title: "Total Words", value: totalWords, icon: AnalyticsIcon, color: '#8b5cf6', suffix: 'Words' }
                     ].map((stat, i) => (
                         <Box key={i} component={motion.div} variants={itemVariants}>
-                            <Paper sx={{
-                                p: 2.75,
-                                height: '100%',
-                                background: muiTheme.palette.mode === "dark"
-                                    ? 'linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%)'
-                                    : 'linear-gradient(145deg, rgba(255, 255, 255, 0.86) 0%, rgba(241, 245, 249, 0.9) 100%)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                border: `1px solid ${alpha(stat.color, 0.35)}`
-                            }}>
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    p: 2.75,
+                                    height: '100%',
+                                    bgcolor: 'background.paper',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    borderColor: 'divider',
+                                }}
+                            >
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.75 }}>
                                     <Box
                                         sx={{
@@ -242,8 +243,9 @@ export const Stats = () => {
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                             color: stat.color,
-                                            bgcolor: alpha(stat.color, 0.16),
-                                            border: `1px solid ${alpha(stat.color, 0.4)}`
+                                            bgcolor: 'background.default',
+                                            border: '1px solid',
+                                            borderColor: 'divider',
                                         }}
                                     >
                                         <stat.icon sx={{ fontSize: 20 }} />
