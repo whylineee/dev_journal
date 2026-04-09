@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -18,7 +18,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { useI18n } from "../i18n/I18nContext";
 import { useEntries } from "../hooks/useEntries";
 import { useTasks } from "../hooks/useTasks";
-import { format, isAfter, parseISO, subDays } from "date-fns";
+import { format, subDays } from "date-fns";
 import {
   type AdrRecord,
   type DebugSession,
@@ -87,6 +87,7 @@ export const InsightsBoard = () => {
   const [quickCaptureStructured, setQuickCaptureStructured] = useState("");
   const [speechSupported, setSpeechSupported] = useState(false);
   const [speechActive, setSpeechActive] = useState(false);
+  const speechRecRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
     const host = window as Window & {
@@ -94,6 +95,13 @@ export const InsightsBoard = () => {
       SpeechRecognition?: new () => SpeechRecognitionLike;
     };
     setSpeechSupported(Boolean(host.SpeechRecognition ?? host.webkitSpeechRecognition));
+
+    return () => {
+      if (speechRecRef.current) {
+        try { speechRecRef.current.stop(); } catch { /* already stopped */ }
+        speechRecRef.current = null;
+      }
+    };
   }, []);
 
   const sortedRecords = useMemo(() => [...records].sort((a, b) => b.created_at.localeCompare(a.created_at)), [records]);
@@ -164,21 +172,27 @@ export const InsightsBoard = () => {
   };
   const handleDeleteQuickCapture = (id: string) => { const updated = quickCaptureRecords.filter((r) => r.id !== id); setQuickCaptureRecords(updated); persistQuickCaptureRecords(updated); };
   const handleToggleSpeech = () => {
+    if (speechActive && speechRecRef.current) {
+      try { speechRecRef.current.stop(); } catch { /* already stopped */ }
+      speechRecRef.current = null;
+      setSpeechActive(false);
+      return;
+    }
     const host = window as Window & { webkitSpeechRecognition?: new () => SpeechRecognitionLike; SpeechRecognition?: new () => SpeechRecognitionLike; };
     const Ctor = host.SpeechRecognition ?? host.webkitSpeechRecognition;
     if (!Ctor) { setSpeechSupported(false); return; }
     setSpeechSupported(true);
     const rec = new Ctor(); rec.lang = "en-US"; rec.continuous = false; rec.interimResults = false;
     rec.onresult = (e) => { const transcript = Array.from(e.results).map((r) => r[0]?.transcript ?? "").join(" ").trim(); if (transcript) setQuickCaptureInput((p) => (p.trim().length > 0 ? `${p}\n${transcript}` : transcript)); };
-    rec.onerror = () => setSpeechActive(false); rec.onend = () => setSpeechActive(false);
-    if (speechActive) { rec.stop(); setSpeechActive(false); return; }
+    rec.onerror = () => { setSpeechActive(false); speechRecRef.current = null; };
+    rec.onend = () => { setSpeechActive(false); speechRecRef.current = null; };
+    speechRecRef.current = rec;
     rec.start(); setSpeechActive(true);
   };
 
   const weeklyRetro = useMemo(() => {
-    const startDate = subDays(new Date(), 6);
-    const startDateIso = parseISO(format(startDate, "yyyy-MM-dd"));
-    const weeklyEntries = entries.filter((entry) => isAfter(parseISO(entry.date), subDays(startDateIso, 1)));
+    const startDate = format(subDays(new Date(), 6), "yyyy-MM-dd");
+    const weeklyEntries = entries.filter((entry) => entry.date >= startDate);
     const totalWords = weeklyEntries.reduce((sum, entry) => sum + `${entry.yesterday} ${entry.today}`.split(/\s+/).filter((w) => w.trim().length > 0).length, 0);
     const blockers = weeklyEntries.flatMap((entry) => `${entry.yesterday}\n${entry.today}`.split("\n").map((l) => l.trim()).filter((l) => l.length > 0).filter((l) => l.toLowerCase().includes("block") || l.toLowerCase().includes("risk") || l.toLowerCase().includes("stuck") || l.toLowerCase().includes("issue")));
     const doneTasks = tasks.filter((task) => task.status === "done").length;
