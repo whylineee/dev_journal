@@ -339,11 +339,13 @@ export const ProjectsBoard = () => {
 
   const handleCreateWorkspaceTask = () => {
     if (!selectedProject) {
+      notify(t("Select a project first."), "warning");
       return;
     }
 
     const title = workspaceTaskTitle.trim();
     if (!title) {
+      notify(t("Task title is required."), "warning");
       return;
     }
 
@@ -366,6 +368,17 @@ export const ProjectsBoard = () => {
           setWorkspaceTaskDescription("");
           setWorkspaceTaskDueDate("");
           setWorkspaceTaskPriority("medium");
+          notify(t("Task added to project workspace."), "success");
+        },
+        onError: (error) => {
+          const details =
+            error instanceof Error ? error.message : typeof error === "string" ? error : "";
+          notify(
+            details
+              ? t("Failed to add task: {message}", { message: details })
+              : t("Failed to add task. Please try again."),
+            "error"
+          );
         },
       }
     );
