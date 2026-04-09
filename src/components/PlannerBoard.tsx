@@ -155,6 +155,7 @@ export const PlannerBoard = ({
   const [quickDueMode, setQuickDueMode] = useState<"today" | "tomorrow" | "none">("today");
   const [quickProjectId, setQuickProjectId] = useState<number | "">("");
   const [quickTaskFeedback, setQuickTaskFeedback] = useState("");
+  const [quickTaskFeedbackTone, setQuickTaskFeedbackTone] = useState<"success" | "error">("success");
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingAgenda, setMeetingAgenda] = useState("");
   const [meetingMeetUrl, setMeetingMeetUrl] = useState("");
@@ -248,7 +249,8 @@ export const PlannerBoard = ({
     return expandMeetingOccurrences(meetings, now, 14)
       .filter((occurrence) => occurrence.end.getTime() >= now.getTime() - 15 * 60 * 1000)
       .slice(0, 8);
-  }, [meetings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meetings, today]);
 
   const todayMeetings = useMemo(
     () => upcomingMeetings.filter((occurrence) => format(occurrence.start, "yyyy-MM-dd") === today),
@@ -257,7 +259,8 @@ export const PlannerBoard = ({
 
   const weeklyMeetingOccurrences = useMemo(
     () => expandMeetingOccurrences(meetings, new Date(), 7),
-    [meetings]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [meetings, today]
   );
   const editingMeeting = useMemo(
     () => meetings.find((meeting) => meeting.id === editingMeetingId) ?? null,
@@ -333,7 +336,8 @@ export const PlannerBoard = ({
       start: startOfWeek(new Date(), { weekStartsOn: 1 }),
       end: endOfWeek(new Date(), { weekStartsOn: 1 }),
     }),
-    []
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [today]
   );
 
   const weeklyReview = useMemo(() => {
@@ -477,6 +481,8 @@ export const PlannerBoard = ({
   const handleQuickAddTask = () => {
     const title = quickTaskTitle.trim();
     if (!title) {
+      setQuickTaskFeedback(t("Task title is required."));
+      setQuickTaskFeedbackTone("error");
       return;
     }
 
@@ -497,6 +503,17 @@ export const PlannerBoard = ({
         onSuccess: () => {
           setQuickTaskTitle("");
           setQuickTaskFeedback(t("Task added to board."));
+          setQuickTaskFeedbackTone("success");
+        },
+        onError: (error) => {
+          const details =
+            error instanceof Error ? error.message : typeof error === "string" ? error : "";
+          setQuickTaskFeedback(
+            details
+              ? t("Failed to add task: {message}", { message: details })
+              : t("Failed to add task. Please try again.")
+          );
+          setQuickTaskFeedbackTone("error");
         },
       }
     );
@@ -517,7 +534,8 @@ export const PlannerBoard = ({
 
     const participants = parseLines(meetingParticipants);
     const action_items = parseLines(meetingActionItems).map((title, index) => {
-      const existingItem = editingMeeting?.action_items[index];
+      const existingItem = editingMeeting?.action_items.find((item) => item.title === title)
+        ?? editingMeeting?.action_items[index];
       return {
         id: existingItem?.id ?? `draft-${Date.now()}-${index}`,
         title,
@@ -527,7 +545,7 @@ export const PlannerBoard = ({
     });
     const recurrence_until =
       meetingRecurrence !== "none" && meetingRecurrenceUntil
-        ? new Date(`${meetingRecurrenceUntil}T23:59:59`).toISOString()
+        ? `${meetingRecurrenceUntil}T23:59:59.000Z`
         : null;
 
     const payload = {
@@ -594,45 +612,56 @@ export const PlannerBoard = ({
       return;
     }
 
-    updateMeeting.mutate({
-      id: target.id,
-      title: target.title,
-      agenda: target.agenda,
-      start_at: target.start_at,
-      end_at: target.end_at,
-      meet_url: target.meet_url,
-      calendar_event_url: target.calendar_event_url,
-      project_id: target.project_id,
-      participants: target.participants,
-      notes: target.notes,
-      decisions: target.decisions,
-      action_items: target.action_items,
-      recurrence: target.recurrence,
-      recurrence_until: target.recurrence_until,
-      reminder_minutes: target.reminder_minutes,
-      status: "cancelled",
-    });
+    updateMeeting.mutate(
+      {
+        id: target.id,
+        title: target.title,
+        agenda: target.agenda,
+        start_at: target.start_at,
+        end_at: target.end_at,
+        meet_url: target.meet_url,
+        calendar_event_url: target.calendar_event_url,
+        project_id: target.project_id,
+        participants: target.participants,
+        notes: target.notes,
+        decisions: target.decisions,
+        action_items: target.action_items,
+        recurrence: target.recurrence,
+        recurrence_until: target.recurrence_until,
+        reminder_minutes: target.reminder_minutes,
+        status: "cancelled",
+      },
+      {
+        onSuccess: () => notify(t("Meeting cancelled."), "info"),
+        onError: () => notify(t("Failed to update meeting. Please try again."), "error"),
+      }
+    );
   };
 
   const setMeetingWorkflowStatus = (meeting: Meeting, status: MeetingStatus) => {
-    updateMeeting.mutate({
-      id: meeting.id,
-      title: meeting.title,
-      agenda: meeting.agenda,
-      start_at: meeting.start_at,
-      end_at: meeting.end_at,
-      meet_url: meeting.meet_url,
-      calendar_event_url: meeting.calendar_event_url,
-      project_id: meeting.project_id,
-      participants: meeting.participants,
-      notes: meeting.notes,
-      decisions: meeting.decisions,
-      action_items: meeting.action_items,
-      recurrence: meeting.recurrence,
-      recurrence_until: meeting.recurrence_until,
-      reminder_minutes: meeting.reminder_minutes,
-      status,
-    });
+    updateMeeting.mutate(
+      {
+        id: meeting.id,
+        title: meeting.title,
+        agenda: meeting.agenda,
+        start_at: meeting.start_at,
+        end_at: meeting.end_at,
+        meet_url: meeting.meet_url,
+        calendar_event_url: meeting.calendar_event_url,
+        project_id: meeting.project_id,
+        participants: meeting.participants,
+        notes: meeting.notes,
+        decisions: meeting.decisions,
+        action_items: meeting.action_items,
+        recurrence: meeting.recurrence,
+        recurrence_until: meeting.recurrence_until,
+        reminder_minutes: meeting.reminder_minutes,
+        status,
+      },
+      {
+        onError: () => notify(t("Failed to update meeting. Please try again."), "error"),
+      }
+    );
   };
 
   const saveDailyWins = (nextMap: Record<string, string[]>) => {
@@ -856,7 +885,10 @@ export const PlannerBoard = ({
               </Box>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
                 {quickTaskFeedback ? (
-                  <Typography variant="caption" color="success.main">
+                  <Typography
+                    variant="caption"
+                    color={quickTaskFeedbackTone === "error" ? "error.main" : "success.main"}
+                  >
                     {quickTaskFeedback}
                   </Typography>
                 ) : (
@@ -1077,8 +1109,8 @@ export const PlannerBoard = ({
                           </Stack>
 
                           <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: "wrap" }}>
-                            {meeting.participants.slice(0, 3).map((participant) => (
-                              <Chip key={participant} size="small" variant="outlined" label={participant} />
+                            {meeting.participants.slice(0, 3).map((participant, pIdx) => (
+                              <Chip key={`${participant}-${pIdx}`} size="small" variant="outlined" label={participant} />
                             ))}
                             {meeting.action_items.length > 0 ? (
                               <Chip size="small" variant="outlined" label={`${t("Action items")}: ${meeting.action_items.length}`} />
@@ -1146,7 +1178,10 @@ export const PlannerBoard = ({
                               size="small"
                               color="error"
                               startIcon={<DeleteOutlineIcon />}
-                              onClick={() => deleteMeeting.mutate(meeting.id)}
+                              onClick={() => deleteMeeting.mutate(meeting.id, {
+                                onSuccess: () => notify(t("Meeting deleted."), "info"),
+                                onError: () => notify(t("Failed to delete meeting. Please try again."), "error"),
+                              })}
                               disabled={busy}
                             >
                               {t("Delete")}
