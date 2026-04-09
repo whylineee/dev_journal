@@ -359,7 +359,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                         <TextField
                             select size="small" label={t("Energy")}
                             value={energyTag ?? ""}
-                            onChange={(e) => { const v = e.target.value as EnergyTag | ""; handleEnergyTagToggle(v === "" ? (energyTag ?? "focused") : v); }}
+                            onChange={(e) => { const v = e.target.value as EnergyTag | ""; if (v === "") { if (energyTag) handleEnergyTagToggle(energyTag); } else { handleEnergyTagToggle(v); } }}
                             fullWidth SelectProps={{ native: true }}
                             InputLabelProps={{ shrink: true }}
                         >
