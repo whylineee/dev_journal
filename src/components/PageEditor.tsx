@@ -18,22 +18,14 @@ import {
     useMediaQuery,
 } from "@mui/material";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { PageEditorHeader } from "./page-editor/PageEditorHeader";
+import { PageEditorToolbar } from "./page-editor/PageEditorToolbar";
 import { usePage, useCreatePage, useUpdatePage, useDeletePage } from "../hooks/usePages";
 import { useGoals } from "../hooks/useGoals";
 import { useProjects } from "../hooks/useProjects";
 import { useTasks, useUpdateTaskStatus } from "../hooks/useTasks";
 import { motion } from "framer-motion";
 import { useTheme } from "@mui/material/styles";
-import FormatBoldIcon from '@mui/icons-material/FormatBold';
-import FormatItalicIcon from '@mui/icons-material/FormatItalic';
-import CodeIcon from '@mui/icons-material/Code';
-import DataObjectIcon from '@mui/icons-material/DataObject';
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
-import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
-import ViewAgendaOutlinedIcon from '@mui/icons-material/ViewAgendaOutlined';
-import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
-import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
@@ -44,7 +36,6 @@ import SwapVertIcon from '@mui/icons-material/SwapVert';
 import SearchIcon from '@mui/icons-material/Search';
 import TuneIcon from '@mui/icons-material/Tune';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import NotesIcon from '@mui/icons-material/Notes';
 import { Task } from "../types";
 import {
     buildTaskTrackerToken,
@@ -1393,43 +1384,6 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         borderColor: "divider",
         backgroundColor: "background.paper",
     };
-    const toolbarButtonSx = {
-        color: "text.secondary",
-        borderRadius: 2.2,
-        border: "1px solid transparent",
-        "&:hover": {
-            color: "text.primary",
-            bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-            borderColor: "divider",
-        },
-    };
-    const pageSectionButtonSx = (active: boolean) => ({
-        textTransform: "none",
-        borderRadius: 99,
-        px: 1.7,
-        py: 0.7,
-        color: active ? "text.primary" : "text.secondary",
-        bgcolor: active ? (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)") : "transparent",
-        border: "1px solid",
-        borderColor: active
-            ? isDark
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(0,0,0,0.1)"
-            : "transparent",
-        fontWeight: 600,
-        minHeight: 38,
-        transition: "background-color .18s ease, border-color .18s ease, color .18s ease",
-        "&:hover": {
-            bgcolor: active
-                ? isDark
-                    ? "rgba(255,255,255,0.1)"
-                    : "rgba(0,0,0,0.06)"
-                : isDark
-                    ? "rgba(255,255,255,0.05)"
-                    : "rgba(0,0,0,0.03)",
-            color: "text.primary",
-        },
-    });
     const isPageEditorEmpty = editorDisplayContent.trim().length === 0;
 
     const handleTaskToggle = (task: Task, checked: boolean) => {
@@ -1465,196 +1419,27 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                     pb: 5,
                 }}
             >
-                <Box
-                    sx={{
-                        ...shellSurfaceSx,
-                        mb: 1.6,
-                        p: { xs: 1.2, md: isCompactDesktop ? 1.45 : 1.8 },
-                        borderRadius: isCompactDesktop ? 3.2 : 4,
-                    }}
-                >
-                    <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems={{ xs: "flex-start", lg: "center" }}
-                        gap={2}
-                        flexDirection={{ xs: "column", lg: "row" }}
-                    >
-                        <Box sx={{ minWidth: 0, flex: 1, width: "100%" }}>
-                            <InputBase
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                placeholder="Untitled"
-                                sx={{
-                                    fontSize: { xs: "2rem", sm: "2.4rem", xl: "3rem" },
-                                    lineHeight: 1.05,
-                                    fontWeight: 800,
-                                    letterSpacing: '-0.04em',
-                                    color: 'text.primary',
-                                    flex: 1,
-                                    minWidth: 0,
-                                    width: "100%",
-                                    mb: 0.5,
-                                    "& input::placeholder": {
-                                        color: "text.secondary",
-                                        opacity: 1,
-                                    },
-                                }}
-                            />
-                        </Box>
+                <PageEditorHeader
+                    draftRestored={draftRestored}
+                    isCompactDesktop={isCompactDesktop}
+                    onSave={handleSave}
+                    saving={createMutation.isPending || updateMutation.isPending}
+                    setTitle={setTitle}
+                    title={title}
+                />
 
-                        <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                            sx={{
-                                flexWrap: "wrap",
-                                justifyContent: { xs: "flex-start", lg: "flex-end" },
-                                width: { xs: "100%", lg: "auto" },
-                            }}
-                        >
-                            {draftRestored ? <Chip label="Draft restored" size="small" color="info" variant="outlined" /> : null}
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                startIcon={<SaveIcon />}
-                                onClick={handleSave}
-                                disabled={createMutation.isPending || updateMutation.isPending}
-                                sx={{
-                                    px: isCompactDesktop ? 2.1 : 2.6,
-                                    minWidth: isCompactDesktop ? 132 : 150,
-                                    minHeight: isCompactDesktop ? 40 : 42,
-                                    borderRadius: 2.8,
-                                }}
-                            >
-                                {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
-                            </Button>
-                        </Stack>
-                    </Box>
-                </Box>
-
-                <Box
-                    sx={{
-                        ...shellSurfaceSx,
-                        mb: 2,
-                        p: 0.8,
-                        borderRadius: 3.2,
-                    }}
-                >
-                    <Box
-                        sx={{
-                            display: "flex",
-                            alignItems: { xs: "stretch", lg: "center" },
-                            justifyContent: "space-between",
-                            gap: 1,
-                            flexDirection: { xs: "column", lg: "row" },
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                p: 0.35,
-                                display: "inline-flex",
-                                gap: 0.45,
-                                alignItems: "center",
-                                borderRadius: 99,
-                                border: "1px solid",
-                                borderColor: "divider",
-                                bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            <Button
-                                size="small"
-                                startIcon={<NotesIcon fontSize="small" />}
-                                onClick={() => setPageSection("page")}
-                                sx={pageSectionButtonSx(pageSection === "page")}
-                                data-testid="page-editor-section-page"
-                            >
-                                Page
-                            </Button>
-                            <Button
-                                size="small"
-                                startIcon={<ViewAgendaOutlinedIcon fontSize="small" />}
-                                onClick={() => setPageSection("tasks")}
-                                sx={pageSectionButtonSx(pageSection === "tasks")}
-                                data-testid="page-editor-section-tasks"
-                            >
-                                Tasks
-                            </Button>
-                            <Button
-                                size="small"
-                                startIcon={<ChecklistRtlIcon fontSize="small" />}
-                                onClick={() => setPageSection("checklist")}
-                                sx={pageSectionButtonSx(pageSection === "checklist")}
-                                data-testid="page-editor-section-checklist"
-                            >
-                                Checklist
-                            </Button>
-                        </Box>
-                    </Box>
-
-                    <Stack
-                        direction="row"
-                        spacing={0.35}
-                        sx={{
-                            mt: 1.15,
-                            pt: 1.15,
-                            borderTop: "1px solid",
-                            borderColor: "divider",
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                        }}
-                    >
-                        <Tooltip title="Bold">
-                            <IconButton size="small" onClick={() => insertFormat('**', '**')} sx={toolbarButtonSx}>
-                                <FormatBoldIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Italic">
-                            <IconButton size="small" onClick={() => insertFormat('*', '*')} sx={toolbarButtonSx}>
-                                <FormatItalicIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Code">
-                            <IconButton size="small" onClick={() => insertFormat('`', '`')} sx={toolbarButtonSx}>
-                                <CodeIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Code Block">
-                            <IconButton size="small" onClick={insertCodeBlock} sx={toolbarButtonSx}>
-                                <DataObjectIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Bullet List">
-                            <IconButton size="small" onClick={() => insertFormat('- ', '')} sx={toolbarButtonSx}>
-                                <FormatListBulletedIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Checklist">
-                            <IconButton size="small" onClick={insertChecklist} sx={toolbarButtonSx}>
-                                <CheckBoxOutlinedIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Table">
-                            <IconButton size="small" onClick={insertTable} sx={toolbarButtonSx}>
-                                <TableChartOutlinedIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Tasks Database">
-                            <IconButton size="small" onClick={insertTaskDatabase} sx={toolbarButtonSx}>
-                                <ViewAgendaOutlinedIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Task Tracker">
-                            <IconButton size="small" onClick={insertTaskTrackerDatabase} sx={toolbarButtonSx}>
-                                <FactCheckOutlinedIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Button size="small" onClick={insertTemplate} sx={{ ml: 0.3, borderRadius: 2.4 }}>
-                            Insert template
-                        </Button>
-                    </Stack>
-                </Box>
+                <PageEditorToolbar
+                    insertChecklist={insertChecklist}
+                    insertCodeBlock={insertCodeBlock}
+                    insertFormat={insertFormat}
+                    insertTable={insertTable}
+                    insertTaskDatabase={insertTaskDatabase}
+                    insertTaskTrackerDatabase={insertTaskTrackerDatabase}
+                    insertTemplate={insertTemplate}
+                    isDark={isDark}
+                    pageSection={pageSection}
+                    setPageSection={setPageSection}
+                />
 
                 {pageSection === "page" ? (
                     <Box
