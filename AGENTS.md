@@ -1,6 +1,6 @@
 # Dev Journal Agent Guide
 
-Last updated: 2026-04-09
+Last updated: 2026-04-12
 
 This file is the project-level source of truth for AI agents and contributors working in this repository.
 
@@ -47,6 +47,7 @@ Important current behavior:
 - Includes `Weekly Review`
 - Includes upgraded `Focus Session` mode with optional task targeting and session tracking
 - Focus Session now supports post-session break presets (`5m`, `10m`, `15m`)
+- `PlannerBoard.tsx` now delegates meeting form state to `usePlannerMeetingForm`, planner UI preferences to `usePlannerPreferences`, and derived dashboard calculations to `plannerSelectors`
 
 ### 2. Journal
 - Daily entry workflow by date
@@ -176,6 +177,7 @@ The app uses a strict frontend/backend split:
 - `src/components/InsightsBoard.tsx`: analytics
 - `src/components/SettingsScreen.tsx`: appearance/settings/backup
 - `src/components/CommandPalette.tsx`: global quick actions
+- large screen components may delegate section JSX into colocated subfolders like `src/components/planner/` and `src/components/tasks/`
 
 ### Data hooks
 - `src/hooks/useEntries.ts`
@@ -186,10 +188,14 @@ The app uses a strict frontend/backend split:
 - `src/hooks/useProjects.ts`
 - `src/hooks/useProjectBranches.ts`
 - `src/hooks/useMeetings.ts`
+- `src/hooks/usePlannerPreferences.ts`
+- `src/hooks/usePlannerMeetingForm.ts`
+- `src/hooks/useTasksPreferences.ts`
 
 Rule:
 - keep `invoke(...)` access inside hooks
 - invalidate React Query caches on mutation success
+- prefer shared invalidation helpers in `src/hooks/queryInvalidation.ts` instead of duplicating raw query-key lists in every hook
 - invalidate related cache families (e.g. `["entry"]`, `["search"]`, `["project-branches"]`) not just the primary list key
 - on backup import, invalidate **all** query families including per-item caches like `["entry", date]` and `["search"]`
 - do not scatter Tauri calls across random UI components unless there is a very strong reason
@@ -201,6 +207,8 @@ Rule:
 - `src/utils/taskUtils.ts`
 - `src/utils/goalUtils.ts`
 - `src/utils/meetingUtils.ts`
+- `src/utils/plannerSelectors.ts`
+- `src/utils/tasksBoardSelectors.ts`
 
 ## Backend Map
 
@@ -416,6 +424,8 @@ Layout conventions:
 - usage metrics
 - meeting reminder dedupe map
 - page drafts
+- planner daily wins / collapsed sections via `usePlannerPreferences`
+- tasks overdue filter via `useTasksPreferences`
 
 ## Backup / Import / Export
 
@@ -476,6 +486,7 @@ When adding or changing functionality:
 - add a new migration in `src-tauri/src/db.rs` for every schema change
 - register new Tauri commands in `src-tauri/src/lib.rs`
 - add or update React Query hooks instead of calling `invoke` directly from many components
+- prefer `src/hooks/queryInvalidation.ts` for shared invalidation patterns before adding new ad hoc `invalidateQueries(...)` lists
 - ensure mutation hooks invalidate all related cache families (not just the primary list key)
 - update backup import/export if the changed domain is part of backups
 - update i18n strings in `src/i18n/I18nContext.tsx` for any new user-facing text (both English key and Ukrainian translation)
@@ -530,6 +541,8 @@ These patterns are enforced across the codebase after the 2026-04-09 audit:
 - **Cleanup**: speech recognition, intervals, and event listeners must be cleaned up on unmount via `useEffect` return
 - **NaN safety**: `getTaskElapsedSeconds`, `formatDuration`, and `compareTasks` guard against non-finite/NaN inputs
 - **Energy tag toggle**: selecting "No tag" toggles off the current tag; the handler never creates a tag from null state
+- **Shared selectors/hooks first**: if a screen starts accumulating dashboard selectors, persistence, or form orchestration, extract that logic into hooks/utils before splitting JSX
+- **Centralized UI persistence**: screen-level components should read/write preference-like local state through shared hooks instead of direct `localStorage` access
 
 ### Backend (Rust)
 - **Transactions**: multi-statement operations (meeting action-item materialization) must be wrapped in a `conn.transaction()`

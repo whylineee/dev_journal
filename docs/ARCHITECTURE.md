@@ -20,11 +20,13 @@ This document describes how the project is structured and where to add new code.
 - `src/components/`
   - Screen-level UI (`TasksBoard`, `GoalsBoard`, `HabitsBoard`, `PlannerBoard`).
   - Keep components focused on rendering and interaction flows.
+  - When a screen grows large, extract section-level JSX into colocated subfolders such as `components/planner/` or `components/tasks/`.
 
 - `src/hooks/`
   - Data-access hooks for each domain (`useTasks`, `useGoals`, `useHabits`, etc.).
   - One hook file per domain.
   - Hooks should encapsulate `invoke(...)` calls and cache invalidation.
+  - Screen orchestration and local-persistence hooks belong here when they remove non-rendering logic from large screens (`usePlannerPreferences`, `usePlannerMeetingForm`, `useTasksPreferences`).
 
 - `src/theme/`
   - `ThemeContext.tsx` contains runtime theme state.
@@ -34,6 +36,8 @@ This document describes how the project is structured and where to add new code.
   - Cross-component pure helpers (`taskUtils`, `goalUtils`, `pageEditorUtils`).
   - Local UI persistence helpers live here as well (`preferencesStorage`, analytics/focus storage helpers).
   - Prefer moving parsing/formatting/sorting logic here instead of duplicating in components.
+  - Dashboard-derived selectors belong in dedicated pure helpers (`plannerSelectors`) instead of staying inline inside large screen components.
+  - Board-specific derived data such as task filters/stats/gantt calculations belong in dedicated selector helpers (`tasksBoardSelectors`).
 
 - `src/types/`
   - Shared TypeScript contracts synchronized with Rust models.
@@ -72,5 +76,7 @@ This document describes how the project is structured and where to add new code.
 - Keep UI-only formatting logic in `src/utils`.
 - Keep `localStorage` access centralized behind shared helpers/hooks instead of scattering raw keys across components.
 - Keep persistence rules in Rust, not in React.
+- Prefer shared query invalidation helpers over repeating raw query-key arrays in every hook.
+- If a screen grows beyond orchestration, extract persistence/form/selector logic into hooks and pure utils before doing visual decomposition.
 - Run `npm test` when changing pure business logic, storage parsing, or editor serialization flows.
 - Run `npm run build` and `cargo check` before commit.
