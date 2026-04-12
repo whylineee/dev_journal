@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "../api";
 import type { ProjectBranchStatus } from "../types";
+import { invalidateProjectBranchesDomain } from "./queryInvalidation";
 
 const key = (projectId: number | null) => ["project-branches", projectId] as const;
 
@@ -10,15 +11,6 @@ export const useProjectBranches = (projectId: number | null, enabled = true) => 
     queryFn: () => api.getProjectBranches(projectId),
     enabled,
   });
-};
-
-const invalidateBranches = (
-  queryClient: ReturnType<typeof useQueryClient>,
-  projectId: number
-) => {
-  queryClient.invalidateQueries({ queryKey: key(projectId) });
-  queryClient.invalidateQueries({ queryKey: ["project-branches"] });
-  queryClient.invalidateQueries({ queryKey: ["projects"] });
 };
 
 export const useCreateProjectBranch = () => {
@@ -36,7 +28,7 @@ export const useCreateProjectBranch = () => {
       description: string;
       status: ProjectBranchStatus;
     }) => api.createProjectBranch(project_id, name, description, status),
-    onSuccess: (branch) => invalidateBranches(queryClient, branch.project_id),
+    onSuccess: (branch) => invalidateProjectBranchesDomain(queryClient, branch.project_id),
   });
 };
 
@@ -60,7 +52,7 @@ export const useUpdateProjectBranch = () => {
       await api.updateProjectBranch(id, name, description, status);
       return { project_id };
     },
-    onSuccess: ({ project_id }) => invalidateBranches(queryClient, project_id),
+    onSuccess: ({ project_id }) => invalidateProjectBranchesDomain(queryClient, project_id),
   });
 };
 
@@ -78,6 +70,6 @@ export const useDeleteProjectBranch = () => {
       await api.deleteProjectBranch(id);
       return { project_id };
     },
-    onSuccess: ({ project_id }) => invalidateBranches(queryClient, project_id),
+    onSuccess: ({ project_id }) => invalidateProjectBranchesDomain(queryClient, project_id),
   });
 };

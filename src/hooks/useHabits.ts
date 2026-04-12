@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "../api";
-
-const HABITS_QUERY_KEY = ["habits"] as const;
+import { queryKeys } from "./queryInvalidation";
 
 export const useHabits = () => {
   return useQuery({
-    queryKey: HABITS_QUERY_KEY,
+    queryKey: queryKeys.habits,
     queryFn: api.getHabits,
   });
 };
@@ -25,7 +24,7 @@ export const useCreateHabit = () => {
       target_per_week: number;
       color: string;
     }) => api.createHabit(title, description, target_per_week, color),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: HABITS_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.habits }),
   });
 };
 
@@ -46,7 +45,7 @@ export const useUpdateHabit = () => {
       target_per_week: number;
       color: string;
     }) => api.updateHabit(id, title, description, target_per_week, color),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: HABITS_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.habits }),
   });
 };
 
@@ -55,7 +54,7 @@ export const useDeleteHabit = () => {
 
   return useMutation({
     mutationFn: api.deleteHabit,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: HABITS_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.habits }),
   });
 };
 
@@ -72,6 +71,6 @@ export const useToggleHabitCompletion = () => {
       date: string;
       completed: boolean;
     }) => api.toggleHabitCompletion(habit_id, date, completed),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: HABITS_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.habits }),
   });
 };

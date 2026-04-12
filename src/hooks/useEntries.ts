@@ -1,24 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { BackupPayload } from "../types";
+import { invalidateAllDomainQueries, invalidateEntryDomain, queryKeys } from "./queryInvalidation";
 
 export const useEntries = () => {
     return useQuery({
-        queryKey: ["entries"],
+        queryKey: queryKeys.entries,
         queryFn: api.getEntries,
     });
 };
 
 export const useEntry = (date: string) => {
     return useQuery({
-        queryKey: ["entry", date],
+        queryKey: queryKeys.entry(date),
         queryFn: () => api.getEntry(date),
     });
 };
 
 export const useSearchEntries = (query: string) => {
     return useQuery({
-        queryKey: ["search", query],
+        queryKey: [...queryKeys.search, query],
         queryFn: () => api.searchEntries(query),
         enabled: query.length > 0,
     });
@@ -32,9 +33,7 @@ export const useSaveEntry = () => {
             return api.saveEntry(date, yesterday, today, project_id);
         },
         onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ["entries"] });
-            queryClient.invalidateQueries({ queryKey: ["entry", variables.date] });
-            queryClient.invalidateQueries({ queryKey: ["search"] });
+            invalidateEntryDomain(queryClient, variables.date);
         },
     });
 };
@@ -47,9 +46,7 @@ export const useDeleteEntry = () => {
             return api.deleteEntry(date);
         },
         onSuccess: (_, date) => {
-            queryClient.invalidateQueries({ queryKey: ["entries"] });
-            queryClient.invalidateQueries({ queryKey: ["entry", date] });
-            queryClient.invalidateQueries({ queryKey: ["search"] });
+            invalidateEntryDomain(queryClient, date);
         },
     });
 };
@@ -69,18 +66,7 @@ export const useImportBackup = () => {
             return api.importBackup(payload, replaceExisting);
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["entries"] });
-            queryClient.invalidateQueries({ queryKey: ["entry"] });
-            queryClient.invalidateQueries({ queryKey: ["search"] });
-            queryClient.invalidateQueries({ queryKey: ["pages"] });
-            queryClient.invalidateQueries({ queryKey: ["tasks"] });
-            queryClient.invalidateQueries({ queryKey: ["task-subtasks"] });
-            queryClient.invalidateQueries({ queryKey: ["goals"] });
-            queryClient.invalidateQueries({ queryKey: ["goal-milestones"] });
-            queryClient.invalidateQueries({ queryKey: ["habits"] });
-            queryClient.invalidateQueries({ queryKey: ["projects"] });
-            queryClient.invalidateQueries({ queryKey: ["project-branches"] });
-            queryClient.invalidateQueries({ queryKey: ["meetings"] });
+            invalidateAllDomainQueries(queryClient);
         },
     });
 };

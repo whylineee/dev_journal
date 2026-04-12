@@ -1,21 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "../api";
 import type { TaskPriority, TaskRecurrence, TaskStatus } from "../types";
-
-const TASKS_QUERY_KEY = ["tasks"] as const;
-const TASK_SUBTASKS_QUERY_KEY = ["task-subtasks"] as const;
+import { invalidateTaskDomain, queryKeys } from "./queryInvalidation";
 
 const useInvalidateTasks = () => {
   const queryClient = useQueryClient();
-  return () => {
-    queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY });
-    queryClient.invalidateQueries({ queryKey: TASK_SUBTASKS_QUERY_KEY });
-  };
+  return () => invalidateTaskDomain(queryClient);
 };
 
 export const useTasks = () => {
   return useQuery({
-    queryKey: TASKS_QUERY_KEY,
+    queryKey: queryKeys.tasks,
     queryFn: api.getTasks,
   });
 };
@@ -157,7 +152,7 @@ export const useDeleteTask = () => {
 
 export const useTaskSubtasks = (taskId: number | null, enabled = true) => {
   return useQuery({
-    queryKey: [...TASK_SUBTASKS_QUERY_KEY, taskId ?? "all"],
+    queryKey: [...queryKeys.taskSubtasks, taskId ?? "all"],
     queryFn: () => api.getTaskSubtasks(taskId),
     enabled,
   });

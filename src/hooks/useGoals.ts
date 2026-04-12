@@ -1,26 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "../api";
 import type { GoalStatus } from "../types";
-
-const GOALS_QUERY_KEY = ["goals"] as const;
-const GOAL_MILESTONES_QUERY_KEY = ["goal-milestones"] as const;
-
-const invalidateGoals = (queryClient: ReturnType<typeof useQueryClient>) => {
-  queryClient.invalidateQueries({ queryKey: GOALS_QUERY_KEY });
-  queryClient.invalidateQueries({ queryKey: GOAL_MILESTONES_QUERY_KEY });
-  queryClient.invalidateQueries({ queryKey: ["tasks"] });
-};
+import { invalidateGoalDomain, queryKeys } from "./queryInvalidation";
 
 export const useGoals = () => {
   return useQuery({
-    queryKey: GOALS_QUERY_KEY,
+    queryKey: queryKeys.goals,
     queryFn: api.getGoals,
   });
 };
 
 export const useGoalMilestones = (goalId: number | null) => {
   return useQuery({
-    queryKey: [...GOAL_MILESTONES_QUERY_KEY, goalId ?? "all"],
+    queryKey: [...queryKeys.goalMilestones, goalId ?? "all"],
     queryFn: () => api.getGoalMilestones(goalId),
   });
 };
@@ -52,7 +44,7 @@ export const useCreateGoal = () => {
         projectId: project_id,
         targetDate: target_date,
       }),
-    onSuccess: () => invalidateGoals(queryClient),
+    onSuccess: () => invalidateGoalDomain(queryClient),
   });
 };
 
@@ -86,7 +78,7 @@ export const useUpdateGoal = () => {
         projectId: project_id,
         targetDate: target_date,
       }),
-    onSuccess: () => invalidateGoals(queryClient),
+    onSuccess: () => invalidateGoalDomain(queryClient),
   });
 };
 
@@ -95,7 +87,7 @@ export const useDeleteGoal = () => {
 
   return useMutation({
     mutationFn: api.deleteGoal,
-    onSuccess: () => invalidateGoals(queryClient),
+    onSuccess: () => invalidateGoalDomain(queryClient),
   });
 };
 
@@ -112,7 +104,7 @@ export const useCreateGoalMilestone = () => {
       title: string;
       due_date: string | null;
     }) => api.createGoalMilestone(goal_id, title, due_date),
-    onSuccess: () => invalidateGoals(queryClient),
+    onSuccess: () => invalidateGoalDomain(queryClient),
   });
 };
 
@@ -137,7 +129,7 @@ export const useUpdateGoalMilestone = () => {
         completed ?? null,
         due_date === undefined ? null : due_date ?? ""
       ),
-    onSuccess: () => invalidateGoals(queryClient),
+    onSuccess: () => invalidateGoalDomain(queryClient),
   });
 };
 
@@ -146,6 +138,6 @@ export const useDeleteGoalMilestone = () => {
 
   return useMutation({
     mutationFn: api.deleteGoalMilestone,
-    onSuccess: () => invalidateGoals(queryClient),
+    onSuccess: () => invalidateGoalDomain(queryClient),
   });
 };

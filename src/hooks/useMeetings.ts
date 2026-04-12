@@ -1,21 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "../api";
 import type { MeetingActionItem, MeetingRecurrence, MeetingStatus } from "../types";
-
-const MEETINGS_QUERY_KEY = ["meetings"] as const;
+import { invalidateMeetingDomain, queryKeys } from "./queryInvalidation";
 
 const useInvalidateMeetings = () => {
   const queryClient = useQueryClient();
-  return () => {
-    queryClient.invalidateQueries({ queryKey: MEETINGS_QUERY_KEY });
-    queryClient.invalidateQueries({ queryKey: ["projects"] });
-    queryClient.invalidateQueries({ queryKey: ["tasks"] });
-  };
+  return () => invalidateMeetingDomain(queryClient);
 };
 
 export const useMeetings = () => {
   return useQuery({
-    queryKey: MEETINGS_QUERY_KEY,
+    queryKey: queryKeys.meetings,
     queryFn: api.getMeetings,
   });
 };
