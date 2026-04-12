@@ -4,25 +4,15 @@ import {
   Button,
   Checkbox,
   Chip,
-  Divider,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
-  InputAdornment,
   Paper,
   Stack,
-  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
-import AddTaskIcon from "@mui/icons-material/AddTask";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import SearchIcon from "@mui/icons-material/Search";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import PauseIcon from "@mui/icons-material/Pause";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
@@ -40,6 +30,9 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { TaskDetailsDialog } from "./tasks/TaskDetailsDialog";
+import { TaskEditDialog } from "./tasks/TaskEditDialog";
+import { TasksBoardToolbar } from "./tasks/TasksBoardToolbar";
 import {
   useCreateTaskSubtask,
   useCreateTask,
@@ -56,24 +49,26 @@ import {
 } from "../hooks/useTasks";
 import { useProjects } from "../hooks/useProjects";
 import { useGoals } from "../hooks/useGoals";
+import { useTasksPreferences } from "../hooks/useTasksPreferences";
 import { Task, TaskPriority, TaskRecurrence, TaskStatus, TaskSubtask } from "../types";
 import {
-  compareTasks,
   formatDuration,
   formatTaskDateOnly,
   formatTaskDateTime,
   getTaskElapsedSeconds,
-  isTaskDueToday,
   isTaskOverdue,
   normalizeEstimateMinutes,
 } from "../utils/taskUtils";
+import {
+  buildTaskGantt,
+  formatDayKey,
+  getFilteredTasks,
+  getTaskBoardStats,
+  groupTasksByStatus,
+} from "../utils/tasksBoardSelectors";
 import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
-import {
-  PREFERENCES_APPLIED_EVENT,
-  TASKS_FILTER_EVENT,
-  TASKS_OVERDUE_ONLY_STORAGE_KEY,
-} from "../utils/preferencesStorage";
+import { TASKS_FILTER_EVENT } from "../utils/preferencesStorage";
 import {
   type TaskOutcomeMap,
   persistTaskOutcomes,
@@ -111,33 +106,6 @@ const recurrenceLabelKey: Record<TaskRecurrence, string> = {
   daily: "Daily",
   weekdays: "Weekdays",
   weekly: "Weekly",
-};
-
-type GanttEntry = {
-  task: Task;
-  start: Date;
-  end: Date;
-  offsetDays: number;
-  durationDays: number;
-};
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-const startOfDay = (value: string) => {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
-};
-
-const diffDays = (from: Date, to: Date) => {
-  return Math.round((to.getTime() - from.getTime()) / DAY_MS);
-};
-
-const formatDayKey = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 };
 
 const parseDraggedTaskId = (id: string | number): number | null => {
@@ -268,9 +236,7 @@ export const TasksBoard = () => {
   const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus>("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | TaskPriority>("all");
   const [projectFilter, setProjectFilter] = useState<"all" | number>("all");
-  const [showOverdueOnly, setShowOverdueOnly] = useState(
-    () => localStorage.getItem(TASKS_OVERDUE_ONLY_STORAGE_KEY) === "true"
-  );
+  const { showOverdueOnly, setShowOverdueOnly } = useTasksPreferences();
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [isTaskDetailsOpen, setTaskDetailsOpen] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
@@ -328,10 +294,6 @@ export const TasksBoard = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(TASKS_OVERDUE_ONLY_STORAGE_KEY, String(showOverdueOnly));
-  }, [showOverdueOnly]);
-
-  useEffect(() => {
     const handler = (event: Event) => {
       const customEvent = event as CustomEvent<{ overdueOnly?: boolean; resetFilters?: boolean }>;
       if (customEvent.detail?.resetFilters) {
@@ -340,18 +302,11 @@ export const TasksBoard = () => {
         setPriorityFilter("all");
         setProjectFilter("all");
       }
-      setShowOverdueOnly(Boolean(customEvent.detail?.overdueOnly));
-    };
-
-    const syncFromPreferences = () => {
-      setShowOverdueOnly(localStorage.getItem(TASKS_OVERDUE_ONLY_STORAGE_KEY) === "true");
     };
 
     window.addEventListener(TASKS_FILTER_EVENT, handler);
-    window.addEventListener(PREFERENCES_APPLIED_EVENT, syncFromPreferences);
     return () => {
       window.removeEventListener(TASKS_FILTER_EVENT, handler);
-      window.removeEventListener(PREFERENCES_APPLIED_EVENT, syncFromPreferences);
     };
   }, []);
 
@@ -369,15 +324,7 @@ export const TasksBoard = () => {
     }
   }, [isTaskDetailsOpen, activeTaskId, activeTask]);
 
-  const stats = useMemo(() => {
-    const overdue = tasks.filter((task) => isTaskOverdue(task)).length;
-    const dueToday = tasks.filter((task) => isTaskDueToday(task)).length;
-
-    const done = tasks.filter((task) => task.status === "done").length;
-    const activeTimers = tasks.filter((task) => Boolean(task.timer_started_at)).length;
-
-    return { overdue, dueToday, done, total: tasks.length, activeTimers };
-  }, [tasks]);
+  const stats = useMemo(() => getTaskBoardStats(tasks), [tasks]);
 
   const projectNameById = useMemo(() => {
     const map = new Map<number, string>();
@@ -391,86 +338,21 @@ export const TasksBoard = () => {
     return map;
   }, [goals]);
 
-  const filteredTasks = useMemo(() => {
-    const q = query.trim().toLowerCase();
+  const filteredTasks = useMemo(
+    () =>
+      getFilteredTasks({
+        tasks,
+        query,
+        statusFilter,
+        priorityFilter,
+        projectFilter,
+        showOverdueOnly,
+      }),
+    [tasks, query, statusFilter, priorityFilter, projectFilter, showOverdueOnly]
+  );
 
-    return tasks
-      .filter((task) => {
-        if (statusFilter !== "all" && task.status !== statusFilter) {
-          return false;
-        }
-
-        if (priorityFilter !== "all" && task.priority !== priorityFilter) {
-          return false;
-        }
-
-        if (projectFilter !== "all" && task.project_id !== projectFilter) {
-          return false;
-        }
-
-        if (showOverdueOnly && !isTaskOverdue(task)) {
-          return false;
-        }
-
-        if (!q) {
-          return true;
-        }
-
-        return (
-          task.title.toLowerCase().includes(q) ||
-          task.description.toLowerCase().includes(q)
-        );
-      })
-      .sort(compareTasks);
-  }, [tasks, query, statusFilter, priorityFilter, projectFilter, showOverdueOnly]);
-
-  const grouped = useMemo(() => {
-    return {
-      todo: filteredTasks.filter((task) => task.status === "todo"),
-      in_progress: filteredTasks.filter((task) => task.status === "in_progress"),
-      done: filteredTasks.filter((task) => task.status === "done"),
-    };
-  }, [filteredTasks]);
-
-  const gantt = useMemo(() => {
-    const source = tasks
-      .filter((task) => Boolean(task.due_date))
-      .map((task) => {
-        const dueDate = startOfDay(task.due_date!);
-        const createdDate = startOfDay(task.created_at);
-        const estimateDays = Math.max(1, Math.ceil(task.time_estimate_minutes / (8 * 60)));
-        const plannedStart = new Date(dueDate);
-        plannedStart.setDate(plannedStart.getDate() - estimateDays + 1);
-        const startDate = plannedStart < createdDate ? createdDate : plannedStart;
-        return {
-          task,
-          start: startDate,
-          end: dueDate,
-        };
-      })
-      .filter((entry) => entry.start <= entry.end)
-      .sort((a, b) => a.start.getTime() - b.start.getTime());
-
-    if (source.length === 0) {
-      return {
-        entries: [] as GanttEntry[],
-        rangeStart: null as Date | null,
-        rangeEnd: null as Date | null,
-        totalDays: 0,
-      };
-    }
-
-    const rangeStart = source.reduce((min, entry) => (entry.start < min ? entry.start : min), source[0].start);
-    const rangeEnd = source.reduce((max, entry) => (entry.end > max ? entry.end : max), source[0].end);
-    const totalDays = Math.max(1, diffDays(rangeStart, rangeEnd) + 1);
-    const entries: GanttEntry[] = source.map((entry) => {
-      const offsetDays = Math.max(0, diffDays(rangeStart, entry.start));
-      const durationDays = Math.max(1, diffDays(entry.start, entry.end) + 1);
-      return { ...entry, offsetDays, durationDays };
-    });
-
-    return { entries, rangeStart, rangeEnd, totalDays };
-  }, [tasks]);
+  const grouped = useMemo(() => groupTasksByStatus(filteredTasks), [filteredTasks]);
+  const gantt = useMemo(() => buildTaskGantt(tasks), [tasks]);
 
   const openCreateDialog = (initialStatus: TaskStatus = "todo") => {
     setEditingTask(null);
@@ -800,133 +682,24 @@ export const TasksBoard = () => {
 
   return (
     <Box sx={{ maxWidth: 1280, mx: "auto", mt: 1 }}>
-      <Box sx={{ p: { xs: 1, md: 2 } }}>
-        <Paper
-          variant="outlined"
-          sx={{
-            ...boardSurfaceSx,
-            p: { xs: 1.5, md: 1.9 },
-            borderRadius: 4,
-          }}
-        >
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={2}
-            justifyContent="space-between"
-            alignItems={{ xs: "stretch", md: "center" }}
-          >
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                {t("Tasks Board")}
-              </Typography>
-            </Box>
-
-            <Button
-              variant="contained"
-              startIcon={<AddTaskIcon />}
-              onClick={() => openCreateDialog()}
-              disabled={busy}
-              sx={{ minHeight: 42, px: 2.3, borderRadius: 2.8 }}
-            >
-              {t("Add Task")}
-            </Button>
-          </Stack>
-
-          <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
-            <Chip label={t("Total: {count}", { count: stats.total })} variant="outlined" size="small" />
-            <Chip label={t("Done: {count}", { count: stats.done })} color="default" variant="outlined" size="small" />
-            <Chip label={`${t("Due today")}: ${stats.dueToday}`} color="default" variant="outlined" size="small" />
-            <Chip
-              label={t("Overdue: {count}", { count: stats.overdue })}
-              color={stats.overdue > 0 ? "error" : "default"}
-              variant="outlined"
-              size="small"
-            />
-            <Chip
-              label={t("Active timers: {count}", { count: stats.activeTimers })}
-              color={stats.activeTimers > 0 ? "warning" : "default"}
-              variant="outlined"
-              size="small"
-            />
-          </Stack>
-
-          <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
-            <TextField
-              placeholder={t("Search...")}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              fullWidth
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <TextField
-              select
-              label={t("Status")}
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as "all" | TaskStatus)}
-              sx={{ minWidth: 170 }}
-              SelectProps={{ native: true }}
-              InputLabelProps={{ shrink: true }}
-            >
-              <option value="all">{t("All statuses")}</option>
-              <option value="todo">{t("To Do")}</option>
-              <option value="in_progress">{t("In Progress")}</option>
-              <option value="done">{t("Done")}</option>
-            </TextField>
-
-            <TextField
-              select
-              label={t("Priority")}
-              value={priorityFilter}
-              onChange={(event) => setPriorityFilter(event.target.value as "all" | TaskPriority)}
-              sx={{ minWidth: 170 }}
-              SelectProps={{ native: true }}
-              InputLabelProps={{ shrink: true }}
-            >
-              <option value="all">{t("All priorities")}</option>
-              <option value="urgent">{t("Urgent")}</option>
-              <option value="high">{t("High")}</option>
-              <option value="medium">{t("Medium")}</option>
-              <option value="low">{t("Low")}</option>
-            </TextField>
-
-            <TextField
-              select
-              label={t("Project")}
-              value={projectFilter === "all" ? "all" : String(projectFilter)}
-              onChange={(event) => {
-                const value = event.target.value;
-                setProjectFilter(value === "all" ? "all" : Number(value));
-              }}
-              sx={{ minWidth: 190 }}
-              SelectProps={{ native: true }}
-              InputLabelProps={{ shrink: true }}
-            >
-              <option value="all">{t("All projects")}</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </TextField>
-
-            <Button
-              variant={showOverdueOnly ? "contained" : "outlined"}
-              color={showOverdueOnly ? "error" : "inherit"}
-              onClick={() => setShowOverdueOnly((prev) => !prev)}
-              startIcon={<WarningAmberIcon />}
-            >
-              {t("Overdue Only")}
-            </Button>
-          </Stack>
-        </Paper>
-      </Box>
+      <TasksBoardToolbar
+        boardSurfaceSx={boardSurfaceSx}
+        busy={busy}
+        onCreateTask={() => openCreateDialog()}
+        onPriorityFilterChange={setPriorityFilter}
+        onProjectFilterChange={setProjectFilter}
+        onQueryChange={setQuery}
+        onStatusFilterChange={setStatusFilter}
+        onToggleOverdueOnly={() => setShowOverdueOnly((prev) => !prev)}
+        priorityFilter={priorityFilter}
+        projectFilter={projectFilter}
+        projects={projects}
+        query={query}
+        showOverdueOnly={showOverdueOnly}
+        stats={stats}
+        statusFilter={statusFilter}
+        t={t}
+      />
 
       <DndContext
         sensors={dndSensors}
@@ -1275,373 +1048,70 @@ export const TasksBoard = () => {
         )}
       </Paper>
 
-      <Dialog
-        open={isTaskDetailsOpen && Boolean(activeTask)}
+      <TaskDetailsDialog
+        activeTask={activeTask}
+        activeTaskSubtasks={activeTaskSubtasks}
+        busy={busy}
+        editingSubtaskId={editingSubtaskId}
+        editingSubtaskTitle={editingSubtaskTitle}
+        goalNameById={goalNameById}
+        isOpen={isTaskDetailsOpen}
+        newSubtaskTitle={newSubtaskTitle}
+        onBeginSubtaskEdit={beginSubtaskEdit}
+        onCancelSubtaskEdit={cancelSubtaskEdit}
         onClose={closeTaskDetails}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle>{t("Task card")}</DialogTitle>
-        <DialogContent>
-          {activeTask ? (
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <Stack
-                direction={{ xs: "column", md: "row" }}
-                spacing={1.5}
-                alignItems={{ xs: "flex-start", md: "center" }}
-                justifyContent="space-between"
-              >
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    {activeTask.title}
-                  </Typography>
-                  <Stack direction="row" spacing={0} sx={{ mt: 0.8, flexWrap: "wrap", gap: 0.75 }}>
-                    <Chip label={statusLabel[activeTask.status]} size="small" />
-                    <Chip
-                      label={priorityLabel[activeTask.priority]}
-                      size="small"
-                      color={priorityColor[activeTask.priority]}
-                      variant="outlined"
-                    />
-                    {activeTask.goal_id ? (
-                      <Chip
-                        size="small"
-                        label={goalNameById.get(activeTask.goal_id) ?? `Goal #${activeTask.goal_id}`}
-                        color="success"
-                        variant="outlined"
-                      />
-                    ) : null}
-                    {activeTask.due_date ? (
-                      <Chip
-                        size="small"
-                        label={t("Due: {date}", { date: formatTaskDateOnly(activeTask.due_date) })}
-                        variant="outlined"
-                      />
-                    ) : null}
-                    {activeTask.recurrence !== "none" ? (
-                      <Chip
-                        size="small"
-                        label={t("Repeats: {value}", { value: recurrenceLabel[activeTask.recurrence] })}
-                        color="secondary"
-                        variant="outlined"
-                      />
-                    ) : null}
-                  </Stack>
-                </Box>
+        onCreateSubtask={handleCreateSubtask}
+        onDeleteSubtask={handleDeleteSubtask}
+        onEditSubtaskTitleChange={setEditingSubtaskTitle}
+        onEditTask={openEditFromTaskDetails}
+        onNewSubtaskTitleChange={setNewSubtaskTitle}
+        onSaveSubtaskEdit={saveSubtaskEdit}
+        onToggleSubtask={handleToggleSubtask}
+        outcome={activeTask ? taskOutcomes[String(activeTask.id)] : undefined}
+        priorityColor={priorityColor}
+        priorityLabel={priorityLabel}
+        recurrenceLabel={recurrenceLabel}
+        statusLabel={statusLabel}
+        t={t}
+        formatTaskDateOnly={formatTaskDateOnly}
+      />
 
-                <Button variant="outlined" onClick={openEditFromTaskDetails} disabled={busy}>
-                  {t("Edit task")}
-                </Button>
-              </Stack>
-
-              {activeTask.description ? (
-                <Typography variant="body2" color="text.secondary">
-                  {activeTask.description}
-                </Typography>
-              ) : (
-                <Typography variant="body2" color="text.disabled">
-                  {t("No description yet.")}
-                </Typography>
-              )}
-
-              {taskOutcomes[String(activeTask.id)]?.before ? (
-                <Typography variant="body2" color="text.secondary">
-                  <strong>{t("Before:")}</strong> {taskOutcomes[String(activeTask.id)]?.before}
-                </Typography>
-              ) : null}
-              {taskOutcomes[String(activeTask.id)]?.after ? (
-                <Typography variant="body2" color="text.secondary">
-                  <strong>{t("After:")}</strong> {taskOutcomes[String(activeTask.id)]?.after}
-                </Typography>
-              ) : null}
-
-              <Divider />
-
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  {t("Subtasks")}
-                </Typography>
-                <Chip
-                  size="small"
-                  label={`${activeTaskSubtasks.filter((subtask) => subtask.completed).length}/${activeTaskSubtasks.length} ${t("done")}`}
-                  color="info"
-                  variant="outlined"
-                />
-              </Stack>
-
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                <TextField
-                  value={newSubtaskTitle}
-                  onChange={(event) => setNewSubtaskTitle(event.target.value)}
-                  placeholder={t("New subtask")}
-                  fullWidth
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handleCreateSubtask();
-                    }
-                  }}
-                />
-                <Button
-                  variant="contained"
-                  onClick={handleCreateSubtask}
-                  disabled={busy || newSubtaskTitle.trim().length === 0}
-                >
-                  {t("Add")}
-                </Button>
-              </Stack>
-
-              <Stack spacing={1}>
-                {activeTaskSubtasks.map((subtask) => (
-                  <Paper key={subtask.id} variant="outlined" sx={{ p: 1 }}>
-                    {editingSubtaskId === subtask.id ? (
-                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                        <TextField
-                          value={editingSubtaskTitle}
-                          onChange={(event) => setEditingSubtaskTitle(event.target.value)}
-                          fullWidth
-                          size="small"
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              saveSubtaskEdit(subtask.id);
-                            }
-                            if (event.key === "Escape") {
-                              event.preventDefault();
-                              cancelSubtaskEdit();
-                            }
-                          }}
-                        />
-                        <Stack direction="row" spacing={1}>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            onClick={() => saveSubtaskEdit(subtask.id)}
-                            disabled={busy || editingSubtaskTitle.trim().length === 0}
-                          >
-                            {t("Save")}
-                          </Button>
-                          <Button size="small" onClick={cancelSubtaskEdit}>
-                            {t("Cancel")}
-                          </Button>
-                        </Stack>
-                      </Stack>
-                    ) : (
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        <Checkbox
-                          size="small"
-                          checked={subtask.completed}
-                          onChange={(event) => handleToggleSubtask(subtask.id, event.target.checked)}
-                          disabled={busy}
-                        />
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            flex: 1,
-                            textDecoration: subtask.completed ? "line-through" : "none",
-                            color: subtask.completed ? "text.disabled" : "text.primary",
-                          }}
-                        >
-                          {subtask.title}
-                        </Typography>
-                        <IconButton size="small" onClick={() => beginSubtaskEdit(subtask)} disabled={busy}>
-                          <EditOutlinedIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleDeleteSubtask(subtask.id)}
-                          disabled={busy}
-                        >
-                          <DeleteOutlineIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                    )}
-                  </Paper>
-                ))}
-              </Stack>
-
-              {activeTaskSubtasks.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  {t("No subtasks yet.")}
-                </Typography>
-              ) : null}
-            </Stack>
-          ) : null}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeTaskDetails}>{t("Close")}</Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={isDialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editingTask ? t("Edit task") : t("Create task")}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label={t("Title")}
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              autoFocus
-              fullWidth
-            />
-
-            <TextField
-              label={t("Description")}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              multiline
-              minRows={3}
-              fullWidth
-            />
-
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <TextField
-                select
-                label={t("Status")}
-                value={status}
-                onChange={(event) => setStatus(event.target.value as TaskStatus)}
-                SelectProps={{ native: true }}
-                fullWidth
-              >
-                <option value="todo">{t("To Do")}</option>
-                <option value="in_progress">{t("In Progress")}</option>
-                <option value="done">{t("Done")}</option>
-              </TextField>
-
-              <TextField
-                select
-                label={t("Priority")}
-                value={priority}
-                onChange={(event) => setPriority(event.target.value as TaskPriority)}
-                SelectProps={{ native: true }}
-                fullWidth
-              >
-                <option value="urgent">{t("Urgent")}</option>
-                <option value="high">{t("High")}</option>
-                <option value="medium">{t("Medium")}</option>
-                <option value="low">{t("Low")}</option>
-              </TextField>
-            </Stack>
-
-            <TextField
-              select
-              label={t("Project")}
-              value={projectId === "" ? "" : String(projectId)}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setProjectId(nextValue === "" ? "" : Number(nextValue));
-              }}
-              SelectProps={{ native: true }}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            >
-              <option value="">{t("No project")}</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              label={t("Goal")}
-              value={goalId === "" ? "" : String(goalId)}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setGoalId(nextValue === "" ? "" : Number(nextValue));
-              }}
-              SelectProps={{ native: true }}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            >
-              <option value="">{t("No goal")}</option>
-              {goals.map((goal) => (
-                <option key={goal.id} value={goal.id}>
-                  {goal.title}
-                </option>
-              ))}
-            </TextField>
-
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <TextField
-                type="date"
-                label={t("Due date")}
-                value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              />
-
-              <TextField
-                type="number"
-                label={t("Time limit (minutes)")}
-                value={timeEstimateMinutes}
-                onChange={(event) => setTimeEstimateMinutes(normalizeEstimateMinutes(Number(event.target.value)))}
-                inputProps={{ min: 0, max: 10080, step: 5 }}
-                fullWidth
-              />
-            </Stack>
-
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <TextField
-                select
-                label={t("Repeat")}
-                value={recurrence}
-                onChange={(event) => setRecurrence(event.target.value as TaskRecurrence)}
-                SelectProps={{ native: true }}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              >
-                <option value="none">{t("Does not repeat")}</option>
-                <option value="daily">{t("Daily")}</option>
-                <option value="weekdays">{t("Weekdays")}</option>
-                <option value="weekly">{t("Weekly")}</option>
-              </TextField>
-
-              <TextField
-                type="date"
-                label={t("Repeat until")}
-                value={recurrenceUntil}
-                onChange={(event) => setRecurrenceUntil(event.target.value)}
-                InputLabelProps={{ shrink: true }}
-                disabled={recurrence === "none"}
-                fullWidth
-              />
-            </Stack>
-
-            <TextField
-              label={t("Before (planned outcome)")}
-              value={beforeOutcome}
-              onChange={(event) => setBeforeOutcome(event.target.value)}
-              multiline
-              minRows={2}
-              fullWidth
-            />
-
-            <TextField
-              label={t("After (actual outcome)")}
-              value={afterOutcome}
-              onChange={(event) => setAfterOutcome(event.target.value)}
-              multiline
-              minRows={2}
-              fullWidth
-            />
-          </Stack>
-        </DialogContent>
-
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>{t("Cancel")}</Button>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={busy || title.trim().length === 0}
-          >
-            {editingTask ? t("Save") : t("Create")}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <TaskEditDialog
+        afterOutcome={afterOutcome}
+        beforeOutcome={beforeOutcome}
+        busy={busy}
+        description={description}
+        dueDate={dueDate}
+        editingTask={Boolean(editingTask)}
+        goalId={goalId}
+        goals={goals}
+        isDialogOpen={isDialogOpen}
+        onAfterOutcomeChange={setAfterOutcome}
+        onBeforeOutcomeChange={setBeforeOutcome}
+        onClose={() => setDialogOpen(false)}
+        onDescriptionChange={setDescription}
+        onDueDateChange={setDueDate}
+        onGoalIdChange={setGoalId}
+        onPriorityChange={setPriority}
+        onProjectIdChange={setProjectId}
+        onRecurrenceChange={setRecurrence}
+        onRecurrenceUntilChange={setRecurrenceUntil}
+        onSave={handleSave}
+        onStatusChange={setStatus}
+        onTimeEstimateMinutesChange={(value) =>
+          setTimeEstimateMinutes(normalizeEstimateMinutes(value))
+        }
+        onTitleChange={setTitle}
+        priority={priority}
+        projectId={projectId}
+        projects={projects}
+        recurrence={recurrence}
+        recurrenceUntil={recurrenceUntil}
+        status={status}
+        t={t}
+        timeEstimateMinutes={timeEstimateMinutes}
+        title={title}
+      />
     </Box>
   );
 };
