@@ -35,6 +35,7 @@ import {
   getWeeklyMeetingOccurrences,
   getWeeklyReview,
 } from "../utils/plannerSelectors";
+import { getTaskStatusForDoneToggle } from "../utils/taskUtils";
 import { isSafeExternalUrl } from "../utils/urlUtils";
 import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
@@ -369,7 +370,7 @@ export const PlannerBoard = ({
         updateTaskStatus={(task, checked) =>
           updateTaskStatus.mutate({
             id: task.id,
-            status: checked ? "done" : task.status === "done" ? "todo" : task.status,
+            status: getTaskStatusForDoneToggle(task, checked),
           })
         }
       />

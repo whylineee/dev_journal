@@ -55,6 +55,7 @@ import {
   formatDuration,
   formatTaskDateOnly,
   formatTaskDateTime,
+  getTaskStatusForDoneToggle,
   getTaskElapsedSeconds,
   isTaskOverdue,
   normalizeEstimateMinutes,
@@ -573,11 +574,10 @@ export const TasksBoard = () => {
   };
 
   const toggleDone = (task: Task, checked: boolean) => {
-    if (checked) {
-      updateStatus.mutate({ id: task.id, status: "done" });
-    } else {
-      updateStatus.mutate({ id: task.id, status: task.status === "done" ? "todo" : task.status });
-    }
+    updateStatus.mutate({
+      id: task.id,
+      status: getTaskStatusForDoneToggle(task, checked),
+    });
   };
 
   const handleDragStart = (event: DragStartEvent) => {

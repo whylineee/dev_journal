@@ -4,6 +4,7 @@ import { format, subDays } from "date-fns";
 import {
   compareTasks,
   formatDuration,
+  getTaskStatusForDoneToggle,
   getTaskElapsedSeconds,
   isTaskDueToday,
   isTaskOverdue,
@@ -77,6 +78,15 @@ test("normalizeEstimateMinutes clamps and rounds values", () => {
   assert.equal(normalizeEstimateMinutes(-3), 0);
   assert.equal(normalizeEstimateMinutes(20_000), 10_080);
   assert.equal(normalizeEstimateMinutes(Number.NaN), 0);
+});
+
+test("getTaskStatusForDoneToggle reopens completed tasks as in progress", () => {
+  assert.equal(getTaskStatusForDoneToggle(makeTask({ status: "todo" }), true), "done");
+  assert.equal(getTaskStatusForDoneToggle(makeTask({ status: "done" }), false), "in_progress");
+  assert.equal(
+    getTaskStatusForDoneToggle(makeTask({ status: "in_progress" }), false),
+    "in_progress"
+  );
 });
 
 test("compareTasks sorts by priority, then due date, then newest update", () => {

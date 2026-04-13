@@ -48,6 +48,7 @@ import { useEntries } from "../hooks/useEntries";
 import { useI18n } from "../i18n/I18nContext";
 import { useAppNotifications } from "../notifications/AppNotifications";
 import { expandMeetingOccurrences } from "../utils/meetingUtils";
+import { getTaskStatusForDoneToggle } from "../utils/taskUtils";
 import { isSafeExternalUrl } from "../utils/urlUtils";
 
 const statusLabel: Record<ProjectStatus, string> = {
@@ -387,7 +388,7 @@ export const ProjectsBoard = () => {
   const handleTaskCheckbox = (task: Task, checked: boolean) => {
     updateTaskStatus.mutate({
       id: task.id,
-      status: checked ? "done" : "todo",
+      status: getTaskStatusForDoneToggle(task, checked),
     });
   };
 

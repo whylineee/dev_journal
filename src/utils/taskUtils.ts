@@ -1,5 +1,5 @@
 import { format, isBefore, isToday, parseISO, startOfDay } from "date-fns";
-import { Task, TaskPriority } from "../types";
+import { Task, TaskPriority, TaskStatus } from "../types";
 
 const priorityOrder: Record<TaskPriority, number> = {
   urgent: 0,
@@ -118,6 +118,17 @@ export const normalizeEstimateMinutes = (value: number) => {
   }
 
   return Math.max(0, Math.min(10080, Math.round(value)));
+};
+
+/**
+ * Reopens completed tasks into an active state instead of dropping them back to todo.
+ */
+export const getTaskStatusForDoneToggle = (task: Task, checked: boolean): TaskStatus => {
+  if (checked) {
+    return "done";
+  }
+
+  return task.status === "done" ? "in_progress" : task.status;
 };
 
 /**

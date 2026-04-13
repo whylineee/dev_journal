@@ -75,6 +75,7 @@ import {
     removePageDraft,
     removePageTrackerData,
 } from "../utils/draftStorage";
+import { getTaskStatusForDoneToggle } from "../utils/taskUtils";
 import {
     persistPageTaskTrackerDataById,
     readPageTaskTrackerDataById,
@@ -1389,7 +1390,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     const handleTaskToggle = (task: Task, checked: boolean) => {
         updateTaskStatus.mutate({
             id: task.id,
-            status: checked ? "done" : "todo",
+            status: getTaskStatusForDoneToggle(task, checked),
         });
     };
 
