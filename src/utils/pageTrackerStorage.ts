@@ -21,5 +21,9 @@ export const persistPageTaskTrackerDataById = (
   pageId: PageIdKey,
   data: Record<string, TaskTrackerData>
 ): void => {
-  localStorage.setItem(getPageTrackerDataKey(pageId), JSON.stringify(data));
+  try {
+    localStorage.setItem(getPageTrackerDataKey(pageId), JSON.stringify(data));
+  } catch {
+    // Ignore storage write failures so tracker autosave remains best-effort.
+  }
 };

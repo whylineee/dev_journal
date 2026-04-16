@@ -42,7 +42,11 @@ export const readEntryDraft = (date: string): EntryDraft | null => {
 };
 
 export const persistEntryDraft = (date: string, draft: EntryDraft): void => {
-  localStorage.setItem(getEntryDraftKey(date), JSON.stringify(draft));
+  try {
+    localStorage.setItem(getEntryDraftKey(date), JSON.stringify(draft));
+  } catch {
+    // Ignore storage write failures so draft autosave does not break the editor.
+  }
 };
 
 export const removeEntryDraft = (date: string): void => {
@@ -65,7 +69,11 @@ export const readPageDraft = (pageId: PageIdKey): PageDraft | null => {
 };
 
 export const persistPageDraft = (pageId: PageIdKey, draft: PageDraft): void => {
-  localStorage.setItem(getPageDraftKey(pageId), JSON.stringify(draft));
+  try {
+    localStorage.setItem(getPageDraftKey(pageId), JSON.stringify(draft));
+  } catch {
+    // Ignore storage write failures so draft autosave does not break the editor.
+  }
 };
 
 export const removePageDraft = (pageId: PageIdKey): void => {
@@ -85,7 +93,11 @@ export const readPageTrackerView = (pageId: PageIdKey): PageTrackerView => {
 };
 
 export const persistPageTrackerView = (pageId: PageIdKey, view: PageTrackerView): void => {
-  localStorage.setItem(getPageTrackerViewKey(pageId), view);
+  try {
+    localStorage.setItem(getPageTrackerViewKey(pageId), view);
+  } catch {
+    // Ignore storage write failures so view preference writes remain best-effort.
+  }
 };
 
 export const removePageTrackerView = (pageId: PageIdKey): void => {
