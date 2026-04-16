@@ -88,6 +88,15 @@ export const persistPageTrackerView = (pageId: PageIdKey, view: PageTrackerView)
   localStorage.setItem(getPageTrackerViewKey(pageId), view);
 };
 
+export const removePageTrackerView = (pageId: PageIdKey): void => {
+  localStorage.removeItem(getPageTrackerViewKey(pageId));
+};
+
 export const removePageTrackerData = (pageId: PageIdKey): void => {
   localStorage.removeItem(getPageTrackerDataKey(pageId));
+};
+
+export const removePageTrackerState = (pageId: PageIdKey): void => {
+  removePageTrackerData(pageId);
+  removePageTrackerView(pageId);
 };

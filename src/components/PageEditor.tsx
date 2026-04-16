@@ -73,7 +73,7 @@ import {
     readPageDraft,
     readPageTrackerView,
     removePageDraft,
-    removePageTrackerData,
+    removePageTrackerState,
 } from "../utils/draftStorage";
 import { getTaskStatusForDoneToggle } from "../utils/taskUtils";
 import {
@@ -1168,6 +1168,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                 onSuccess: (newPage) => {
                     clearPendingAutosave();
                     removePageDraft(pageIdKey);
+                    removePageTrackerState(pageIdKey);
                     setDraftRestored(false);
                     onSaveSuccess(newPage.id);
                 }
@@ -1195,6 +1196,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                 onSuccess: () => {
                     clearPendingAutosave();
                     removePageDraft(pageIdKey);
+                    removePageTrackerState(pageIdKey);
                     onDeleteSuccess();
                 }
             });
@@ -1246,7 +1248,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     const clearDraft = () => {
         clearPendingAutosave();
         removePageDraft(pageIdKey);
-        removePageTrackerData(pageIdKey);
+        removePageTrackerState(pageIdKey);
         setDraftRestored(false);
         setTaskTrackerDataById({});
         setTitle(page?.title ?? "Untitled Page");
