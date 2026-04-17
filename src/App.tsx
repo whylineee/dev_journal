@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Layout } from "./components/Layout";
 import type { CommandAction } from "./components/CommandPalette";
 import { format } from "date-fns";
-import { Box } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import { useEntries } from "./hooks/useEntries";
 import { usePages } from "./hooks/usePages";
 import { useGoals } from "./hooks/useGoals";
@@ -12,18 +12,8 @@ import { useMeetings } from "./hooks/useMeetings";
 import { useThemeContext } from "./theme/ThemeContext";
 import { useI18n } from "./i18n/I18nContext";
 import { EntryForm } from "./components/EntryForm";
-import { PageEditor } from "./components/PageEditor";
-import { Stats } from "./components/Stats";
-import { TasksBoard } from "./components/TasksBoard";
-import { GoalsBoard } from "./components/GoalsBoard";
-import { HabitsBoard } from "./components/HabitsBoard";
-import { ProjectsBoard } from "./components/ProjectsBoard";
 import { PlannerBoard } from "./components/PlannerBoard";
-import { WeeklySummary } from "./components/WeeklySummary";
 import { CommandPalette } from "./components/CommandPalette";
-import { InsightsBoard } from "./components/InsightsBoard";
-import { FocusBoard } from "./components/FocusBoard";
-import { SettingsScreen } from "./components/SettingsScreen";
 import { useAppNotifications } from "./notifications/AppNotifications";
 import { useAppShellPreferences } from "./hooks/useAppShellPreferences";
 import { useNotificationPermission } from "./hooks/useNotificationPermission";
@@ -31,6 +21,74 @@ import { useJournalReminder } from "./hooks/useJournalReminder";
 import { useMeetingReminders } from "./hooks/useMeetingReminders";
 import { useAppUsageTracking } from "./hooks/useAppUsageTracking";
 import { dispatchTasksFilterPreference } from "./utils/preferencesStorage";
+
+const JournalScreen = lazy(() =>
+  Promise.all([
+    import("./components/WeeklySummary"),
+    import("./components/Stats"),
+  ]).then(([weeklySummaryModule, statsModule]) => ({
+    default: ({
+      date,
+      previewEnabled,
+      autosaveEnabled,
+    }: {
+      date: string;
+      previewEnabled: boolean;
+      autosaveEnabled: boolean;
+    }) => (
+      <>
+        <EntryForm
+          date={date}
+          previewEnabled={previewEnabled}
+          autosaveEnabled={autosaveEnabled}
+        />
+        <Box sx={{ mt: 4 }}>
+          <weeklySummaryModule.WeeklySummary />
+        </Box>
+        <Box sx={{ mt: 6 }}>
+          <statsModule.Stats />
+        </Box>
+      </>
+    ),
+  }))
+);
+const PageEditor = lazy(() =>
+  import("./components/PageEditor").then((module) => ({ default: module.PageEditor }))
+);
+const TasksBoard = lazy(() =>
+  import("./components/TasksBoard").then((module) => ({ default: module.TasksBoard }))
+);
+const GoalsBoard = lazy(() =>
+  import("./components/GoalsBoard").then((module) => ({ default: module.GoalsBoard }))
+);
+const HabitsBoard = lazy(() =>
+  import("./components/HabitsBoard").then((module) => ({ default: module.HabitsBoard }))
+);
+const ProjectsBoard = lazy(() =>
+  import("./components/ProjectsBoard").then((module) => ({ default: module.ProjectsBoard }))
+);
+const InsightsBoard = lazy(() =>
+  import("./components/InsightsBoard").then((module) => ({ default: module.InsightsBoard }))
+);
+const FocusBoard = lazy(() =>
+  import("./components/FocusBoard").then((module) => ({ default: module.FocusBoard }))
+);
+const SettingsScreen = lazy(() =>
+  import("./components/SettingsScreen").then((module) => ({ default: module.SettingsScreen }))
+);
+
+const TabLoadingFallback = () => (
+  <Box
+    sx={{
+      minHeight: 320,
+      display: "grid",
+      placeItems: "center",
+      px: 3,
+    }}
+  >
+    <CircularProgress size={28} />
+  </Box>
+);
 
 function App() {
   const [activeTab, setActiveTab] = useState<'planner' | 'focus' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'projects' | 'insights' | 'settings'>('planner');
@@ -304,6 +362,115 @@ function App() {
     return actions;
   }, [appearanceMode, entries, goals, habits, language, pages, projects, setAppearanceMode, setLanguage, t]);
 
+  const renderActiveTab = () => {
+    if (activeTab === "journal") {
+      return (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <JournalScreen
+            date={selectedDate}
+            previewEnabled={journalPreviewEnabled}
+            autosaveEnabled={autosaveEnabled}
+          />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "planner") {
+      return (
+        <PlannerBoard
+          onOpenTasks={() => setActiveTab("tasks")}
+          onOpenGoals={() => setActiveTab("goals")}
+          onOpenHabits={() => setActiveTab("habits")}
+          onOpenProjects={() => setActiveTab("projects")}
+          onOpenFocus={() => setActiveTab("focus")}
+        />
+      );
+    }
+
+    if (activeTab === "focus") {
+      return (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <FocusBoard />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "tasks") {
+      return (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <TasksBoard />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "goals") {
+      return (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <GoalsBoard />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "habits") {
+      return (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <HabitsBoard />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "projects") {
+      return (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <ProjectsBoard />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "insights") {
+      return (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <InsightsBoard />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "settings") {
+      return (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <SettingsScreen
+            reminderEnabled={reminderEnabled}
+            onReminderEnabledChange={setReminderEnabled}
+            reminderHour={reminderHour}
+            onReminderHourChange={setReminderHour}
+            journalPreviewEnabled={journalPreviewEnabled}
+            onJournalPreviewEnabledChange={setJournalPreviewEnabled}
+            pagePreviewEnabled={pagePreviewEnabled}
+            onPagePreviewEnabledChange={setPagePreviewEnabled}
+            autosaveEnabled={autosaveEnabled}
+            onAutosaveEnabledChange={setAutosaveEnabled}
+          />
+        </Suspense>
+      );
+    }
+
+    return (
+      <Suspense fallback={<TabLoadingFallback />}>
+        <PageEditor
+          pageId={selectedPageId}
+          previewEnabled={pagePreviewEnabled}
+          autosaveEnabled={autosaveEnabled}
+          onSaveSuccess={(id) => {
+            setSelectedPageId(id);
+          }}
+          onDeleteSuccess={() => {
+            setSelectedPageId(null);
+          }}
+        />
+      </Suspense>
+    );
+  };
+
   return (
     <>
       <Layout
@@ -315,66 +482,7 @@ function App() {
         onSelectPage={setSelectedPageId}
       >
         <Box sx={{ height: '100%', pb: 4, width: "100%" }}>
-          {activeTab === 'journal' ? (
-              <>
-                <EntryForm
-                  date={selectedDate}
-                  previewEnabled={journalPreviewEnabled}
-                  autosaveEnabled={autosaveEnabled}
-                />
-                <Box sx={{ mt: 4 }}>
-                  <WeeklySummary />
-                </Box>
-                <Box sx={{ mt: 6 }}>
-                  <Stats />
-                </Box>
-              </>
-            ) : activeTab === 'planner' ? (
-              <PlannerBoard
-                onOpenTasks={() => setActiveTab("tasks")}
-                onOpenGoals={() => setActiveTab("goals")}
-                onOpenHabits={() => setActiveTab("habits")}
-                onOpenProjects={() => setActiveTab("projects")}
-                onOpenFocus={() => setActiveTab("focus")}
-              />
-            ) : activeTab === 'focus' ? (
-              <FocusBoard />
-            ) : activeTab === 'tasks' ? (
-              <TasksBoard />
-            ) : activeTab === 'goals' ? (
-              <GoalsBoard />
-            ) : activeTab === 'habits' ? (
-              <HabitsBoard />
-            ) : activeTab === 'projects' ? (
-              <ProjectsBoard />
-            ) : activeTab === 'insights' ? (
-              <InsightsBoard />
-            ) : activeTab === 'settings' ? (
-              <SettingsScreen
-                reminderEnabled={reminderEnabled}
-                onReminderEnabledChange={setReminderEnabled}
-                reminderHour={reminderHour}
-                onReminderHourChange={setReminderHour}
-                journalPreviewEnabled={journalPreviewEnabled}
-                onJournalPreviewEnabledChange={setJournalPreviewEnabled}
-                pagePreviewEnabled={pagePreviewEnabled}
-                onPagePreviewEnabledChange={setPagePreviewEnabled}
-                autosaveEnabled={autosaveEnabled}
-                onAutosaveEnabledChange={setAutosaveEnabled}
-              />
-            ) : (
-              <PageEditor
-                pageId={selectedPageId}
-                previewEnabled={pagePreviewEnabled}
-                autosaveEnabled={autosaveEnabled}
-                onSaveSuccess={(id) => {
-                  setSelectedPageId(id);
-                }}
-                onDeleteSuccess={() => {
-                  setSelectedPageId(null);
-                }}
-              />
-            )}
+          {renderActiveTab()}
         </Box>
       </Layout>
 

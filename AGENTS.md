@@ -163,7 +163,7 @@ The app uses a strict frontend/backend split:
 
 ### Entry points
 - `src/main.tsx`: React bootstrap
-- `src/App.tsx`: app shell orchestration, tab routing, reminders, command palette state
+- `src/App.tsx`: app shell orchestration, tab routing, reminders, command palette state, and lazy-loading for non-default workspace screens to keep startup lighter
 
 ### Main UI modules
 - `src/components/Layout.tsx`: sidebar, shell, top navigation, global search, desktop/mobile navigation
