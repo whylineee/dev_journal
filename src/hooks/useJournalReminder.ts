@@ -7,6 +7,22 @@ import {
   PREFERENCES_APPLIED_EVENT,
 } from "../utils/preferencesStorage";
 
+const readLastReminderDate = () => {
+  try {
+    return localStorage.getItem(APP_SHELL_STORAGE_KEYS.lastReminderDate);
+  } catch {
+    return null;
+  }
+};
+
+const writeLastReminderDate = (value: string) => {
+  try {
+    localStorage.setItem(APP_SHELL_STORAGE_KEYS.lastReminderDate, value);
+  } catch {
+    // Ignore storage failures so reminder polling can continue running.
+  }
+};
+
 interface UseJournalReminderOptions {
   entries: Entry[] | undefined;
   reminderEnabled: boolean;
@@ -24,13 +40,11 @@ export const useJournalReminder = ({
   notify,
   t,
 }: UseJournalReminderOptions) => {
-  const lastReminderDateRef = useRef<string | null>(
-    localStorage.getItem(APP_SHELL_STORAGE_KEYS.lastReminderDate)
-  );
+  const lastReminderDateRef = useRef<string | null>(readLastReminderDate());
 
   useEffect(() => {
     const syncReminderDate = () => {
-      lastReminderDateRef.current = localStorage.getItem(APP_SHELL_STORAGE_KEYS.lastReminderDate);
+      lastReminderDateRef.current = readLastReminderDate();
     };
 
     window.addEventListener(PREFERENCES_APPLIED_EVENT, syncReminderDate);
@@ -83,7 +97,7 @@ export const useJournalReminder = ({
       });
       notify(message, "info");
       lastReminderDateRef.current = todayStr;
-      localStorage.setItem(APP_SHELL_STORAGE_KEYS.lastReminderDate, todayStr);
+      writeLastReminderDate(todayStr);
     };
 
     const interval = window.setInterval(checkTime, 60000);
