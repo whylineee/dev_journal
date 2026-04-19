@@ -19,7 +19,11 @@ const readReminderMap = (): Record<string, string> => {
 };
 
 const writeReminderMap = (value: Record<string, string>) => {
-  localStorage.setItem(APP_SHELL_STORAGE_KEYS.meetingReminderMap, JSON.stringify(value));
+  try {
+    localStorage.setItem(APP_SHELL_STORAGE_KEYS.meetingReminderMap, JSON.stringify(value));
+  } catch {
+    // Ignore storage failures so reminder polling can continue running.
+  }
 };
 
 interface UseMeetingRemindersOptions {

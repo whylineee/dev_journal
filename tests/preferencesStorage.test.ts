@@ -128,3 +128,79 @@ test("applyPreferenceSnapshot sanitizes persisted values and emits sync events",
   assert.ok(browser.events.includes(TASKS_FILTER_EVENT));
   assert.equal(browser.events[browser.events.length - 1], PREFERENCES_APPLIED_EVENT);
 });
+
+test("preference storage falls back cleanly when localStorage access throws", () => {
+  const originalGetItem = localStorage.getItem.bind(localStorage);
+  const originalSetItem = localStorage.setItem.bind(localStorage);
+  const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+
+  try {
+    localStorage.getItem = () => {
+      throw new Error("storage blocked");
+    };
+
+    const snapshot = exportPreferenceSnapshot(
+      () => "light",
+      (value) => Math.min(18, Math.max(6, Math.round(value)))
+    );
+
+    assert.deepEqual(snapshot, {
+      appShell: {
+        reminderEnabled: true,
+        reminderHour: 18,
+        journalPreviewEnabled: true,
+        pagePreviewEnabled: true,
+        autosaveEnabled: true,
+        lastReminderDate: null,
+        meetingReminderMap: {},
+      },
+      theme: {
+        themePreset: "monochrome",
+        appearanceMode: "light",
+        fontPreset: "inter",
+        uiDensity: "comfortable",
+        borderRadius: 6,
+      },
+      planner: {
+        dailyWins: {},
+        collapsedSections: {},
+      },
+      tasks: {
+        showOverdueOnly: false,
+      },
+    });
+
+    localStorage.getItem = originalGetItem;
+    localStorage.setItem = () => {
+      throw new Error("storage blocked");
+    };
+    localStorage.removeItem = () => {
+      throw new Error("storage blocked");
+    };
+
+    let thrownError: unknown = null;
+
+    try {
+      applyPreferenceSnapshot({
+        appShell: {
+          reminderEnabled: false,
+          lastReminderDate: null,
+        },
+        tasks: {
+          showOverdueOnly: true,
+        },
+      });
+    } catch (error) {
+      thrownError = error;
+    }
+
+    assert.equal(thrownError, null);
+
+    assert.ok(browser.events.includes(TASKS_FILTER_EVENT));
+    assert.equal(browser.events[browser.events.length - 1], PREFERENCES_APPLIED_EVENT);
+  } finally {
+    localStorage.getItem = originalGetItem;
+    localStorage.setItem = originalSetItem;
+    localStorage.removeItem = originalRemoveItem;
+  }
+});

@@ -39,7 +39,9 @@ test("page editor persistence stays best-effort when localStorage writes fail", 
   };
 
   try {
-    assert.doesNotThrow(() => {
+    let thrownError: unknown = null;
+
+    try {
       persistPageDraft("new", {
         title: "Draft",
         content: "Content",
@@ -54,7 +56,11 @@ test("page editor persistence stays best-effort when localStorage writes fail", 
         },
       });
       persistPageTrackerView("new", "checklist");
-    });
+    } catch (error) {
+      thrownError = error;
+    }
+
+    assert.equal(thrownError, null);
   } finally {
     localStorage.setItem = originalSetItem;
   }

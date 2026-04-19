@@ -72,7 +72,11 @@ const readString = (key: string) => {
     return null;
   }
 
-  return localStorage.getItem(key);
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 };
 
 const writeString = (key: string, value: string) => {
@@ -80,7 +84,23 @@ const writeString = (key: string, value: string) => {
     return;
   }
 
-  localStorage.setItem(key, value);
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage failures so preference updates do not break the UI flow.
+  }
+};
+
+const removeString = (key: string) => {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures so preference updates do not break the UI flow.
+  }
 };
 
 export const readBooleanPreference = (key: string, fallback: boolean) => {
@@ -97,7 +117,12 @@ export const readIntegerPreference = (
   min: number,
   max: number
 ) => {
-  const value = Number(readString(key));
+  const raw = readString(key);
+  if (raw === null) {
+    return fallback;
+  }
+
+  const value = Number(raw);
   return Number.isInteger(value) && value >= min && value <= max ? value : fallback;
 };
 
@@ -254,7 +279,7 @@ export const applyPreferenceSnapshot = (snapshot: PreferencesSnapshot) => {
     }
     if (typeof appShell.lastReminderDate === "string" || appShell.lastReminderDate === null) {
       if (appShell.lastReminderDate === null) {
-        localStorage.removeItem(APP_SHELL_STORAGE_KEYS.lastReminderDate);
+        removeString(APP_SHELL_STORAGE_KEYS.lastReminderDate);
       } else {
         writeString(APP_SHELL_STORAGE_KEYS.lastReminderDate, appShell.lastReminderDate);
       }
