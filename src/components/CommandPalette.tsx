@@ -1,4 +1,4 @@
-import { KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { KeyboardEvent, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Chip,
@@ -35,26 +35,34 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const deferredQuery = useDeferredValue(query);
+
+  const indexedActions = useMemo(
+    () =>
+      actions.map((action) => ({
+        action,
+        searchText: [
+          action.title,
+          action.subtitle ?? "",
+          action.section ?? "",
+          ...(action.keywords ?? []),
+        ]
+          .join(" ")
+          .toLowerCase(),
+      })),
+    [actions]
+  );
 
   const filteredActions = useMemo(() => {
-    const q = normalize(query);
+    const q = normalize(deferredQuery);
     if (!q) {
-      return actions;
+      return indexedActions.map(({ action }) => action);
     }
 
-    return actions.filter((action) => {
-      const haystack = [
-        action.title,
-        action.subtitle ?? "",
-        action.section ?? "",
-        ...(action.keywords ?? []),
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(q);
-    });
-  }, [actions, query]);
+    return indexedActions
+      .filter(({ searchText }) => searchText.includes(q))
+      .map(({ action }) => action);
+  }, [deferredQuery, indexedActions]);
 
   useEffect(() => {
     if (!open) {
@@ -69,6 +77,10 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
   useEffect(() => {
     setSelectedIndex(0);
   }, [query]);
+
+  useEffect(() => {
+    setSelectedIndex((prev) => Math.min(prev, Math.max(filteredActions.length - 1, 0)));
+  }, [filteredActions.length]);
 
   const executeAction = (index: number) => {
     const action = filteredActions[index];

@@ -85,62 +85,51 @@ const isValidQuickCaptureRecord = (item: unknown): item is QuickCaptureRecord =>
   typeof (item as QuickCaptureRecord).structured_text === "string" &&
   typeof (item as QuickCaptureRecord).created_at === "string";
 
-export const readAdrRecords = (): AdrRecord[] => {
+const readRecords = <T>(storageKey: string, isValid: (item: unknown) => item is T): T[] => {
   try {
-    const raw = localStorage.getItem(ADR_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown[];
-    return Array.isArray(parsed) ? parsed.filter(isValidAdrRecord) : [];
+    return Array.isArray(parsed) ? parsed.filter(isValid) : [];
   } catch {
     return [];
   }
 };
 
+const persistRecords = <T>(storageKey: string, records: T[]): void => {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(records));
+  } catch {
+    // Keep storage writes best-effort so local persistence failures do not break the UI flow.
+  }
+};
+
+export const readAdrRecords = (): AdrRecord[] => readRecords(ADR_STORAGE_KEY, isValidAdrRecord);
+
 export const persistAdrRecords = (records: AdrRecord[]): void => {
-  localStorage.setItem(ADR_STORAGE_KEY, JSON.stringify(records));
+  persistRecords(ADR_STORAGE_KEY, records);
 };
 
 export const readIncidents = (): IncidentRecord[] => {
-  try {
-    const raw = localStorage.getItem(INCIDENTS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown[];
-    return Array.isArray(parsed) ? parsed.filter(isValidIncidentRecord) : [];
-  } catch {
-    return [];
-  }
+  return readRecords(INCIDENTS_STORAGE_KEY, isValidIncidentRecord);
 };
 
 export const persistIncidents = (records: IncidentRecord[]): void => {
-  localStorage.setItem(INCIDENTS_STORAGE_KEY, JSON.stringify(records));
+  persistRecords(INCIDENTS_STORAGE_KEY, records);
 };
 
 export const readDebugSessions = (): DebugSession[] => {
-  try {
-    const raw = localStorage.getItem(DEBUG_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown[];
-    return Array.isArray(parsed) ? parsed.filter(isValidDebugSession) : [];
-  } catch {
-    return [];
-  }
+  return readRecords(DEBUG_STORAGE_KEY, isValidDebugSession);
 };
 
 export const persistDebugSessions = (sessions: DebugSession[]): void => {
-  localStorage.setItem(DEBUG_STORAGE_KEY, JSON.stringify(sessions));
+  persistRecords(DEBUG_STORAGE_KEY, sessions);
 };
 
 export const readQuickCaptureRecords = (): QuickCaptureRecord[] => {
-  try {
-    const raw = localStorage.getItem(QUICK_CAPTURE_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown[];
-    return Array.isArray(parsed) ? parsed.filter(isValidQuickCaptureRecord) : [];
-  } catch {
-    return [];
-  }
+  return readRecords(QUICK_CAPTURE_STORAGE_KEY, isValidQuickCaptureRecord);
 };
 
 export const persistQuickCaptureRecords = (records: QuickCaptureRecord[]): void => {
-  localStorage.setItem(QUICK_CAPTURE_STORAGE_KEY, JSON.stringify(records));
+  persistRecords(QUICK_CAPTURE_STORAGE_KEY, records);
 };

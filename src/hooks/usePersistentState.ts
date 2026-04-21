@@ -16,7 +16,13 @@ export const usePersistentState = <T>({
   serialize,
   syncEvents = EMPTY_SYNC_EVENTS,
 }: UsePersistentStateOptions<T>): [T, Dispatch<SetStateAction<T>>] => {
-  const readValue = useCallback(() => parse(localStorage.getItem(storageKey)), [parse, storageKey]);
+  const readValue = useCallback(() => {
+    try {
+      return parse(localStorage.getItem(storageKey));
+    } catch {
+      return parse(null);
+    }
+  }, [parse, storageKey]);
   const [value, setValue] = useState<T>(readValue);
 
   useEffect(() => {

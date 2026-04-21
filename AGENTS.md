@@ -408,6 +408,7 @@ Layout conventions:
 ### Search
 - entry search is available in the shell
 - command palette is opened with `Cmd/Ctrl + K`
+- command palette filtering should stay lightweight; prefer deferred query updates and precomputed searchable text over rebuilding large search strings on every keystroke
 
 ### Notifications
 - daily journal reminder uses Tauri notification plugin
@@ -426,6 +427,7 @@ Layout conventions:
 - page drafts
 - planner daily wins / collapsed sections via `usePlannerPreferences`
 - tasks overdue filter via `useTasksPreferences`
+- insights storage writes should remain best-effort so localStorage quota/privacy failures do not break the screen
 
 ## Backup / Import / Export
 
