@@ -530,14 +530,35 @@ const interpolate = (template: string, vars?: Record<string, string | number>) =
   }, template);
 };
 
+export const readStoredLanguage = (): Language => {
+  if (typeof localStorage === "undefined") {
+    return "en";
+  }
+
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "uk" ? "uk" : "en";
+  } catch {
+    return "en";
+  }
+};
+
+export const persistLanguage = (language: Language) => {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY, language);
+  } catch {
+    // Ignore storage failures so language changes still apply in memory.
+  }
+};
+
 export const I18nProvider = ({ children }: { children: ReactNode }) => {
-  const [language, setLanguage] = useState<Language>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved === "uk" ? "uk" : "en";
-  });
+  const [language, setLanguage] = useState<Language>(readStoredLanguage);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, language);
+    persistLanguage(language);
   }, [language]);
 
   const value = useMemo<I18nContextValue>(() => {
