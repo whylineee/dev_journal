@@ -19,7 +19,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import RepeatIcon from "@mui/icons-material/Repeat";
-import { format, subDays } from "date-fns";
+import { format, parseISO, subDays } from "date-fns";
 import {
   useCreateHabit,
   useDeleteHabit,
@@ -36,7 +36,7 @@ const computeWeekDates = () =>
   );
 
 const toDayLabel = (value: string) => {
-  const date = new Date(value);
+  const date = parseISO(value);
   if (Number.isNaN(date.getTime())) {
     return value.slice(5);
   }

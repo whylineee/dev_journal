@@ -1,3 +1,4 @@
+import { parseISO } from "date-fns";
 import type { Task, TaskPriority, TaskStatus } from "../types";
 import { compareTasks, isTaskDueToday, isTaskOverdue } from "./taskUtils";
 
@@ -12,7 +13,7 @@ export type GanttEntry = {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const startOfDay = (value: string) => {
-  const date = new Date(value);
+  const date = parseISO(value);
   date.setHours(0, 0, 0, 0);
   return date;
 };
