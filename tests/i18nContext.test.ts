@@ -34,7 +34,15 @@ test("language storage helpers ignore blocked localStorage access", () => {
       throw new Error("storage blocked");
     };
 
-    assert.doesNotThrow(() => persistLanguage("uk"));
+    let thrownError: unknown = null;
+
+    try {
+      persistLanguage("uk");
+    } catch (error) {
+      thrownError = error;
+    }
+
+    assert.equal(thrownError, null);
   } finally {
     localStorage.getItem = originalGetItem;
     localStorage.setItem = originalSetItem;
