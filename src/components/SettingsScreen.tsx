@@ -93,6 +93,10 @@ const SettingsOptionTile = ({
         textAlign: "left",
         alignItems: "stretch",
         overflow: "hidden",
+        transition: "transform 0.14s ease",
+        "&:hover": {
+          transform: "scale(1.01)",
+        },
       }}
     >
       <Box
@@ -107,9 +111,7 @@ const SettingsOptionTile = ({
             : theme.palette.divider,
           bgcolor: selected
             ? alpha(accent ?? theme.palette.primary.main, isDark ? 0.18 : 0.12)
-            : isDark
-              ? "rgba(255,255,255,0.03)"
-              : "rgba(0,0,0,0.02)",
+            : "background.default",
           transition: "border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease",
           "&:hover": {
             borderColor: accent ?? "primary.main",
@@ -400,7 +402,7 @@ export const SettingsScreen = ({
                       borderRadius: settingsInsetRadius,
                       border: "1px solid",
                       borderColor: "divider",
-                      bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                      bgcolor: "background.default",
                     }}
                   >
                     <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
@@ -576,7 +578,7 @@ export const SettingsScreen = ({
                     borderRadius: settingsInsetRadius,
                     border: "1px solid",
                     borderColor: "divider",
-                    bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                    bgcolor: "background.default",
                   }}
                 >
                   <Slider
@@ -704,7 +706,7 @@ export const SettingsScreen = ({
                   borderRadius: settingsInsetRadius,
                   border: "1px solid",
                   borderColor: "divider",
-                  bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                  bgcolor: "background.default",
                 }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>

@@ -14,6 +14,7 @@ import { useI18n } from "./i18n/I18nContext";
 import { EntryForm } from "./components/EntryForm";
 import { PlannerBoard } from "./components/PlannerBoard";
 import { CommandPalette } from "./components/CommandPalette";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAppNotifications } from "./notifications/AppNotifications";
 import { useAppShellPreferences } from "./hooks/useAppShellPreferences";
 import { useNotificationPermission } from "./hooks/useNotificationPermission";
@@ -481,9 +482,19 @@ function App() {
         selectedPageId={selectedPageId}
         onSelectPage={setSelectedPageId}
       >
-        <Box sx={{ height: '100%', pb: 4, width: "100%" }}>
-          {renderActiveTab()}
-        </Box>
+        <AnimatePresence mode="wait" initial={false}>
+          <Box
+            key={activeTab}
+            component={motion.div}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            sx={{ height: "100%", pb: 4, width: "100%" }}
+          >
+            {renderActiveTab()}
+          </Box>
+        </AnimatePresence>
       </Layout>
 
       <CommandPalette

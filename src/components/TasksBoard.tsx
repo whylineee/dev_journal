@@ -145,9 +145,9 @@ const DroppableColumn = ({ status, children }: DroppableColumnProps) => {
         transition: "border-color 0.15s ease, background-color 0.15s ease",
         backgroundColor: (theme) =>
           isOver
-            ? theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.01)"
+            ? theme.palette.action.hover
             : "transparent",
-        boxShadow: "none",
+        boxShadow: (theme) => (isOver ? theme.shadows[1] : "none"),
       }}
     >
       {children}
@@ -182,6 +182,7 @@ const DraggableTaskCard = ({ taskId, disabled, children }: DraggableTaskCardProp
         position: "relative",
         touchAction: "none",
         cursor: disabled ? "default" : "grab",
+        transition: "opacity 0.12s ease",
       }}
     >
       {children}
@@ -543,6 +544,10 @@ export const TasksBoard = () => {
   };
 
   const handleDelete = (taskId: number) => {
+    const confirmed = window.confirm(t("Delete this task?"));
+    if (!confirmed) {
+      return;
+    }
     deleteTask.mutate(taskId, {
       onSuccess: () => {
         notify(t("Task deleted."), "info");
@@ -634,7 +639,7 @@ export const TasksBoard = () => {
       {
         onSuccess: () => {
           setNewSubtaskTitle("");
-          notify("Subtask created.", "success");
+          notify(t("Subtask created."), "success");
         },
       }
     );
@@ -665,17 +670,21 @@ export const TasksBoard = () => {
       {
         onSuccess: () => {
           cancelSubtaskEdit();
-          notify("Subtask updated.", "success");
+          notify(t("Subtask updated."), "success");
         },
       }
     );
   };
 
   const handleDeleteSubtask = (subtaskId: number) => {
+    const confirmed = window.confirm(t("Delete this subtask?"));
+    if (!confirmed) {
+      return;
+    }
     deleteTaskSubtask.mutate(
       subtaskId,
       {
-        onSuccess: () => notify("Subtask deleted.", "info"),
+        onSuccess: () => notify(t("Subtask deleted."), "info"),
       }
     );
   };
@@ -744,7 +753,13 @@ export const TasksBoard = () => {
                 const outcome = taskOutcomes[String(task.id)];
 
                 return (
-                  <Box key={task.id} sx={{ opacity: draggedTaskId === task.id ? 0.55 : 1 }}>
+                  <Box
+                    key={task.id}
+                    sx={{
+                      opacity: draggedTaskId === task.id ? 0.55 : 1,
+                      transition: "opacity 0.12s ease",
+                    }}
+                  >
                     <DraggableTaskCard taskId={task.id} disabled={busy}>
                     <Paper
                       variant="outlined"
@@ -758,10 +773,7 @@ export const TasksBoard = () => {
                         bgcolor: "background.paper",
                         transition: "border-color 0.15s ease, box-shadow 0.15s ease",
                         "&:hover": {
-                          borderColor: (theme) =>
-                            theme.palette.mode === "dark"
-                              ? "rgba(255,255,255,0.16)"
-                              : "rgba(0,0,0,0.15)",
+                          borderColor: "text.secondary",
                           boxShadow: (theme) =>
                             theme.palette.mode === "dark"
                               ? "0 2px 8px rgba(0,0,0,0.3)"
@@ -786,6 +798,14 @@ export const TasksBoard = () => {
                               cursor: "pointer",
                             }}
                             onClick={() => openTaskDetails(task)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                openTaskDetails(task);
+                              }
+                            }}
+                            role="button"
+                            tabIndex={0}
                             noWrap
                           >
                             {task.title}

@@ -226,6 +226,11 @@ export const PlannerBoard = ({
   const plannerSurfaceSx = {
     ...plannerCardSx,
     borderRadius: 2.5,
+    transition: "box-shadow 0.15s ease, border-color 0.15s ease",
+    "&:hover": {
+      boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.32)" : "0 2px 8px rgba(0,0,0,0.07)",
+      borderColor: "text.secondary",
+    },
   };
   const plannerInsetCardSx = {
     p: 1.2,
@@ -233,7 +238,7 @@ export const PlannerBoard = ({
     borderRadius: 1.5,
     border: "1px solid",
     borderColor: "divider",
-    bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
+    bgcolor: "background.default",
   };
 
   const handleQuickAddTask = () => {

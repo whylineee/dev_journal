@@ -57,9 +57,6 @@ interface NavItemProps {
 }
 
 const NavItem = ({ selected, icon, label, count, compact = false, onClick }: NavItemProps) => {
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
-
   return (
     <ListItem disablePadding sx={{ px: 0.5 }}>
       <ListItemButton
@@ -72,17 +69,17 @@ const NavItem = ({ selected, icon, label, count, compact = false, onClick }: Nav
           py: compact ? 0.4 : 0.5,
           my: 0.15,
           border: "none",
-          backgroundColor: selected
-            ? isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"
-            : "transparent",
+          backgroundColor: selected ? "action.selected" : "transparent",
+          transition: "background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease",
           "&.Mui-selected": {
-            backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            backgroundColor: "action.selected",
+            boxShadow: (theme) => theme.shadows[1],
             "&:hover": {
-              backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+              backgroundColor: "action.selected",
             },
           },
           "&:hover": {
-            backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+            backgroundColor: "action.hover",
           },
         }}
       >
@@ -193,7 +190,7 @@ export const Layout = ({
         >
           <EditNoteIcon sx={{ fontSize: isCompactDesktop ? 15 : 16 }} />
         </Box>
-        <Typography sx={{ fontWeight: 700, fontSize: isCompactDesktop ? "0.84rem" : "0.9rem", letterSpacing: "-0.01em" }}>
+        <Typography sx={{ fontWeight: 800, fontSize: isCompactDesktop ? "0.84rem" : "0.9rem", letterSpacing: "-0.01em" }}>
           {t("Dev Journal")}
         </Typography>
       </Box>
@@ -358,6 +355,8 @@ export const Layout = ({
           sx={{
             px: { xs: 2, md: isCompactDesktop ? 2 : 3 },
             py: { xs: 1.25, md: isCompactDesktop ? 1.5 : 2 },
+            maxWidth: 1500,
+            mx: "auto",
           }}
         >
           {isMobile && (

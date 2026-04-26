@@ -80,6 +80,7 @@ import {
     persistPageTaskTrackerDataById,
     readPageTaskTrackerDataById,
 } from "../utils/pageTrackerStorage";
+import { useAppNotifications } from "../notifications/AppNotifications";
 
 interface PageEditorProps {
     pageId: number | null;
@@ -992,6 +993,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     const updateMutation = useUpdatePage();
     const deleteMutation = useDeletePage();
     const updateTaskStatus = useUpdateTaskStatus();
+    const { notify } = useAppNotifications();
 
     const [title, setTitle] = useState("Untitled Page");
     const [content, setContent] = useState("");
@@ -1161,7 +1163,10 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                     removePageDraft(pageIdKey);
                     setDraftRestored(false);
                     onSaveSuccess(pageId);
-                }
+                },
+                onError: () => {
+                    notify("Failed to update page. Please try again.", "error");
+                },
             });
         } else {
             createMutation.mutate({ title, content: contentToPersist }, {
@@ -1171,10 +1176,13 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                     removePageTrackerState(pageIdKey);
                     setDraftRestored(false);
                     onSaveSuccess(newPage.id);
-                }
+                },
+                onError: () => {
+                    notify("Failed to create page. Please try again.", "error");
+                },
             });
         }
-    }, [clearPendingAutosave, content, createMutation, onSaveSuccess, pageId, pageIdKey, taskTrackerDataById, title, updateMutation]);
+    }, [clearPendingAutosave, content, createMutation, notify, onSaveSuccess, pageId, pageIdKey, taskTrackerDataById, title, updateMutation]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -1192,13 +1200,20 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
 
     const handleDelete = () => {
         if (pageId) {
+            const confirmed = window.confirm("Delete this page?");
+            if (!confirmed) {
+                return;
+            }
             deleteMutation.mutate(pageId, {
                 onSuccess: () => {
                     clearPendingAutosave();
                     removePageDraft(pageIdKey);
                     removePageTrackerState(pageIdKey);
                     onDeleteSuccess();
-                }
+                },
+                onError: () => {
+                    notify("Failed to delete page. Please try again.", "error");
+                },
             });
         }
     };
@@ -1246,6 +1261,10 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
     };
 
     const clearDraft = () => {
+        const confirmed = window.confirm("Reset unsaved draft changes?");
+        if (!confirmed) {
+            return;
+        }
         clearPendingAutosave();
         removePageDraft(pageIdKey);
         removePageTrackerState(pageIdKey);
@@ -1253,6 +1272,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
         setTaskTrackerDataById({});
         setTitle(page?.title ?? "Untitled Page");
         setContent(page?.content ?? "");
+        notify("Draft reset.", "info");
     };
 
     const projectsById = useMemo(() => {
@@ -1489,7 +1509,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                     borderRadius: 3,
                                     borderStyle: "dashed",
                                     borderColor: "divider",
-                                    bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
+                                    bgcolor: "background.default",
                                 }}
                             >
                                 <Stack spacing={0.4}>
