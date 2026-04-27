@@ -294,7 +294,7 @@ const buildMuiTheme = ({
             borderRadius: btnRadius,
             minHeight: uiDensity === "compact" ? 30 : 34,
             padding: uiDensity === "compact" ? "4px 12px" : "6px 14px",
-            transition: "background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease",
+            transition: "background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease",
             "&:focus-visible": {
               outline: `2px solid ${palette.primary}`,
               outlineOffset: 2,
@@ -319,12 +319,13 @@ const buildMuiTheme = ({
             },
           },
           outlined: {
-            backgroundColor: "transparent",
+            backgroundColor: palette.backgroundPaper,
             borderColor: borderColor,
             color: palette.textPrimary,
             "&:hover": {
-              backgroundColor: hoverBg,
+              backgroundColor: palette.backgroundPaper,
               borderColor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+              boxShadow: shadowSm,
             },
           },
           text: {
@@ -352,6 +353,7 @@ const buildMuiTheme = ({
             "& .MuiOutlinedInput-root": {
               backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
               borderRadius: btnRadius,
+              transition: "background-color 0.12s ease, box-shadow 0.12s ease",
               "& fieldset": {
                 borderColor: borderColor,
               },
@@ -361,6 +363,9 @@ const buildMuiTheme = ({
               "&.Mui-focused fieldset": {
                 borderColor: palette.primary,
                 borderWidth: "1.5px",
+              },
+              "&.Mui-focused": {
+                boxShadow: shadowSm,
               },
             },
           },
@@ -429,17 +434,25 @@ const buildMuiTheme = ({
         styleOverrides: {
           root: {
             borderRadius: btnRadius,
+            border: "1px solid transparent",
             margin: "1px 4px",
             padding: "6px 10px",
-            transition: "background-color 0.1s ease, color 0.1s ease",
+            transition: "background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease",
             "&:hover": {
               backgroundColor: hoverBg,
+              borderColor: borderColor,
             },
             "&.Mui-selected": {
               backgroundColor: activeBg,
+              borderColor: borderColor,
               "&:hover": {
                 backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
               },
+              boxShadow: shadowSm,
+            },
+            "&:focus-visible": {
+              outline: `2px solid ${palette.primary}`,
+              outlineOffset: 2,
             },
           },
         },
@@ -491,10 +504,14 @@ const buildMuiTheme = ({
       MuiIconButton: {
         styleOverrides: {
           root: {
-            transition: "background-color 0.1s ease, color 0.1s ease",
+            transition: "background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease",
             borderRadius: btnRadius,
             "&:hover": {
               backgroundColor: hoverBg,
+            },
+            "&:focus-visible": {
+              outline: `2px solid ${palette.primary}`,
+              outlineOffset: 2,
             },
           },
         },

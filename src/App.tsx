@@ -481,6 +481,7 @@ function App() {
         onSelectDate={setSelectedDate}
         selectedPageId={selectedPageId}
         onSelectPage={setSelectedPageId}
+        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
       >
         <AnimatePresence mode="wait" initial={false}>
           <Box

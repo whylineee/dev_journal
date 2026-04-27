@@ -12,6 +12,7 @@ const STORAGE_KEY = "devJournal_language";
 
 const ukTranslations: Record<string, string> = {
   "Dev Journal": "Dev Journal",
+  "Local workspace": "Локальний workspace",
   "View: {tab}": "Розділ: {tab}",
   "Ctrl/Cmd + K": "Ctrl/Cmd + K",
   "Search...": "Пошук...",
