@@ -835,22 +835,6 @@ export const TasksBoard = () => {
                             color={priorityColor[task.priority]}
                             variant="outlined"
                           />
-                          {task.project_id ? (
-                            <Chip
-                              size="small"
-                              label={projectNameById.get(task.project_id) ?? `#${task.project_id}`}
-                              color="default"
-                              variant="outlined"
-                            />
-                          ) : null}
-                          {task.goal_id ? (
-                            <Chip
-                              size="small"
-                              label={goalNameById.get(task.goal_id) ?? `Goal #${task.goal_id}`}
-                              color="default"
-                              variant="outlined"
-                            />
-                          ) : null}
                           {task.due_date ? (
                             <Chip
                               size="small"
@@ -860,14 +844,6 @@ export const TasksBoard = () => {
                                   : t("Due: {date}", { date: formatTaskDateOnly(task.due_date) })
                               }
                               color={overdue ? "error" : "default"}
-                              variant="outlined"
-                            />
-                          ) : null}
-                          {task.recurrence !== "none" ? (
-                            <Chip
-                              size="small"
-                              label={recurrenceLabel[task.recurrence]}
-                              color="default"
                               variant="outlined"
                             />
                           ) : null}
@@ -898,6 +874,15 @@ export const TasksBoard = () => {
                             </>
                           ) : null}
                         </Stack>
+                        {(task.project_id || task.goal_id || task.recurrence !== "none") ? (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.6 }}>
+                            {[
+                              task.project_id ? `${t("Project")}: ${projectNameById.get(task.project_id) ?? `#${task.project_id}`}` : "",
+                              task.goal_id ? `${t("Goal")}: ${goalNameById.get(task.goal_id) ?? `#${task.goal_id}`}` : "",
+                              task.recurrence !== "none" ? `${t("Repeat")}: ${recurrenceLabel[task.recurrence]}` : "",
+                            ].filter(Boolean).join(" • ")}
+                          </Typography>
+                        ) : null}
 
                         <Stack direction="row" spacing={0} sx={{ mt: 1.2, flexWrap: "wrap", gap: 0.75 }}>
                           <Tooltip title={isRunning ? t("Pause timer") : t("Start timer")}>

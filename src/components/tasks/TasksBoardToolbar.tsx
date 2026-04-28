@@ -73,9 +73,9 @@ export const TasksBoardToolbar = ({
       <Stack direction="row" spacing={0} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
         <Chip label={t("Total: {count}", { count: stats.total })} variant="outlined" size="small" />
         <Chip label={t("Done: {count}", { count: stats.done })} color="default" variant="outlined" size="small" />
-        <Chip label={`${t("Due today")}: ${stats.dueToday}`} color="default" variant="outlined" size="small" />
+        <Chip label={`${t("Due today")}: ${stats.dueToday}`} color="default" variant="outlined" size="small" sx={{ display: { xs: "none", sm: "inline-flex" } }} />
         <Chip label={t("Overdue: {count}", { count: stats.overdue })} color={stats.overdue > 0 ? "error" : "default"} variant="outlined" size="small" />
-        <Chip label={t("Active timers: {count}", { count: stats.activeTimers })} color={stats.activeTimers > 0 ? "warning" : "default"} variant="outlined" size="small" />
+        <Chip label={t("Active timers: {count}", { count: stats.activeTimers })} color={stats.activeTimers > 0 ? "warning" : "default"} variant="outlined" size="small" sx={{ display: { xs: "none", md: "inline-flex" } }} />
       </Stack>
 
       <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
@@ -98,7 +98,7 @@ export const TasksBoardToolbar = ({
           label={t("Status")}
           value={statusFilter}
           onChange={(event) => onStatusFilterChange(event.target.value as "all" | TaskStatus)}
-          sx={{ minWidth: 170 }}
+          sx={{ minWidth: { xs: 0, sm: 138, md: 150 } }}
           SelectProps={{ native: true }}
           InputLabelProps={{ shrink: true }}
         >
@@ -113,7 +113,7 @@ export const TasksBoardToolbar = ({
           label={t("Priority")}
           value={priorityFilter}
           onChange={(event) => onPriorityFilterChange(event.target.value as "all" | TaskPriority)}
-          sx={{ minWidth: 170 }}
+          sx={{ minWidth: { xs: 0, sm: 138, md: 150 } }}
           SelectProps={{ native: true }}
           InputLabelProps={{ shrink: true }}
         >
@@ -129,7 +129,7 @@ export const TasksBoardToolbar = ({
           label={t("Project")}
           value={projectFilter === "all" ? "all" : String(projectFilter)}
           onChange={(event) => onProjectFilterChange(event.target.value === "all" ? "all" : Number(event.target.value))}
-          sx={{ minWidth: 190 }}
+          sx={{ minWidth: { xs: 0, sm: 146, md: 164 } }}
           SelectProps={{ native: true }}
           InputLabelProps={{ shrink: true }}
         >

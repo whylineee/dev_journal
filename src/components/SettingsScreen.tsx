@@ -17,7 +17,6 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
-import StorageRoundedIcon from "@mui/icons-material/StorageRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import { format } from "date-fns";
 import {
@@ -93,10 +92,7 @@ const SettingsOptionTile = ({
         textAlign: "left",
         alignItems: "stretch",
         overflow: "hidden",
-        transition: "transform 0.14s ease",
-        "&:hover": {
-          transform: "scale(1.01)",
-        },
+        transition: "border-color 0.14s ease, box-shadow 0.14s ease",
       }}
     >
       <Box
@@ -378,7 +374,6 @@ export const SettingsScreen = ({
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mt: 1.6 }}>
                 <Chip icon={<AutoAwesomeRoundedIcon />} label={`${activePreset.name} / ${t(appearanceMode === "dark" ? "Dark" : "Light")}`} />
                 <Chip icon={<TuneRoundedIcon />} label={`${t("Density")}: ${t(uiDensity === "compact" ? "Compact" : "Comfortable")}`} />
-                <Chip icon={<StorageRoundedIcon />} label={t("{count} records synced into the next backup file.", { count: totalBackupRecords })} />
               </Box>
 
               <Box
@@ -458,7 +453,12 @@ export const SettingsScreen = ({
                 </Box>
                 <Divider sx={{ my: 1.2 }} />
                 <Box sx={{ display: "grid", gap: 0.8 }}>
-                  {datasetStats.slice(0, 4).map((item) => (
+                  {[
+                    { label: t("Preset"), value: activePreset.name },
+                    { label: t("Mode"), value: t(appearanceMode === "dark" ? "Dark" : "Light") },
+                    { label: t("Density"), value: t(uiDensity === "compact" ? "Compact" : "Comfortable") },
+                    { label: t("Language"), value: t(language === "uk" ? "Ukrainian" : "English") },
+                  ].map((item) => (
                     <Box key={item.label} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
                       <Typography variant="caption" color="text.secondary">
                         {item.label}

@@ -3,6 +3,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import VideoCallIcon from "@mui/icons-material/VideoCall";
 import { alpha, type SxProps, type Theme } from "@mui/material/styles";
 import {
@@ -11,11 +12,16 @@ import {
   Chip,
   Collapse,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import { format, parseISO } from "date-fns";
+import { type MouseEvent, useState } from "react";
 import type { Meeting, MeetingRecurrence, MeetingStatus } from "../../types";
 
 interface PlannerMeetingsSectionProps {
@@ -135,6 +141,21 @@ export const PlannerMeetingsSection = ({
   toggleSection,
   upcomingMeetings,
 }: PlannerMeetingsSectionProps) => {
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [menuMeetingId, setMenuMeetingId] = useState<number | null>(null);
+  const [showAdvancedFormFields, setShowAdvancedFormFields] = useState(false);
+  const isMenuOpen = Boolean(menuAnchorEl) && menuMeetingId !== null;
+
+  const openMeetingMenu = (event: MouseEvent<HTMLElement>, meetingId: number) => {
+    setMenuAnchorEl(event.currentTarget);
+    setMenuMeetingId(meetingId);
+  };
+
+  const closeMeetingMenu = () => {
+    setMenuAnchorEl(null);
+    setMenuMeetingId(null);
+  };
+
   const renderSectionToggle = () => (
     <IconButton
       size="small"
@@ -199,6 +220,18 @@ export const PlannerMeetingsSection = ({
                         location: meeting.meet_url ?? undefined,
                       });
 
+                    const statusLabel =
+                      occurrence.status === "done"
+                        ? t("Done")
+                        : occurrence.status === "live"
+                          ? t("Live")
+                          : occurrence.status === "missed"
+                            ? t("Missed")
+                            : occurrence.status === "cancelled"
+                              ? t("Cancelled")
+                              : t("Planned");
+                    const primaryActionLabel =
+                      occurrence.status !== "done" ? t("Mark done") : t("Reopen");
                     return (
                       <Box
                         key={occurrence.occurrence_id}
@@ -232,17 +265,7 @@ export const PlannerMeetingsSection = ({
                           <Stack alignItems="flex-end" spacing={0.5}>
                             <Chip
                               size="small"
-                              label={
-                                occurrence.status === "done"
-                                  ? t("Done")
-                                  : occurrence.status === "live"
-                                    ? t("Live")
-                                    : occurrence.status === "missed"
-                                      ? t("Missed")
-                                      : occurrence.status === "cancelled"
-                                        ? t("Cancelled")
-                                        : t("Planned")
-                              }
+                              label={statusLabel}
                               color={
                                 occurrence.status === "done"
                                   ? "success"
@@ -295,7 +318,7 @@ export const PlannerMeetingsSection = ({
                           </Button>
                           <Button
                             size="small"
-                            variant="outlined"
+                            variant="text"
                             onClick={() => materializeMeetingActionItems(meeting.id, format(occurrence.start, "yyyy-MM-dd"))}
                             disabled={busy || meeting.action_items.every((item) => item.task_id !== null)}
                           >
@@ -304,34 +327,90 @@ export const PlannerMeetingsSection = ({
                           <Button size="small" onClick={() => loadMeetingIntoForm(meeting)} startIcon={<EditOutlinedIcon />}>
                             {t("Edit")}
                           </Button>
-                          {occurrence.status !== "live" && occurrence.status !== "done" ? (
-                            <Button size="small" onClick={() => setWorkflowStatus(meeting, "live")} disabled={busy}>
-                              {t("Go live")}
-                            </Button>
-                          ) : null}
-                          {occurrence.status !== "done" ? (
-                            <Button size="small" onClick={() => setWorkflowStatus(meeting, "done")} disabled={busy}>
-                              {t("Mark done")}
-                            </Button>
-                          ) : (
-                            <Button size="small" onClick={() => setWorkflowStatus(meeting, "planned")} disabled={busy}>
-                              {t("Reopen")}
-                            </Button>
-                          )}
-                          {meeting.status !== "cancelled" ? (
-                            <Button size="small" color="warning" onClick={() => setWorkflowStatus(meeting, "cancelled")} disabled={busy}>
-                              {t("Cancel")}
-                            </Button>
-                          ) : null}
-                            <Button size="small" color="error" startIcon={<DeleteOutlineIcon />} onClick={() => deleteMeeting(meeting.id)} disabled={busy}>
-                              {t("Delete")}
-                            </Button>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() =>
+                              setWorkflowStatus(
+                                meeting,
+                                occurrence.status !== "done" ? "done" : "planned"
+                              )
+                            }
+                            disabled={busy}
+                          >
+                            {primaryActionLabel}
+                          </Button>
+                          <IconButton
+                            size="small"
+                            aria-label={t("More actions")}
+                            onClick={(event) => openMeetingMenu(event, meeting.id)}
+                          >
+                            <MoreHorizIcon fontSize="small" />
+                          </IconButton>
                         </Stack>
                       </Box>
                     );
                   })
                 )}
               </Stack>
+              <Menu
+                anchorEl={menuAnchorEl}
+                open={isMenuOpen}
+                onClose={closeMeetingMenu}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+              >
+                {(() => {
+                  const targetMeeting = upcomingMeetings.find(
+                    (occurrence) => occurrence.meeting.id === menuMeetingId
+                  )?.meeting;
+                  if (!targetMeeting) {
+                    return null;
+                  }
+                  const targetOccurrence = upcomingMeetings.find(
+                    (occurrence) => occurrence.meeting.id === menuMeetingId
+                  );
+
+                  return (
+                    <>
+                      {targetOccurrence &&
+                      targetOccurrence.status !== "live" &&
+                      targetOccurrence.status !== "done" ? (
+                        <MenuItem
+                          onClick={() => {
+                            setWorkflowStatus(targetMeeting, "live");
+                            closeMeetingMenu();
+                          }}
+                        >
+                          <ListItemText>{t("Go live")}</ListItemText>
+                        </MenuItem>
+                      ) : null}
+                      {targetMeeting.status !== "cancelled" ? (
+                        <MenuItem
+                          onClick={() => {
+                            setWorkflowStatus(targetMeeting, "cancelled");
+                            closeMeetingMenu();
+                          }}
+                        >
+                          <ListItemText>{t("Cancel")}</ListItemText>
+                        </MenuItem>
+                      ) : null}
+                      <MenuItem
+                        onClick={() => {
+                          deleteMeeting(targetMeeting.id);
+                          closeMeetingMenu();
+                        }}
+                        sx={{ color: "error.main" }}
+                      >
+                        <ListItemIcon sx={{ color: "error.main" }}>
+                          <DeleteOutlineIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>{t("Delete")}</ListItemText>
+                      </MenuItem>
+                    </>
+                  );
+                })()}
+              </Menu>
             </Box>
 
             <Box
@@ -395,27 +474,39 @@ export const PlannerMeetingsSection = ({
                     <option value="cancelled">{t("Cancelled")}</option>
                   </TextField>
                 </Stack>
-                <TextField fullWidth size="small" placeholder={t("Google Meet URL")} value={meetingMeetUrl} onChange={(event) => setMeetingMeetUrl(event.target.value)} />
-                <TextField fullWidth size="small" placeholder={t("Calendar event URL (optional)")} value={meetingCalendarUrl} onChange={(event) => setMeetingCalendarUrl(event.target.value)} />
-                <TextField
-                  select
+                <Button
                   size="small"
-                  value={meetingProjectId === "" ? "" : String(meetingProjectId)}
-                  onChange={(event) => setMeetingProjectId(event.target.value === "" ? "" : Number(event.target.value))}
-                  SelectProps={{ native: true }}
-                  fullWidth
+                  variant="text"
+                  onClick={() => setShowAdvancedFormFields((prev) => !prev)}
+                  sx={{ alignSelf: "flex-start" }}
                 >
-                  <option value="">{t("No project")}</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </TextField>
-                <TextField fullWidth size="small" multiline minRows={2} label={t("Participants")} placeholder={t("One participant per line")} value={meetingParticipants} onChange={(event) => setMeetingParticipants(event.target.value)} />
-                <TextField fullWidth size="small" multiline minRows={3} label={t("Notes")} value={meetingNotes} onChange={(event) => setMeetingNotes(event.target.value)} />
-                <TextField fullWidth size="small" multiline minRows={2} label={t("Decisions")} value={meetingDecisions} onChange={(event) => setMeetingDecisions(event.target.value)} />
-                <TextField fullWidth size="small" multiline minRows={3} label={t("Action items")} placeholder={t("One action item per line")} value={meetingActionItems} onChange={(event) => setMeetingActionItems(event.target.value)} />
+                  {showAdvancedFormFields ? t("Hide advanced fields") : t("Show advanced fields")}
+                </Button>
+                <Collapse in={showAdvancedFormFields} timeout="auto" unmountOnExit>
+                  <Stack spacing={1}>
+                    <TextField fullWidth size="small" placeholder={t("Google Meet URL")} value={meetingMeetUrl} onChange={(event) => setMeetingMeetUrl(event.target.value)} />
+                    <TextField fullWidth size="small" placeholder={t("Calendar event URL (optional)")} value={meetingCalendarUrl} onChange={(event) => setMeetingCalendarUrl(event.target.value)} />
+                    <TextField
+                      select
+                      size="small"
+                      value={meetingProjectId === "" ? "" : String(meetingProjectId)}
+                      onChange={(event) => setMeetingProjectId(event.target.value === "" ? "" : Number(event.target.value))}
+                      SelectProps={{ native: true }}
+                      fullWidth
+                    >
+                      <option value="">{t("No project")}</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </TextField>
+                    <TextField fullWidth size="small" multiline minRows={2} label={t("Participants")} placeholder={t("One participant per line")} value={meetingParticipants} onChange={(event) => setMeetingParticipants(event.target.value)} />
+                    <TextField fullWidth size="small" multiline minRows={3} label={t("Notes")} value={meetingNotes} onChange={(event) => setMeetingNotes(event.target.value)} />
+                    <TextField fullWidth size="small" multiline minRows={2} label={t("Decisions")} value={meetingDecisions} onChange={(event) => setMeetingDecisions(event.target.value)} />
+                    <TextField fullWidth size="small" multiline minRows={3} label={t("Action items")} placeholder={t("One action item per line")} value={meetingActionItems} onChange={(event) => setMeetingActionItems(event.target.value)} />
+                  </Stack>
+                </Collapse>
 
                 <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
                   <Button variant="contained" size="small" startIcon={<VideoCallIcon />} disabled={busy || meetingTitle.trim().length === 0} onClick={submitMeeting}>

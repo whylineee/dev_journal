@@ -22,6 +22,7 @@ import { useJournalReminder } from "./hooks/useJournalReminder";
 import { useMeetingReminders } from "./hooks/useMeetingReminders";
 import { useAppUsageTracking } from "./hooks/useAppUsageTracking";
 import { dispatchTasksFilterPreference } from "./utils/preferencesStorage";
+import type { AppTab } from "./types/shell";
 
 const JournalScreen = lazy(() =>
   Promise.all([
@@ -92,7 +93,7 @@ const TabLoadingFallback = () => (
 );
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'planner' | 'focus' | 'journal' | 'page' | 'tasks' | 'goals' | 'habits' | 'projects' | 'insights' | 'settings'>('planner');
+  const [activeTab, setActiveTab] = useState<AppTab>("planner");
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
   const {

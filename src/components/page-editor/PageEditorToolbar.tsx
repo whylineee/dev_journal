@@ -86,6 +86,8 @@ export const PageEditorToolbar = ({
         }}
       >
         <Box
+          role="tablist"
+          aria-label="Page editor sections"
           sx={{
             p: 0.35,
             display: "inline-flex",
@@ -98,13 +100,13 @@ export const PageEditorToolbar = ({
             flexWrap: "wrap",
           }}
         >
-          <Button size="small" startIcon={<NotesIcon fontSize="small" />} onClick={() => setPageSection("page")} sx={pageSectionButtonSx(pageSection === "page")} data-testid="page-editor-section-page">
+          <Button size="small" startIcon={<NotesIcon fontSize="small" />} onClick={() => setPageSection("page")} sx={pageSectionButtonSx(pageSection === "page")} data-testid="page-editor-section-page" role="tab" aria-selected={pageSection === "page"}>
             Page
           </Button>
-          <Button size="small" startIcon={<ViewAgendaOutlinedIcon fontSize="small" />} onClick={() => setPageSection("tasks")} sx={pageSectionButtonSx(pageSection === "tasks")} data-testid="page-editor-section-tasks">
+          <Button size="small" startIcon={<ViewAgendaOutlinedIcon fontSize="small" />} onClick={() => setPageSection("tasks")} sx={pageSectionButtonSx(pageSection === "tasks")} data-testid="page-editor-section-tasks" role="tab" aria-selected={pageSection === "tasks"}>
             Tasks
           </Button>
-          <Button size="small" startIcon={<ChecklistRtlIcon fontSize="small" />} onClick={() => setPageSection("checklist")} sx={pageSectionButtonSx(pageSection === "checklist")} data-testid="page-editor-section-checklist">
+          <Button size="small" startIcon={<ChecklistRtlIcon fontSize="small" />} onClick={() => setPageSection("checklist")} sx={pageSectionButtonSx(pageSection === "checklist")} data-testid="page-editor-section-checklist" role="tab" aria-selected={pageSection === "checklist"}>
             Checklist
           </Button>
         </Box>
@@ -123,47 +125,47 @@ export const PageEditorToolbar = ({
         }}
       >
         <Tooltip title="Bold">
-          <IconButton size="small" onClick={() => insertFormat("**", "**")} sx={toolbarButtonSx}>
+          <IconButton size="small" onClick={() => insertFormat("**", "**")} sx={toolbarButtonSx} aria-label="Bold">
             <FormatBoldIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Italic">
-          <IconButton size="small" onClick={() => insertFormat("*", "*")} sx={toolbarButtonSx}>
+          <IconButton size="small" onClick={() => insertFormat("*", "*")} sx={toolbarButtonSx} aria-label="Italic">
             <FormatItalicIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Code">
-          <IconButton size="small" onClick={() => insertFormat("`", "`")} sx={toolbarButtonSx}>
+          <IconButton size="small" onClick={() => insertFormat("`", "`")} sx={toolbarButtonSx} aria-label="Inline code">
             <CodeIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Code Block">
-          <IconButton size="small" onClick={insertCodeBlock} sx={toolbarButtonSx}>
+          <IconButton size="small" onClick={insertCodeBlock} sx={toolbarButtonSx} aria-label="Code block">
             <DataObjectIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Bullet List">
-          <IconButton size="small" onClick={() => insertFormat("- ", "")} sx={toolbarButtonSx}>
+          <IconButton size="small" onClick={() => insertFormat("- ", "")} sx={toolbarButtonSx} aria-label="Bullet list">
             <FormatListBulletedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Checklist">
-          <IconButton size="small" onClick={insertChecklist} sx={toolbarButtonSx}>
+          <IconButton size="small" onClick={insertChecklist} sx={toolbarButtonSx} aria-label="Checklist">
             <CheckBoxOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Table">
-          <IconButton size="small" onClick={insertTable} sx={toolbarButtonSx}>
+          <IconButton size="small" onClick={insertTable} sx={toolbarButtonSx} aria-label="Table">
             <TableChartOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Tasks Database">
-          <IconButton size="small" onClick={insertTaskDatabase} sx={toolbarButtonSx}>
+          <IconButton size="small" onClick={insertTaskDatabase} sx={toolbarButtonSx} aria-label="Tasks database">
             <ViewAgendaOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Task Tracker">
-          <IconButton size="small" onClick={insertTaskTrackerDatabase} sx={toolbarButtonSx}>
+          <IconButton size="small" onClick={insertTaskTrackerDatabase} sx={toolbarButtonSx} aria-label="Task tracker">
             <FactCheckOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>

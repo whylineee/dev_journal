@@ -1,0 +1,1 @@
+export const SHELL_CONTENT_MAX_WIDTH = 1500;

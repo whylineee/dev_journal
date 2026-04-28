@@ -152,6 +152,8 @@ const PageTaskTable = ({
                     </Box>
                 )}
                 <Stack
+                    role="tablist"
+                    aria-label="Task table views"
                     direction={{ xs: "column", lg: "row" }}
                     justifyContent="space-between"
                     alignItems={{ xs: "flex-start", lg: "center" }}
@@ -164,6 +166,8 @@ const PageTaskTable = ({
                             onClick={() => setView("all")}
                             sx={tabButtonSx(view === "all")}
                             data-testid="page-task-table-tab-all"
+                            role="tab"
+                            aria-selected={view === "all"}
                         >
                             All Tasks
                         </Button>
@@ -173,6 +177,8 @@ const PageTaskTable = ({
                             onClick={() => setView("my")}
                             sx={tabButtonSx(view === "my")}
                             data-testid="page-task-table-tab-my"
+                            role="tab"
+                            aria-selected={view === "my"}
                         >
                             My Tasks
                         </Button>
@@ -182,19 +188,21 @@ const PageTaskTable = ({
                             onClick={() => setView("checklist")}
                             sx={tabButtonSx(view === "checklist")}
                             data-testid="page-task-table-tab-checklist"
+                            role="tab"
+                            aria-selected={view === "checklist"}
                         >
                             Checklist
                         </Button>
                     </Stack>
 
                     <Stack direction="row" spacing={0.2}>
-                        <IconButton size="small" sx={{ color: "text.secondary" }}>
+                        <IconButton size="small" sx={{ color: "text.secondary" }} disabled aria-label="Filtering will be available soon">
                             <FilterListIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" sx={{ color: "text.secondary" }}>
+                        <IconButton size="small" sx={{ color: "text.secondary" }} disabled aria-label="Sorting will be available soon">
                             <SwapVertIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" sx={{ color: "text.secondary" }}>
+                        <IconButton size="small" sx={{ color: "text.secondary" }} disabled aria-label="Search will be available soon">
                             <SearchIcon fontSize="small" />
                         </IconButton>
                     </Stack>
@@ -228,7 +236,8 @@ const PageTaskTable = ({
                     ) : null}
                 </Stack>
             ) : (
-                <Table size="small">
+                <Box sx={{ width: "100%", overflowX: "auto" }}>
+                <Table size="small" sx={{ minWidth: 680 }}>
                     <TableHead>
                         <TableRow>
                             <TableCell sx={{ width: 44 }} />
@@ -298,6 +307,7 @@ const PageTaskTable = ({
                         ) : null}
                     </TableBody>
                 </Table>
+                </Box>
             )}
         </Paper>
     );
@@ -517,7 +527,8 @@ const PageFormDatabase = ({
                         </Button>
                     </Stack>
 
-                    <Table size="small">
+                    <Box sx={{ width: "100%", overflowX: "auto" }}>
+                    <Table size="small" sx={{ minWidth: 520 }}>
                         <TableHead>
                             <TableRow>
                                 {formData.fields.map((field) => (
@@ -597,6 +608,7 @@ const PageFormDatabase = ({
                             ) : null}
                         </TableBody>
                     </Table>
+                    </Box>
                 </Box>
             )}
         </Paper>
@@ -771,29 +783,29 @@ const PageTaskTrackerDatabase = ({
                     spacing={1}
                     sx={{ mt: 1.5 }}
                 >
-                    <Stack direction="row" spacing={0.4} sx={{ flexWrap: "wrap" }}>
-                        <Button size="small" startIcon={<StarBorderIcon fontSize="small" />} onClick={() => onViewChange("all")} sx={tabButtonSx(view === "all")} data-testid="page-task-tracker-tab-all">
+                    <Stack direction="row" spacing={0.4} sx={{ flexWrap: "wrap" }} role="tablist" aria-label="Task tracker views">
+                        <Button size="small" startIcon={<StarBorderIcon fontSize="small" />} onClick={() => onViewChange("all")} sx={tabButtonSx(view === "all")} data-testid="page-task-tracker-tab-all" role="tab" aria-selected={view === "all"}>
                             All Tasks
                         </Button>
-                        <Button size="small" startIcon={<PersonOutlineIcon fontSize="small" />} onClick={() => onViewChange("my")} sx={tabButtonSx(view === "my")} data-testid="page-task-tracker-tab-my">
+                        <Button size="small" startIcon={<PersonOutlineIcon fontSize="small" />} onClick={() => onViewChange("my")} sx={tabButtonSx(view === "my")} data-testid="page-task-tracker-tab-my" role="tab" aria-selected={view === "my"}>
                             My Tasks
                         </Button>
-                        <Button size="small" startIcon={<ChecklistRtlIcon fontSize="small" />} onClick={() => onViewChange("checklist")} sx={tabButtonSx(view === "checklist")} data-testid="page-task-tracker-tab-checklist">
+                        <Button size="small" startIcon={<ChecklistRtlIcon fontSize="small" />} onClick={() => onViewChange("checklist")} sx={tabButtonSx(view === "checklist")} data-testid="page-task-tracker-tab-checklist" role="tab" aria-selected={view === "checklist"}>
                             Checklist
                         </Button>
                     </Stack>
 
                     <Stack direction="row" spacing={0.2} alignItems="center">
-                        <IconButton size="small" sx={{ color: "text.secondary" }}>
+                        <IconButton size="small" sx={{ color: "text.secondary" }} disabled aria-label="Filtering will be available soon">
                             <FilterListIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" sx={{ color: "text.secondary" }}>
+                        <IconButton size="small" sx={{ color: "text.secondary" }} disabled aria-label="Sorting will be available soon">
                             <SwapVertIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" sx={{ color: "text.secondary" }}>
+                        <IconButton size="small" sx={{ color: "text.secondary" }} disabled aria-label="Search will be available soon">
                             <SearchIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" sx={{ color: "text.secondary" }}>
+                        <IconButton size="small" sx={{ color: "text.secondary" }} disabled aria-label="Advanced filters will be available soon">
                             <TuneIcon fontSize="small" />
                         </IconButton>
                         <Button
@@ -848,7 +860,8 @@ const PageTaskTrackerDatabase = ({
                 </Stack>
             ) : (
                 <Box sx={{ p: 1.5 }}>
-                    <Table size="small">
+                    <Box sx={{ width: "100%", overflowX: "auto" }}>
+                    <Table size="small" sx={{ minWidth: 760 }}>
                         <TableHead>
                             <TableRow>
                                 <TableCell sx={{ width: 44 }} />
@@ -976,6 +989,7 @@ const PageTaskTrackerDatabase = ({
                             </TableRow>
                         </TableBody>
                     </Table>
+                    </Box>
                 </Box>
             )}
         </Paper>
@@ -1514,6 +1528,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                             >
                                 <Stack spacing={0.4}>
                                     <Typography variant="caption" color="text.secondary">/ for commands</Typography>
+                                    <Typography variant="caption" color="text.secondary">Use toolbar buttons for formatting commands</Typography>
                                     <Typography variant="caption" color="text.secondary">Tasks tab for databases</Typography>
                                     <Typography variant="caption" color="text.secondary">Checklist tab for task-list</Typography>
                                 </Stack>
@@ -1655,7 +1670,7 @@ export const PageEditor = ({ pageId, previewEnabled, autosaveEnabled, onSaveSucc
                                                 },
                                             }}
                                         />
-                                        <IconButton size="small" onClick={() => removeEditorBlock(blockIndex)} sx={{ color: "text.secondary" }}>
+                                        <IconButton size="small" onClick={() => removeEditorBlock(blockIndex)} sx={{ color: "text.secondary" }} aria-label="Delete checklist item">
                                             <DeleteIcon fontSize="small" />
                                         </IconButton>
                                     </Stack>

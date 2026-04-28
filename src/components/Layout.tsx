@@ -23,6 +23,8 @@ import { useHabits } from "../hooks/useHabits";
 import { useProjects } from "../hooks/useProjects";
 import { useI18n } from "../i18n/I18nContext";
 import { format } from "date-fns";
+import type { AppTab } from "../types/shell";
+import { SHELL_CONTENT_MAX_WIDTH } from "../theme/layoutTokens";
 
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import TodayIcon from "@mui/icons-material/Today";
@@ -41,7 +43,7 @@ import SearchIcon from "@mui/icons-material/Search";
 const DRAWER_WIDTH = 240;
 const COMPACT_DRAWER_WIDTH = 216;
 
-type LayoutTab = "planner" | "focus" | "journal" | "page" | "tasks" | "goals" | "habits" | "projects" | "insights" | "settings";
+type LayoutTab = AppTab;
 
 interface LayoutProps {
   children: ReactNode;
@@ -61,6 +63,20 @@ interface NavItemProps {
   count?: number | string;
   compact?: boolean;
   onClick: () => void;
+}
+
+interface NavSectionItem {
+  key: LayoutTab;
+  label: string;
+  icon: ReactNode;
+  count?: number | string;
+  onClick: () => void;
+}
+
+interface NavSectionConfig {
+  id: "overview" | "management" | "analytics";
+  label: string;
+  items: NavSectionItem[];
 }
 
 const NavItem = ({ selected, icon, label, count, compact = false, onClick }: NavItemProps) => {
@@ -258,6 +274,113 @@ export const Layout = ({
   };
   const currentTab = activeTabMeta[activeTab];
 
+  const navSections: NavSectionConfig[] = [
+    {
+      id: "overview",
+      label: t("Overview"),
+      items: [
+        {
+          key: "planner",
+          label: t("Planner"),
+          icon: <DashboardIcon />,
+          onClick: () => {
+            onTabChange("planner");
+            closeMobileDrawer();
+          },
+        },
+        {
+          key: "focus",
+          label: t("Focus"),
+          icon: <TimerOutlinedIcon />,
+          onClick: () => {
+            onTabChange("focus");
+            closeMobileDrawer();
+          },
+        },
+        {
+          key: "journal",
+          label: t("Journal"),
+          icon: <TodayIcon />,
+          onClick: () => {
+            onTabChange("journal");
+            onSelectDate(todayStr);
+            closeMobileDrawer();
+          },
+        },
+        {
+          key: "page",
+          label: t("Pages"),
+          icon: <ArticleIcon />,
+          onClick: () => {
+            onTabChange("page");
+            closeMobileDrawer();
+          },
+        },
+      ],
+    },
+    {
+      id: "management",
+      label: t("Management"),
+      items: [
+        {
+          key: "tasks",
+          label: t("Tasks"),
+          icon: <TaskAltIcon />,
+          count: openTasksCount ? formatCount(openTasksCount) : undefined,
+          onClick: () => {
+            onTabChange("tasks");
+            closeMobileDrawer();
+          },
+        },
+        {
+          key: "goals",
+          label: t("Goals"),
+          icon: <FlagIcon />,
+          count: activeGoalsCount ? formatCount(activeGoalsCount) : undefined,
+          onClick: () => {
+            onTabChange("goals");
+            closeMobileDrawer();
+          },
+        },
+        {
+          key: "habits",
+          label: t("Habits"),
+          icon: <RepeatIcon />,
+          count: totalHabits ? `${completedHabitsToday}/${totalHabits}` : undefined,
+          onClick: () => {
+            onTabChange("habits");
+            closeMobileDrawer();
+          },
+        },
+        {
+          key: "projects",
+          label: t("Projects"),
+          icon: <FolderOpenIcon />,
+          count: activeProjectsCount ? formatCount(activeProjectsCount) : undefined,
+          onClick: () => {
+            onTabChange("projects");
+            closeMobileDrawer();
+          },
+        },
+      ],
+    },
+    {
+      id: "analytics",
+      label: t("Analytics"),
+      items: [
+        {
+          key: "insights",
+          label: t("Insights"),
+          icon: <InsightsIcon />,
+          onClick: () => {
+            onTabChange("insights");
+            closeMobileDrawer();
+          },
+        },
+      ],
+    },
+  ];
+
   const closeMobileDrawer = () => {
     if (isMobile) setMobileDrawerOpen(false);
   };
@@ -334,88 +457,28 @@ export const Layout = ({
           overflowX: "hidden",
           px: 0.5,
           pt: 0.5,
-          scrollbarWidth: "none",
-          "&::-webkit-scrollbar": { display: "none" },
+          scrollbarWidth: "thin",
+          "&::-webkit-scrollbar": { width: 6 },
         }}
       >
-        <SectionLabel compact={isCompactDesktop}>{t("Overview")}</SectionLabel>
-        <List disablePadding>
-          <NavItem
-            compact={isCompactDesktop}
-            selected={activeTab === "planner"}
-            onClick={() => { onTabChange("planner"); closeMobileDrawer(); }}
-            icon={<DashboardIcon />}
-            label={t("Planner")}
-          />
-          <NavItem
-            compact={isCompactDesktop}
-            selected={activeTab === "focus"}
-            onClick={() => { onTabChange("focus"); closeMobileDrawer(); }}
-            icon={<TimerOutlinedIcon />}
-            label={t("Focus")}
-          />
-          <NavItem
-            compact={isCompactDesktop}
-            selected={activeTab === "journal"}
-            onClick={() => { onTabChange("journal"); onSelectDate(todayStr); closeMobileDrawer(); }}
-            icon={<TodayIcon />}
-            label={t("Journal")}
-          />
-          <NavItem
-            compact={isCompactDesktop}
-            selected={activeTab === "page"}
-            onClick={() => { onTabChange("page"); closeMobileDrawer(); }}
-            icon={<ArticleIcon />}
-            label={t("Pages")}
-          />
-        </List>
-
-        <SectionLabel compact={isCompactDesktop}>{t("Management")}</SectionLabel>
-        <List disablePadding>
-          <NavItem
-            compact={isCompactDesktop}
-            selected={activeTab === "tasks"}
-            onClick={() => { onTabChange("tasks"); closeMobileDrawer(); }}
-            icon={<TaskAltIcon />}
-            label={t("Tasks")}
-            count={openTasksCount ? formatCount(openTasksCount) : undefined}
-          />
-          <NavItem
-            compact={isCompactDesktop}
-            selected={activeTab === "goals"}
-            onClick={() => { onTabChange("goals"); closeMobileDrawer(); }}
-            icon={<FlagIcon />}
-            label={t("Goals")}
-            count={activeGoalsCount ? formatCount(activeGoalsCount) : undefined}
-          />
-          <NavItem
-            compact={isCompactDesktop}
-            selected={activeTab === "habits"}
-            onClick={() => { onTabChange("habits"); closeMobileDrawer(); }}
-            icon={<RepeatIcon />}
-            label={t("Habits")}
-            count={totalHabits ? `${completedHabitsToday}/${totalHabits}` : undefined}
-          />
-          <NavItem
-            compact={isCompactDesktop}
-            selected={activeTab === "projects"}
-            onClick={() => { onTabChange("projects"); closeMobileDrawer(); }}
-            icon={<FolderOpenIcon />}
-            label={t("Projects")}
-            count={activeProjectsCount ? formatCount(activeProjectsCount) : undefined}
-          />
-        </List>
-
-        <SectionLabel compact={isCompactDesktop}>{t("Analytics")}</SectionLabel>
-        <List disablePadding>
-          <NavItem
-            compact={isCompactDesktop}
-            selected={activeTab === "insights"}
-            onClick={() => { onTabChange("insights"); closeMobileDrawer(); }}
-            icon={<InsightsIcon />}
-            label={t("Insights")}
-          />
-        </List>
+        {navSections.map((section) => (
+          <Box key={section.id}>
+            <SectionLabel compact={isCompactDesktop}>{section.label}</SectionLabel>
+            <List disablePadding>
+              {section.items.map((item) => (
+                <NavItem
+                  key={item.key}
+                  compact={isCompactDesktop}
+                  selected={activeTab === item.key}
+                  onClick={item.onClick}
+                  icon={item.icon}
+                  label={item.label}
+                  count={item.count}
+                />
+              ))}
+            </List>
+          </Box>
+        ))}
       </Box>
 
       {/* Bottom settings */}
@@ -475,10 +538,9 @@ export const Layout = ({
           overflowY: "auto",
           overflowX: "hidden",
           position: "relative",
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
+          scrollbarWidth: "thin",
           "&::-webkit-scrollbar": {
-            display: "none",
+            width: 6,
           },
         }}
       >
@@ -501,7 +563,7 @@ export const Layout = ({
             sx={{
               px: { xs: 1.5, md: isCompactDesktop ? 2 : 3 },
               py: { xs: 1, md: 1.15 },
-              maxWidth: 1500,
+              maxWidth: SHELL_CONTENT_MAX_WIDTH,
               mx: "auto",
             }}
           >
@@ -551,7 +613,12 @@ export const Layout = ({
                 <Chip size="small" label={`${t("Tasks")}: ${formatCount(openTasksCount)}`} />
                 <Chip size="small" label={`${t("Habits")}: ${totalHabits ? `${completedHabitsToday}/${totalHabits}` : "0/0"}`} />
               </Stack>
-              <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", lg: "block" }, mx: 0.25 }} />
+              <Chip
+                size="small"
+                label={`${t("Tasks")}: ${formatCount(openTasksCount)}`}
+                sx={{ display: { xs: "none", md: "inline-flex", lg: "none" } }}
+              />
+              <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", md: "block" }, mx: 0.25 }} />
               <Tooltip title={t("Quick Actions")}>
                 <Button
                   aria-label={t("Quick Actions")}
@@ -579,7 +646,7 @@ export const Layout = ({
           sx={{
             px: { xs: 1.5, md: isCompactDesktop ? 2 : 3 },
             py: { xs: 1.25, md: isCompactDesktop ? 1.5 : 2.25 },
-            maxWidth: 1500,
+            maxWidth: SHELL_CONTENT_MAX_WIDTH,
             mx: "auto",
           }}
         >
