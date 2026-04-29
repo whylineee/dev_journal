@@ -263,32 +263,52 @@ export const FocusBoard = () => {
     };
   }, [updateTrayTimer]);
 
-  const glassSx = {
+  const surfaceSx = {
     p: { xs: 1.5, sm: 2 },
     mb: 2,
-    borderRadius: 2,
+    borderRadius: 2.5,
     bgcolor: muiTheme.palette.background.paper,
     border: "1px solid",
-    borderColor: isDark ? muiTheme.palette.divider : muiTheme.palette.divider,
+    borderColor: muiTheme.palette.divider,
+    boxShadow: "none",
   };
 
-  const ringSize = 260;
+  const ringSize = 248;
   const strokeWidth = 10;
   const radius = (ringSize - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeOffset = circumference - (progress / 100) * circumference;
 
   return (
-    <Box sx={{ maxWidth: 1000, mx: "auto", mt: { xs: 1, md: 1.5 }, pb: 4 }}>
+    <Box sx={{ maxWidth: 1180, mx: "auto", mt: { xs: 0, md: 0.5 }, pb: 4 }}>
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-          gap: { xs: 2.5, md: 3 },
+          gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1.1fr) minmax(320px, 0.9fr)" },
+          gap: { xs: 1.5, md: 1.75 },
         }}
       >
         {/* Timer */}
-        <Box sx={{ ...glassSx, p: { xs: 3, sm: 4 }, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <Box sx={{ ...surfaceSx, p: { xs: 2, sm: 3 }, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <Stack direction="row" spacing={0.75} sx={{ width: "100%", mb: 2, flexWrap: "wrap" }}>
+            <Chip
+              size="small"
+              color={focusRunning ? "primary" : "default"}
+              label={isBreakMode ? t("Break") : t("Focus")}
+            />
+            <Chip
+              size="small"
+              variant="outlined"
+              label={selectedFocusTask ? `${t("Working on")}: ${selectedFocusTask.title}` : t("No task selected")}
+              sx={{
+                maxWidth: "100%",
+                "& .MuiChip-label": {
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                },
+              }}
+            />
+          </Stack>
           <Box
             sx={{
               position: "relative",
@@ -342,14 +362,9 @@ export const FocusBoard = () => {
                   fontWeight: 800,
                   fontSize: "3.2rem",
                   fontVariantNumeric: "tabular-nums",
-                  letterSpacing: "-0.04em",
+                  letterSpacing: 0,
                   lineHeight: 1,
-                  background: focusRunning
-                    ? `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`
-                    : "none",
-                  color: focusRunning ? "transparent" : "text.primary",
-                  WebkitBackgroundClip: focusRunning ? "text" : undefined,
-                  backgroundClip: focusRunning ? "text" : undefined,
+                  color: focusRunning ? "primary.main" : "text.primary",
                 }}
               >
                 {formatTime(focusSecondsLeft)}
@@ -373,7 +388,7 @@ export const FocusBoard = () => {
               bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
               "& .MuiLinearProgress-bar": {
                 borderRadius: 2,
-                background: `linear-gradient(90deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`,
+                backgroundColor: muiTheme.palette.primary.main,
               },
             }}
           />
@@ -394,7 +409,9 @@ export const FocusBoard = () => {
                 boxShadow: "none",
                 transition: "all 0.2s ease",
                 "&:hover": {
-                  transform: "scale(1.08)",
+                  backgroundColor: focusRunning
+                    ? isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
+                    : muiTheme.palette.primary.main,
                   boxShadow: "none",
                 },
               }}
@@ -410,7 +427,7 @@ export const FocusBoard = () => {
                 height: 42,
                 border: "1px solid",
                 borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-                transition: "all 0.2s ease",
+                transition: "border-color 0.15s ease, background-color 0.15s ease",
                 "&:hover": { borderColor: alpha(muiTheme.palette.primary.main, 0.3) },
               }}
             >
@@ -464,7 +481,7 @@ export const FocusBoard = () => {
                   }
                 }}
                 disabled={focusRunning}
-                sx={{ cursor: "pointer", transition: "all 0.2s ease" }}
+                sx={{ cursor: "pointer", transition: "background-color 0.15s ease, border-color 0.15s ease" }}
               />
               ))}
             </Stack>
@@ -472,9 +489,9 @@ export const FocusBoard = () => {
         </Box>
 
         {/* Task picker & status */}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 2.5, md: 3 } }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 1.5, md: 1.75 } }}>
           {/* Active task */}
-          <Box sx={{ ...glassSx, p: { xs: 2.5, sm: 3 } }}>
+          <Box sx={{ ...surfaceSx, p: { xs: 2, sm: 2.25 } }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
               <TimerOutlinedIcon fontSize="small" sx={{ opacity: 0.6 }} />
               {t("Focus task")}
@@ -506,7 +523,7 @@ export const FocusBoard = () => {
                   borderRadius: 2.5,
                   border: "1px solid",
                   borderColor: "divider",
-                  bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
+                  bgcolor: "background.default",
                 }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -540,7 +557,7 @@ export const FocusBoard = () => {
           </Box>
 
           {/* Today stats */}
-          <Box sx={{ ...glassSx, p: { xs: 2.5, sm: 3 } }}>
+          <Box sx={{ ...surfaceSx, p: { xs: 2, sm: 2.25 } }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
               <CheckCircleOutlineIcon fontSize="small" sx={{ opacity: 0.6 }} />
               {t("Today")}
@@ -556,10 +573,10 @@ export const FocusBoard = () => {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.main, 0.18)}, ${alpha(muiTheme.palette.secondary.main, 0.18)})`,
+                    backgroundColor: alpha(muiTheme.palette.primary.main, 0.08),
                     border: "1px solid",
                     borderColor: alpha(muiTheme.palette.primary.main, 0.2),
-                    transition: "all 0.2s ease",
+                    transition: "background-color 0.15s ease, border-color 0.15s ease",
                   }}
                 >
                   <LocalFireDepartmentIcon sx={{ fontSize: 18, color: muiTheme.palette.primary.main }} />
@@ -581,7 +598,7 @@ export const FocusBoard = () => {
       </Box>
 
       {/* Weekly overview */}
-      <Box sx={{ ...glassSx, p: { xs: 2.5, sm: 3 }, mt: { xs: 2.5, md: 3 } }}>
+      <Box sx={{ ...surfaceSx, p: { xs: 2, sm: 2.25 }, mt: { xs: 1.5, md: 1.75 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2.5 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 1 }}>
             <BarChartRoundedIcon fontSize="small" sx={{ opacity: 0.6 }} />
@@ -631,8 +648,8 @@ export const FocusBoard = () => {
                   borderRadius: 2,
                   minHeight: 8,
                   height: `${Math.max(8, (day.count / maxWeekDay) * 96)}px`,
-                  background: day.isToday
-                    ? `linear-gradient(180deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main})`
+                  backgroundColor: day.isToday
+                    ? muiTheme.palette.primary.main
                     : isDark
                       ? "rgba(255,255,255,0.08)"
                       : "rgba(0,0,0,0.08)",
@@ -659,7 +676,7 @@ export const FocusBoard = () => {
 
       {/* Quick task list */}
       {focusCandidates.length > 0 && (
-        <Box sx={{ ...glassSx, p: { xs: 2.5, sm: 3 }, mt: { xs: 2.5, md: 3 } }}>
+        <Box sx={{ ...surfaceSx, p: { xs: 2, sm: 2.25 }, mt: { xs: 1.5, md: 1.75 } }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
             {t("Focus candidates")}
           </Typography>
@@ -668,6 +685,14 @@ export const FocusBoard = () => {
               <Box
                 key={task.id}
                 onClick={() => { if (!focusRunning) setFocusTaskId(task.id); }}
+                onKeyDown={(event) => {
+                  if (!focusRunning && (event.key === "Enter" || event.key === " ")) {
+                    event.preventDefault();
+                    setFocusTaskId(task.id);
+                  }
+                }}
+                role="button"
+                tabIndex={focusRunning ? -1 : 0}
                 sx={{
                   p: 1.5,
                   borderRadius: 2,
@@ -679,7 +704,7 @@ export const FocusBoard = () => {
                     ? alpha(muiTheme.palette.primary.main, 0.06)
                     : "transparent",
                   cursor: focusRunning ? "default" : "pointer",
-                  transition: "all 0.2s ease",
+                  transition: "background-color 0.15s ease, border-color 0.15s ease",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -698,9 +723,9 @@ export const FocusBoard = () => {
                   <Chip
                     size="small"
                     variant="outlined"
-                    label={task.status === "in_progress" ? "IP" : "TD"}
+                    label={task.status === "in_progress" ? t("In Progress") : t("To Do")}
                     color={task.status === "in_progress" ? "warning" : "default"}
-                    sx={{ height: 20, fontSize: "0.62rem" }}
+                    sx={{ height: 20, fontSize: "0.62rem", maxWidth: 96 }}
                   />
                   {task.due_date && (
                     <Chip

@@ -133,7 +133,7 @@ const DroppableColumn = ({ status, children }: DroppableColumnProps) => {
       ref={setNodeRef}
       variant="outlined"
       sx={{
-        p: 2,
+        p: { xs: 1.25, md: 1.5 },
         flex: 1,
         minHeight: 340,
         borderRadius: 2.5,
@@ -146,7 +146,7 @@ const DroppableColumn = ({ status, children }: DroppableColumnProps) => {
         backgroundColor: (theme) =>
           isOver
             ? theme.palette.action.hover
-            : "transparent",
+            : theme.palette.background.paper,
         boxShadow: (theme) => (isOver ? theme.shadows[1] : "none"),
       }}
     >
@@ -288,6 +288,7 @@ export const TasksBoard = () => {
     border: "1px solid",
     borderColor: "divider",
     backgroundColor: "background.paper",
+    boxShadow: "none",
   };
 
   useEffect(() => {
@@ -355,6 +356,14 @@ export const TasksBoard = () => {
 
   const grouped = useMemo(() => groupTasksByStatus(filteredTasks), [filteredTasks]);
   const gantt = useMemo(() => buildTaskGantt(tasks), [tasks]);
+
+  const resetFilters = () => {
+    setQuery("");
+    setStatusFilter("all");
+    setPriorityFilter("all");
+    setProjectFilter("all");
+    setShowOverdueOnly(false);
+  };
 
   const openCreateDialog = (initialStatus: TaskStatus = "todo") => {
     setEditingTask(null);
@@ -690,14 +699,16 @@ export const TasksBoard = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1280, mx: "auto", mt: 1 }}>
+    <Box sx={{ maxWidth: 1500, mx: "auto", mt: { xs: 0, md: 0.5 } }}>
       <TasksBoardToolbar
         boardSurfaceSx={boardSurfaceSx}
         busy={busy}
+        filteredCount={filteredTasks.length}
         onCreateTask={() => openCreateDialog()}
         onPriorityFilterChange={setPriorityFilter}
         onProjectFilterChange={setProjectFilter}
         onQueryChange={setQuery}
+        onResetFilters={resetFilters}
         onStatusFilterChange={setStatusFilter}
         onToggleOverdueOnly={() => setShowOverdueOnly((prev) => !prev)}
         priorityFilter={priorityFilter}
@@ -717,12 +728,12 @@ export const TasksBoard = () => {
         onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
       >
-        <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ mt: 2 }}>
+        <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5} sx={{ mt: 1.5 }}>
           {columns.map((column) => (
             <DroppableColumn key={column.status} status={column.status}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
               <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
                   {statusLabel[column.status]}
                 </Typography>
                 <Chip
@@ -738,12 +749,13 @@ export const TasksBoard = () => {
                 variant="text"
                 onClick={() => openCreateDialog(column.status)}
                 disabled={busy}
+                sx={{ minHeight: 30 }}
               >
                 + {t("Add Task")}
               </Button>
             </Stack>
 
-            <Stack spacing={1.5}>
+            <Stack spacing={1}>
               {grouped[column.status].map((task) => {
                 const overdue = isTaskOverdue(task);
                 const isRunning = Boolean(task.timer_started_at);
@@ -764,14 +776,14 @@ export const TasksBoard = () => {
                     <Paper
                       variant="outlined"
                       sx={{
-                        p: 1.5,
+                        p: 1.35,
                         borderRadius: 2,
                         borderColor: (theme) =>
                           overdue
                             ? "error.main"
                             : theme.palette.divider,
                         bgcolor: "background.paper",
-                        transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+                        transition: "border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease",
                         "&:hover": {
                           borderColor: "text.secondary",
                           boxShadow: (theme) =>
@@ -796,6 +808,7 @@ export const TasksBoard = () => {
                               fontWeight: 700,
                               textDecoration: task.status === "done" ? "line-through" : "none",
                               cursor: "pointer",
+                              lineHeight: 1.25,
                             }}
                             onClick={() => openTaskDetails(task)}
                             onKeyDown={(event) => {
@@ -813,7 +826,17 @@ export const TasksBoard = () => {
                         </Stack>
 
                         {task.description ? (
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                              mt: 0.5,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
                             {task.description}
                           </Typography>
                         ) : null}
@@ -828,7 +851,7 @@ export const TasksBoard = () => {
                           </Typography>
                         ) : null}
 
-                        <Stack direction="row" spacing={0} sx={{ mt: 1, flexWrap: "wrap", gap: 0.75 }}>
+                        <Stack direction="row" spacing={0} sx={{ mt: 1, flexWrap: "wrap", gap: 0.55 }}>
                           <Chip
                             size="small"
                             label={priorityLabel[task.priority]}
@@ -884,7 +907,7 @@ export const TasksBoard = () => {
                           </Typography>
                         ) : null}
 
-                        <Stack direction="row" spacing={0} sx={{ mt: 1.2, flexWrap: "wrap", gap: 0.75 }}>
+                        <Stack direction="row" spacing={0} sx={{ mt: 1, flexWrap: "wrap", gap: 0.5 }}>
                           <Tooltip title={isRunning ? t("Pause timer") : t("Start timer")}>
                             <span>
                               <IconButton
@@ -944,7 +967,7 @@ export const TasksBoard = () => {
                       </Stack>
                     </Stack>
 
-                    <Stack direction="row" spacing={0.75} sx={{ mt: 1.5, flexWrap: "wrap" }}>
+                    <Stack direction="row" spacing={0.55} sx={{ mt: 1.25, flexWrap: "wrap" }}>
                       {columns.map((nextColumn) => (
                         <Chip
                           key={nextColumn.status}
@@ -964,9 +987,20 @@ export const TasksBoard = () => {
               })}
 
               {!isLoading && grouped[column.status].length === 0 ? (
-                <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                  {t("No tasks in this column.")}
-                </Typography>
+                <Box
+                  sx={{
+                    border: "1px dashed",
+                    borderColor: "divider",
+                    borderRadius: 2,
+                    px: 1.25,
+                    py: 1.5,
+                    bgcolor: "background.default",
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    {t("No tasks in this column.")}
+                  </Typography>
+                </Box>
               ) : null}
             </Stack>
             </DroppableColumn>
@@ -974,7 +1008,7 @@ export const TasksBoard = () => {
         </Stack>
       </DndContext>
 
-      <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: 2.5, borderColor: "divider" }}>
+      <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, mt: 1.5, borderRadius: 2.5, borderColor: "divider", boxShadow: "none" }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           justifyContent="space-between"
