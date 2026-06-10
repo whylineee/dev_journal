@@ -11,8 +11,6 @@ struct TrayAvailability(bool);
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -20,8 +18,16 @@ pub fn run() {
         ))
         .setup(|app| {
             // Setup DB
-            let app_data_dir = app.path().app_data_dir().expect("Cannot get app data dir");
-            let conn = db::init(app_data_dir).expect("Failed to initialize database");
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|error| format!("Cannot resolve app data dir: {error}"))?;
+            let conn = db::init(app_data_dir.clone()).map_err(|error| {
+                format!(
+                    "Failed to initialize database at {}: {error}",
+                    app_data_dir.display()
+                )
+            })?;
             app.manage(commands::AppState {
                 db: Mutex::new(conn),
             });

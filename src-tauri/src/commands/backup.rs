@@ -5,8 +5,9 @@ use tauri::State;
 
 use super::validation::{
     elapsed_since, encode_json_action_items, encode_json_string_list, habit_exists,
-    normalize_accumulated_seconds, normalize_goal_id, normalize_goal_milestone_title,
-    normalize_goal_status, normalize_habit_color, normalize_habit_date,
+    normalize_accumulated_seconds, normalize_entry_date, normalize_goal_id,
+    normalize_goal_milestone_title, normalize_goal_status, normalize_habit_color,
+    normalize_habit_date,
     normalize_meeting_action_items, normalize_meeting_participants, normalize_meeting_range,
     normalize_meeting_recurrence, normalize_meeting_reminder_minutes, normalize_meeting_status,
     normalize_meeting_title, normalize_optional_date, normalize_optional_http_url,
@@ -155,6 +156,9 @@ pub(crate) fn import_backup_into_conn(
     }
 
     for entry in payload.entries {
+        let Ok(date) = normalize_entry_date(entry.date) else {
+            continue;
+        };
         let project_id = normalize_project_id(&tx, entry.project_id)?;
 
         tx.execute(
@@ -166,7 +170,7 @@ pub(crate) fn import_backup_into_conn(
                 project_id = excluded.project_id,
                 created_at = excluded.created_at",
             params![
-                entry.date,
+                date,
                 entry.yesterday,
                 entry.today,
                 project_id,

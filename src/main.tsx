@@ -6,6 +6,7 @@ import App from "./App";
 import { CustomThemeProvider } from "./theme/ThemeContext";
 import { I18nProvider } from "./i18n/I18nContext";
 import { AppNotificationsProvider } from "./notifications/AppNotifications";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
@@ -26,10 +27,12 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <QueryClientProvider client={queryClient}>
       <CustomThemeProvider>
         <I18nProvider>
-          <AppNotificationsProvider>
-            <CssBaseline />
-            <App />
-          </AppNotificationsProvider>
+          <ErrorBoundary>
+            <AppNotificationsProvider>
+              <CssBaseline />
+              <App />
+            </AppNotificationsProvider>
+          </ErrorBoundary>
         </I18nProvider>
       </CustomThemeProvider>
     </QueryClientProvider>

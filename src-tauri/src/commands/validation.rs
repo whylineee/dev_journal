@@ -332,6 +332,22 @@ pub(crate) fn normalize_habit_date(date: String) -> Result<String, String> {
     Err(format!("Invalid habit date: {}", date))
 }
 
+pub(crate) fn normalize_entry_date(date: String) -> Result<String, String> {
+    let trimmed = date.trim().to_string();
+    if NaiveDate::parse_from_str(&trimmed, "%Y-%m-%d").is_ok() {
+        return Ok(trimmed);
+    }
+
+    Err(format!("Invalid entry date: {}", date))
+}
+
+pub(crate) fn escape_like_pattern(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
 pub(crate) fn normalize_subtask_title(title: String) -> String {
     let trimmed = title.trim();
     if trimmed.is_empty() {

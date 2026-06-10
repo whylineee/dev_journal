@@ -18,6 +18,9 @@ import {
 } from "@mui/material";
 import { useState, useEffect, useCallback } from "react";
 import Markdown from "react-markdown";
+import type { Components } from "react-markdown";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { isSafeExternalUrl } from "../utils/urlUtils";
 import { useDeleteEntry, useEntry, useSaveEntry } from "../hooks/useEntries";
 import { useProjects } from "../hooks/useProjects";
 import { useI18n } from "../i18n/I18nContext";
@@ -51,6 +54,23 @@ const formatDraftTime = (value: string) => {
     } catch {
         return "recently";
     }
+};
+
+// Open markdown links in the system browser instead of navigating the webview away from the app.
+const markdownComponents: Components = {
+    a: ({ href, children }) => (
+        <a
+            href={href}
+            onClick={(event) => {
+                event.preventDefault();
+                if (href && isSafeExternalUrl(href)) {
+                    openUrl(href).catch(() => {});
+                }
+            }}
+        >
+            {children}
+        </a>
+    ),
 };
 
 const ENERGY_OPTIONS: { value: EnergyTag; label: string; color: "success" | "primary" | "warning" | "error" }[] = [
@@ -397,7 +417,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                                     <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1, mb: 0.5, display: "block", fontSize: "0.6rem" }}>
                                         {t("Preview")}
                                     </Typography>
-                                    <Markdown>{yesterday}</Markdown>
+                                    <Markdown components={markdownComponents}>{yesterday}</Markdown>
                                 </Paper>
                             </Box>
                         )}
@@ -430,7 +450,7 @@ export const EntryForm = ({ date, previewEnabled, autosaveEnabled }: EntryFormPr
                                     <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1, mb: 0.5, display: "block", fontSize: "0.6rem" }}>
                                         {t("Preview")}
                                     </Typography>
-                                    <Markdown>{today}</Markdown>
+                                    <Markdown components={markdownComponents}>{today}</Markdown>
                                 </Paper>
                             </Box>
                         )}

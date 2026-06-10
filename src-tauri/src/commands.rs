@@ -338,6 +338,7 @@ pub fn save_entry(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let date = normalize_entry_date(date)?;
     let created_at = chrono::Utc::now().to_rfc3339();
     let project_id = normalize_project_id(&conn, project_id)?;
 
@@ -368,8 +369,12 @@ pub fn delete_entry(date: String, state: State<'_, AppState>) -> Result<(), Stri
 #[tauri::command]
 pub fn search_entries(query: String, state: State<'_, AppState>) -> Result<Vec<Entry>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let search_term = format!("%{}%", query);
-    let mut stmt = conn.prepare("SELECT id, date, yesterday, today, project_id, created_at FROM entries WHERE yesterday LIKE ?1 OR today LIKE ?1 ORDER BY date DESC").map_err(|e| e.to_string())?;
+    search_entries_in_conn(&conn, &query)
+}
+
+pub(crate) fn search_entries_in_conn(conn: &Connection, query: &str) -> Result<Vec<Entry>, String> {
+    let search_term = format!("%{}%", escape_like_pattern(query));
+    let mut stmt = conn.prepare("SELECT id, date, yesterday, today, project_id, created_at FROM entries WHERE yesterday LIKE ?1 ESCAPE '\\' OR today LIKE ?1 ESCAPE '\\' ORDER BY date DESC").map_err(|e| e.to_string())?;
 
     let entries_iter = stmt
         .query_map(params![search_term], |row| {
@@ -394,9 +399,16 @@ pub fn search_entries(query: String, state: State<'_, AppState>) -> Result<Vec<E
 
 #[tauri::command]
 pub fn get_git_commits() -> Result<Vec<String>, String> {
+    // Only meaningful when the app is launched from inside a repository; a
+    // packaged app's cwd is `/` or `$HOME`, where commits would be unrelated.
+    let cwd = match std::env::current_dir() {
+        Ok(cwd) => cwd,
+        Err(_) => return Ok(vec![]),
+    };
+
     let output = match std::process::Command::new("git")
-        .args(["log", "--since=midnight", "--oneline"])
-        .current_dir(std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")))
+        .args(["--no-pager", "log", "--since=midnight", "--oneline"])
+        .current_dir(cwd)
         .output()
     {
         Ok(output) => output,
@@ -405,7 +417,11 @@ pub fn get_git_commits() -> Result<Vec<String>, String> {
 
     if output.status.success() {
         let stdout = String::from_utf8(output.stdout).unwrap_or_default();
-        let commits: Vec<String> = stdout.lines().map(|s| s.to_string()).collect();
+        let commits: Vec<String> = stdout
+            .lines()
+            .take(100)
+            .map(|s| s.to_string())
+            .collect();
         Ok(commits)
     } else {
         Ok(vec![])
@@ -1366,9 +1382,15 @@ mod tests {
     }
 
     fn command_test_connection() -> Connection {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static TEST_DB_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+        // Timestamp alone collides when parallel tests start in the same
+        // nanosecond, so disambiguate with a process-wide counter.
         let temp_dir = std::env::temp_dir().join(format!(
-            "dev-journal-commands-test-{}",
-            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+            "dev-journal-commands-test-{}-{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or_default(),
+            TEST_DB_COUNTER.fetch_add(1, Ordering::Relaxed)
         ));
         let conn = crate::db::init(temp_dir.clone()).expect("db init");
         fs::remove_dir_all(temp_dir).ok();
@@ -1895,5 +1917,76 @@ mod tests {
         assert_eq!(meeting_urls_and_limit.0, None);
         assert_eq!(meeting_urls_and_limit.1, None);
         assert_eq!(meeting_urls_and_limit.2, None);
+    }
+
+    #[test]
+    fn normalize_entry_date_accepts_iso_dates_and_rejects_garbage() {
+        assert_eq!(
+            normalize_entry_date(" 2026-04-06 ".to_string()),
+            Ok("2026-04-06".to_string())
+        );
+        assert!(normalize_entry_date("06/04/2026".to_string()).is_err());
+        assert!(normalize_entry_date("not-a-date".to_string()).is_err());
+        assert!(normalize_entry_date(String::new()).is_err());
+    }
+
+    #[test]
+    fn search_entries_escapes_like_wildcards() {
+        let conn = command_test_connection();
+        conn.execute(
+            "INSERT INTO entries (date, yesterday, today, created_at) VALUES
+                ('2026-04-01', 'Reached 100% coverage', '', '2026-04-01T09:00:00Z'),
+                ('2026-04-02', 'Reached 100x coverage', '', '2026-04-02T09:00:00Z'),
+                ('2026-04-03', 'snake_case rename', '', '2026-04-03T09:00:00Z'),
+                ('2026-04-04', 'snake case rename', '', '2026-04-04T09:00:00Z')",
+            [],
+        )
+        .expect("insert entries");
+
+        let percent_matches = search_entries_in_conn(&conn, "100%").expect("search %");
+        assert_eq!(percent_matches.len(), 1);
+        assert_eq!(percent_matches[0].date, "2026-04-01");
+
+        let underscore_matches = search_entries_in_conn(&conn, "snake_case").expect("search _");
+        assert_eq!(underscore_matches.len(), 1);
+        assert_eq!(underscore_matches[0].date, "2026-04-03");
+
+        let plain_matches = search_entries_in_conn(&conn, "coverage").expect("plain search");
+        assert_eq!(plain_matches.len(), 2);
+    }
+
+    #[test]
+    fn import_backup_skips_entries_with_invalid_dates() {
+        let mut conn = command_test_connection();
+
+        import_backup_into_conn(
+            &mut conn,
+            BackupPayload {
+                entries: vec![
+                    BackupEntryInput {
+                        date: "2026-04-06".to_string(),
+                        yesterday: "valid".to_string(),
+                        today: String::new(),
+                        project_id: None,
+                        created_at: None,
+                    },
+                    BackupEntryInput {
+                        date: "garbage".to_string(),
+                        yesterday: "invalid".to_string(),
+                        today: String::new(),
+                        project_id: None,
+                        created_at: None,
+                    },
+                ],
+                ..BackupPayload::default()
+            },
+            false,
+        )
+        .expect("import backup");
+
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM entries", [], |row| row.get(0))
+            .expect("count entries");
+        assert_eq!(count, 1);
     }
 }

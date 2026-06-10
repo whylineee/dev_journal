@@ -1,7 +1,10 @@
 export const TASK_TABLE_BLOCK = "{{TASK_TABLE}}";
 const FORM_DB_PREFIX = "{{FORM_DB:";
 const TASK_TRACKER_PREFIX = "{{TASK_TRACKER:";
-const BLOCK_TOKEN_REGEX = /\{\{TASK_TABLE\}\}|\{\{FORM_DB:[^}]+\}\}|\{\{TASK_TRACKER:[^}]+\}\}/g;
+// Stateful (global-flag) regexes are created per call so no `lastIndex` state
+// leaks between invocations.
+const createBlockTokenRegex = () =>
+  /\{\{TASK_TABLE\}\}|\{\{FORM_DB:[^}]+\}\}|\{\{TASK_TRACKER:[^}]+\}\}/g;
 const TASK_TABLE_EDITOR_MARKER = "[[Tasks Database]]";
 const FORM_DB_EDITOR_MARKER = "[[Form Database]]";
 const EMBEDDED_EDITOR_MARKER_REGEX =
@@ -242,11 +245,11 @@ export const splitPageContent = (
   trackerDataById: Record<string, TaskTrackerData>
 ): PageContentBlock[] => {
   const blocks: PageContentBlock[] = [];
-  BLOCK_TOKEN_REGEX.lastIndex = 0;
+  const blockTokenRegex = createBlockTokenRegex();
   let cursor = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = BLOCK_TOKEN_REGEX.exec(value)) !== null) {
+  while ((match = blockTokenRegex.exec(value)) !== null) {
     if (match.index > cursor) {
       blocks.push({ type: "markdown", value: value.slice(cursor, match.index) });
     }
@@ -281,7 +284,7 @@ export const splitPageContent = (
       }
     }
 
-    cursor = BLOCK_TOKEN_REGEX.lastIndex;
+    cursor = blockTokenRegex.lastIndex;
   }
 
   if (cursor < value.length) {
@@ -310,10 +313,10 @@ export const materializeTaskTrackerTokensForSave = (
   });
 
 export const extractEmbeddedBlockTokens = (value: string) => {
-  BLOCK_TOKEN_REGEX.lastIndex = 0;
+  const blockTokenRegex = createBlockTokenRegex();
   const tokens: string[] = [];
   let match: RegExpExecArray | null;
-  while ((match = BLOCK_TOKEN_REGEX.exec(value)) !== null) {
+  while ((match = blockTokenRegex.exec(value)) !== null) {
     tokens.push(match[0]);
   }
   return tokens;
@@ -323,9 +326,8 @@ export const normalizeEditorMarkdown = (value: string) =>
   value.replace(/\n{3,}/g, "\n\n").trimEnd();
 
 export const toEditorDisplayContent = (value: string) => {
-  BLOCK_TOKEN_REGEX.lastIndex = 0;
   return normalizeEditorMarkdown(
-    value.replace(BLOCK_TOKEN_REGEX, (token) => {
+    value.replace(createBlockTokenRegex(), (token) => {
       if (token === TASK_TABLE_BLOCK) {
         return TASK_TABLE_EDITOR_MARKER;
       }

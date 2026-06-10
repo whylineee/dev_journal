@@ -294,9 +294,21 @@ export const SettingsScreen = ({
       return;
     }
 
+    const MAX_BACKUP_FILE_BYTES = 50 * 1024 * 1024;
+    if (file.size > MAX_BACKUP_FILE_BYTES) {
+      setImportStatus(t("Backup file is too large (max 50 MB)."));
+      event.target.value = "";
+      return;
+    }
+
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text) as BackupPayload;
+      const parsedJson: unknown = JSON.parse(text);
+      if (typeof parsedJson !== "object" || parsedJson === null || Array.isArray(parsedJson)) {
+        setImportStatus(t("Import failed. Check JSON format."));
+        return;
+      }
+      const parsed = parsedJson as BackupPayload;
 
       importBackupMutation.mutate(
         { payload: parsed, replaceExisting: replaceExistingOnImport },
